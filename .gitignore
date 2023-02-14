@@ -1,0 +1,18 @@
+
+# Output directories
+build/
+bin/
+obj/
+
+# Visual Studio
+.vs/
+*.sln
+*.vcxproj
+*.vcxproj.user
+*.vcxproj.filters
+
+# Python
+__pycache__/
+
+# Download cache
+__download_cache__/
