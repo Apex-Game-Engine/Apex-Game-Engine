@@ -1,75 +1,19 @@
 ﻿#pragma once
 #include "Foundation/axAsserts.h"
+#include "Foundation/axMemory.h"
 
 namespace apex {
 namespace memory {
 
-	struct ArenaAllocator
-	{
-		void *m_pBase { nullptr };
-		size_t m_offset {};
-		size_t m_capacity {};
-
-#if 0
-		/** Initializes a buffer for the stack allocator to allocate memory from
-		 *
-		 *  Overloads:
-		 * - initialize(capacity) : malloc's a buffer of size `capacity`
-		 * - initialize(begin, end) : assigns a pre-allocated buffer with `begin` and `end` pointers
-		 * - initialize(begin, size) : assigns a pre-allocated buffer of `size` with `begin` pointer
-		 */
-		void initialize(size_t capacity);
-		void initialize(void* begin, void* end);
-		void initialize(void* begin, size_t size);
-
-
-		/** Frees the allocated buffer
-		 *
-		 *  # MUST NOT be called for externally allocated buffer memory!
-		 */
-		void destroy();
-
-		/** Resets the stack pointer to clear all the allocated memory
-		 *
-		 *  # Does NOT free the memory!
-		 */
-		void reset();
-
-		/** Allocates managed memory to caller
-		 *
-		 *  For better performance always use the aligned allocation method
-		 */
-		void* allocate(size_t size) override;
-		void* allocate(size_t size, size_t align) override;
-		void free(void *ptr) override;
-#endif
-	};
-
-	struct StackAllocator
-	{
-		void *m_pBase { nullptr };
-		size_t m_offset {};
-		size_t m_capacity {};
-	};
-
-	struct PoolAllocator
-	{
-		void *m_pBase { nullptr };
-		u32 m_totalPoolCapacity {};
-		u32 m_elementSize {};
-		u32 m_poolSize {};
-		u32 m_numElements {};
-		void *m_freeListHead {};
-
-	};
-
-	struct MemoryManager
+	struct MemoryManagerImpl
 	{
 		std::vector<ArenaAllocator> m_arenaAllocators;
 		std::vector<PoolAllocator> m_poolAllocators;
 
 		u8 *m_pBase {};
 		size_t m_capacity {};
+
+		static MemoryManagerImpl* getInstance();
 	};
 
 	namespace detail
@@ -116,6 +60,24 @@ namespace memory {
 
 			return pRawPtr;
 		}
+
+		using pool_size = u64;
+		using elem_size = u64;
+
+		using namespace apex::memory::literals;
+
+		constexpr std::pair<elem_size, pool_size> s_poolAllocatorSizeMap[] = {
+			{ 32, 65536 },     // 32 B    x 65536 = 2 MiB
+			{ 64, 32768 },     // 64 B    x 32768 = 2 MiB
+			{ 64_KiB, 512 },   // 64 KiB  x 512   = 32 MiB
+			{ 512_KiB, 256 },  // 512 KiB x 256   = 128 MiB
+			{ 4_MiB, 128 },    // 4 MiB   x 128   = 512 MiB
+			{ 8_MiB,  64 },    // 8 MiB   x  64   = 512 MiB
+			{ 16_MiB, 32 },    // 16 MiB  x  32   = 512 MiB
+			{ 32_MiB, 32 },    // 32 MiB  x  32   = 1024 MiB
+		};
+
+		constexpr size_t s_poolAllocatorTotalSize { 2724_MiB };
 
 	}
 

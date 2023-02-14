@@ -174,3 +174,8 @@ namespace concurrency {
 
 }
 }
+
+#define ReaderOnlyLock_withlineno(var, lineno) apex::concurrency::ReaderWriterLock32 underlyingRWLock ## lineno; \
+	apex::concurrency::RWLock32ReadOnlyWrapper var { underlyingRWLock ## lineno }
+#define ReaderOnlyLock_withlineno1(var, lineno) ReaderOnlyLock_withlineno(var, lineno)
+#define ReaderOnlyLock(var) ReaderOnlyLock_withlineno1(var, __LINE__)

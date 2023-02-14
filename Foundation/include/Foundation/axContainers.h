@@ -38,7 +38,7 @@ namespace containers
 	template <typename Stored_t>
 	FreeList<Stored_t> allocFreeList(memory::MemoryManager& memory_manager, memory::AllocationType alloc_type)
 	{
-		FreeList<Stored_t>* freeList = memory_manager.getAllocator(alloc_type);
+		FreeList<Stored_t>* freeList = memory_manager.allocate(alloc_type);
 	}
 
 }

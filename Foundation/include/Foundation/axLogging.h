@@ -1,20 +1,13 @@
 ﻿#pragma once
 
-#include <mutex>
 #include <vector>
 
 #include "axTypes.h"
 #include "axConcurrency.h"
 
-namespace apex
+namespace apex::concurrency::lock
 {
-	namespace concurrency
-	{
-		namespace lock
-		{
-			struct NullLock;
-		}
-	}
+	struct NullLock;
 }
 
 namespace apex {

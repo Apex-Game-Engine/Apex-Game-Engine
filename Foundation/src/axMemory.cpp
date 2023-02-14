@@ -8,64 +8,128 @@ namespace memory {
 
 	using namespace literals;
 
-	// Arena Allocator
+	/*//////////////////////////////////////////////
+	               Arena Allocator
+	//////////////////////////////////////////////*/
 
+#ifdef APEX_ENABLE_MEMORY_TRACKING
+#	define ALLOCATOR_MEMORY_TRACKER_ADD_ALLOC_INFO(size) m_memoryTracker.addAllocationInfo(size)
+#	define ALLOCATOR_MEMORY_TRACKER_ADD_FREE_INFO(size) m_memoryTracker.addFreeInfo(size)
+#else
+#	define ALLOCATOR_MEMORY_TRACKER_ADD_ALLOC_INFO(size)
+#	define ALLOCATOR_MEMORY_TRACKER_ADD_FREE_INFO(size)
+#endif
+
+	// Member functions
+	void ArenaAllocator::initialize(void* p_begin, size_t size)
+	{
+		m_pBase = p_begin;
+		m_capacity = size;
+		m_offset = 0;
+	}
+
+	void* ArenaAllocator::allocate(size_t size)
+	{
+		axAssertMsg(m_pBase != nullptr, "Allocator not initialized!");
+		axAssertMsg(m_capacity - m_offset > size, "Allocator overflow!");
+
+		void* top = &static_cast<u8*>(m_pBase)[m_offset];
+
+		m_offset += size;
+
+		ALLOCATOR_MEMORY_TRACKER_ADD_ALLOC_INFO(size);
+
+		return top;
+	}
+
+	void* ArenaAllocator::allocate(size_t size, size_t align)
+	{
+		const size_t actualAllocSize = size + align;
+
+		axAssertMsg(m_pBase != nullptr, "Allocator not initialized!");
+		axAssertMsg(m_capacity - m_offset > actualAllocSize, "Allocator overflow!");
+
+		void* top = &static_cast<u8*>(m_pBase)[m_offset];
+		top = detail::shift_and_align_pointer(top, align);
+
+		m_offset += actualAllocSize;
+
+		ALLOCATOR_MEMORY_TRACKER_ADD_ALLOC_INFO(actualAllocSize);
+
+		return top;
+	}
+
+	void ArenaAllocator::free(void* p_ptr)
+	{
+		axCheckMsg(false, "Do not use free with Arena Allocator. "
+			"This allocator type is meant to be used as scratch memory "
+			"and should be reset rather than freed per allocation.");
+		return;
+
+		axAssert(p_ptr != nullptr);
+
+		const i64 ptrOffset = static_cast<u8*>(p_ptr) - static_cast<u8*>(m_pBase);
+
+		axAssertMsg(ptrOffset >= 0 && static_cast<u64>(ptrOffset) < m_offset, "Invalid pointer! Pointer not from allocator memory!");
+
+		ALLOCATOR_MEMORY_TRACKER_ADD_FREE_INFO(m_offset - ptrOffset);
+
+		if (m_pBase)
+		{
+			m_offset = ptrOffset;
+		}
+
+	}
+
+	void ArenaAllocator::reset()
+	{
+		ALLOCATOR_MEMORY_TRACKER_ADD_FREE_INFO(m_offset);
+
+		m_offset = 0;
+	}
+
+	size_t ArenaAllocator::getTotalCapacity()
+	{
+		return m_capacity;
+	}
+
+	size_t ArenaAllocator::getCurrentUsage()
+	{
+		return m_offset;
+	}
+
+	// Global functions
 	void initialize(ArenaAllocator *p_allocator, void* p_begin, size_t size)
 	{
-		p_allocator->m_pBase = p_begin;
-		p_allocator->m_capacity = size;
-		p_allocator->m_offset = 0;
+		p_allocator->initialize(p_begin, size);
 	}
 
 	void reset(ArenaAllocator *p_allocator)
 	{
-		p_allocator->m_offset = 0;
+		p_allocator->reset();
 	}
 
 	void* allocate(ArenaAllocator *p_allocator, size_t size)
 	{
-		axAssertMsg(p_allocator->m_pBase != nullptr, "Allocator not initialized!");
-		axAssertMsg(p_allocator->m_capacity - p_allocator->m_offset > size, "Stack allocator overflow!");
-
-		void* top = &static_cast<u8*>(p_allocator->m_pBase)[p_allocator->m_offset];
-
-		p_allocator->m_offset += size;
-
-		return top;
+		return p_allocator->allocate(size);
 	}
 	
 	void* allocate(ArenaAllocator *p_allocator, size_t size, size_t align)
 	{
-		const size_t actualAllocSize = size + align;
-
-		axAssertMsg(p_allocator->m_pBase != nullptr, "Allocator not initialized!");
-		axAssertMsg(p_allocator->m_capacity - p_allocator->m_offset > actualAllocSize, "Stack allocator overflow!");
-
-		void* top = &static_cast<u8*>(p_allocator->m_pBase)[p_allocator->m_offset];
-		top = detail::shift_and_align_pointer(top, align);
-
-		p_allocator->m_offset += actualAllocSize;
-
-		return top;
+		return p_allocator->allocate(size, align);
 	}
 
 	void free(ArenaAllocator *p_allocator, void* p_ptr)
 	{
-		axAssert(p_ptr != nullptr);
-
-		const i64 ptrOffset = static_cast<u8*>(p_ptr) - static_cast<u8*>(p_allocator->m_pBase);
-
-		axAssertMsg(ptrOffset >= 0 && static_cast<u64>(ptrOffset) < p_allocator->m_offset, "Invalid pointer! Please provide pointer from the stack!");
-
-		if (p_allocator->m_pBase)
-		{
-			p_allocator->m_offset = ptrOffset;
-		}
+		p_allocator->free(p_ptr);
 	}
 
 
-	// Stack Allocator
+	/*//////////////////////////////////////////////
+	               Stack Allocator
+	//////////////////////////////////////////////*/
 
+	// Global functions
 	void initialize(StackAllocator* p_allocator, void* p_begin, size_t size)
 	{
 		p_allocator->m_pBase = p_begin;
@@ -92,6 +156,7 @@ namespace memory {
 
 	void free(StackAllocator* p_allocator, void* p_ptr)
 	{
+		axAssert(p_ptr != nullptr);
 	}
 
 	void reset(StackAllocator* p_allocator)
@@ -99,33 +164,59 @@ namespace memory {
 		p_allocator->m_offset = 0;
 	}
 
+	// Member functions
+	void StackAllocator::initialize(void* p_begin, size_t size)
+	{
+		memory::initialize(this, p_begin, size);
+	}
+
+	void* StackAllocator::allocate(size_t size)
+	{
+		return memory::allocate(this, size);
+	}
+
+	void* StackAllocator::allocate(size_t size, size_t align)
+	{
+		return memory::allocate(this, size, align);
+	}
+
+	void StackAllocator::free(void* p_ptr)
+	{
+		memory::free(this, p_ptr);
+	}
+
+	void StackAllocator::reset()
+	{
+		memory::reset(this);
+	}
+
 
 	// Pool Allocator
 
-	void initialize(PoolAllocator* p_allocator, void* p_begin, size_t size)
+	void PoolAllocator::initialize(void* p_begin, size_t size)
 	{
-		p_allocator->m_pBase = p_begin;
-		p_allocator->m_totalPoolCapacity = static_cast<u32>(size / static_cast<size_t>(p_allocator->m_elementSize));
+		m_pBase = p_begin;
+		m_numTotalBlocks = static_cast<u32>(size / static_cast<size_t>(m_blockSize));
 	}
 
-	void* allocate(PoolAllocator* p_allocator, size_t size)
+	void* PoolAllocator::allocate(size_t size)
 	{
-		axAssertMsg(p_allocator->m_pBase != nullptr, "Pool allocator not initialized!");
-		axAssertMsg(p_allocator->m_elementSize > size, "Allocation size cannot be larger that Pool allocator's element size!");
+		axAssertMsg(m_pBase != nullptr, "Pool allocator not initialized!");
+		axAssertMsg(m_blockSize > size, "Allocation size cannot be larger than pool element size!");
 
 		u8* ptr;
 
-		if (p_allocator->m_freeListHead == 0)
+		if (m_freeListHead == 0)
 		{
-			ptr = static_cast<u8*>(p_allocator->m_pBase) + static_cast<u64>(p_allocator->m_poolSize * p_allocator->m_elementSize);
-			++p_allocator->m_poolSize;
-			++p_allocator->m_numElements;
+			size_t nextBlockIdx = m_numTotalBlocks - m_numFreeBlocks;
+			ptr = static_cast<u8*>(m_pBase) + static_cast<u64>(nextBlockIdx * m_blockSize);
+			++m_numFreeBlocks;
 		}
 		else
 		{
-			u64* curHead = static_cast<u64*>(p_allocator->m_freeListHead);
+			u64* curHead = static_cast<u64*>(m_freeListHead);
 			u64* nextHead = reinterpret_cast<u64*>(*curHead);
-			p_allocator->m_freeListHead = nextHead;
+			m_freeListHead = nextHead;
 
 			ptr = reinterpret_cast<u8*>(curHead);
 		}
@@ -133,71 +224,74 @@ namespace memory {
 		return ptr;
 	}
 
-	void* allocate(PoolAllocator* p_allocator, size_t size, size_t align)
+	void* PoolAllocator::allocate(size_t size, size_t align)
 	{
-		return nullptr;
+		axAssertMsg(align <= 16, "");
+
+		return allocate(size);
 	}
 
-	void free(PoolAllocator* p_allocator, void* p_ptr)
+	void PoolAllocator::free(void* p_ptr)
 	{
 		axAssert(p_ptr != nullptr);
 
-		const i64 ptrOffset = static_cast<u8*>(p_ptr) - static_cast<u8*>(p_allocator->m_pBase);
-		axAssertMsg(ptrOffset >= 0 && static_cast<u64>(ptrOffset) < p_allocator->m_poolSize, "Invalid pointer! Please provide pointer from the allocator!");
+		const i64 ptrOffset = static_cast<u8*>(p_ptr) - static_cast<u8*>(m_pBase);
+		axAssertMsg(ptrOffset >= 0 && static_cast<u64>(ptrOffset) < static_cast<u64>(m_numTotalBlocks) * m_blockSize, "Invalid pointer! Please provide pointer from the allocator!");
 
-		u64* curHead = static_cast<u64*>(p_allocator->m_freeListHead);
+		u64* curHead = static_cast<u64*>(m_freeListHead);
 		u64* nextHead = static_cast<u64*>(p_ptr);
 		*nextHead = reinterpret_cast<u64>(curHead);
-		p_allocator->m_freeListHead = nextHead;
+		m_freeListHead = nextHead;
 
-		--p_allocator->m_numElements;
+		--m_numFreeBlocks;
 	}
 
-	void reset(PoolAllocator* p_allocator)
+	void PoolAllocator::reset()
 	{
-		p_allocator->m_poolSize = 0;
-		p_allocator->m_freeListHead = nullptr;
+		m_freeListHead = nullptr;
 	}
+
+	size_t PoolAllocator::getTotalCapacity()
+	{
+		return m_blockSize * m_numTotalBlocks;
+	}
+
+	size_t PoolAllocator::getCurrentUsage()
+	{
+		return m_blockSize * (m_numTotalBlocks - m_numFreeBlocks);
+	}
+
 
 	// Memory Manager
 
 	namespace
 	{
-		using pool_size = u64;
-		using elem_size = u64;
-
-		constexpr std::pair<elem_size, pool_size> s_poolAllocatorSizeMap[] = {
-			{ 32, 65536 },     // 32 B    x 65536 = 2 MiB
-			{ 64, 32768 },     // 64 B    x 32768 = 2 MiB
-			{ 64_KiB, 512 },   // 64 KiB  x 512   = 32 MiB
-			{ 512_KiB, 256 },  // 512 KiB x 256   = 128 MiB
-			{ 4_MiB, 128 },    // 4 MiB   x 128   = 512 MiB
-			{ 8_MiB,  64 },    // 8 MiB   x  64   = 512 MiB
-			{ 16_MiB, 32 },    // 16 MiB  x  32   = 512 MiB
-			{ 32_MiB, 32 },    // 32 MiB  x  32   = 1024 MiB
-		};
-
-		constexpr size_t s_poolAllocatorTotalSize { 2724_MiB };
+		MemoryManagerImpl s_pMemoryManagerImpl;
 	}
 
-	void initializeMemoryManager(MemoryManager* p_memory_manager, MemoryManagerDesc desc)
+	MemoryManagerImpl* MemoryManagerImpl::getInstance()
+	{
+		return &s_pMemoryManagerImpl;
+	}
+
+	void MemoryManager::initialize(MemoryManagerDesc desc)
 	{
 		axAssert(desc.arenaManagedMemory > static_cast<size_t>(desc.frameAllocatorCapacity) * static_cast<size_t>(desc.numFramesInFlight));
 		axAssertMsg((desc.frameAllocatorCapacity & (desc.frameAllocatorCapacity - 1)) == 0, "Frame allocator capacity must be power of 2!");
 
-		p_memory_manager->m_capacity = s_poolAllocatorTotalSize + desc.arenaManagedMemory;
-		p_memory_manager->m_pBase = static_cast<u8*>(malloc(p_memory_manager->m_capacity));
-		p_memory_manager->m_arenaAllocators.resize(desc.numFramesInFlight);
+		s_pMemoryManagerImpl.m_capacity = detail::s_poolAllocatorTotalSize + desc.arenaManagedMemory;
+		s_pMemoryManagerImpl.m_pBase = static_cast<u8*>(malloc(s_pMemoryManagerImpl.m_capacity));
+		s_pMemoryManagerImpl.m_arenaAllocators.resize(desc.numFramesInFlight);
 
-		u8* pMemItr = p_memory_manager->m_pBase; // malloc'd memory is 16 byte aligned
+		u8* pMemItr = s_pMemoryManagerImpl.m_pBase; // malloc'd memory is 16 byte aligned
 		
-		p_memory_manager->m_poolAllocators.resize(std::size(s_poolAllocatorSizeMap));
-		for (size_t i = 0; i < std::size(s_poolAllocatorSizeMap); i++)
+		s_pMemoryManagerImpl.m_poolAllocators.resize(std::size(detail::s_poolAllocatorSizeMap));
+		for (size_t i = 0; i < std::size(detail::s_poolAllocatorSizeMap); i++)
 		{
-			auto& [elemSize, poolSize] = s_poolAllocatorSizeMap[i];
-			PoolAllocator& poolAllocator = p_memory_manager->m_poolAllocators[i];
-			poolAllocator.m_elementSize = static_cast<u32>(elemSize);
-			poolAllocator.m_totalPoolCapacity = static_cast<u32>(poolSize);
+			auto& [elemSize, poolSize] = detail::s_poolAllocatorSizeMap[i];
+			PoolAllocator& poolAllocator = s_pMemoryManagerImpl.m_poolAllocators[i];
+			poolAllocator.m_blockSize = static_cast<u32>(elemSize);
+			poolAllocator.m_numTotalBlocks = static_cast<u32>(poolSize);
 			poolAllocator.m_pBase = pMemItr;
 
 			pMemItr += elemSize * poolSize;
@@ -206,18 +300,18 @@ namespace memory {
 		for (u32 i = 0; i < desc.numFramesInFlight; i++)
 		{
 			void* pFrameBase = detail::align_ptr(pMemItr, alignof(size_t));
-			initialize(&p_memory_manager->m_arenaAllocators[i], pFrameBase, desc.frameAllocatorCapacity);
+			s_pMemoryManagerImpl.m_arenaAllocators[i].initialize(pFrameBase, desc.frameAllocatorCapacity);
 
 			pMemItr = static_cast<u8*>(pFrameBase) + desc.frameAllocatorCapacity;
 		}
 	}
 
-	void destroyMemoryManager(MemoryManager* p_memory_manager)
+	void MemoryManager::shutdown()
 	{
-		::free(p_memory_manager->m_pBase);
-		p_memory_manager->m_capacity = 0;
+		::free(s_pMemoryManagerImpl.m_pBase);
+		s_pMemoryManagerImpl.m_capacity = 0;
 
-		for (ArenaAllocator& frameAllocator : p_memory_manager->m_arenaAllocators)
+		for (ArenaAllocator& frameAllocator : s_pMemoryManagerImpl.m_arenaAllocators)
 		{
 			reset(&frameAllocator);
 			frameAllocator.m_pBase = nullptr;
@@ -233,5 +327,29 @@ namespace memory {
 			memory_manager.m_arenaAllocators
 		}
 	}*/
+
+
+
+	void MemoryTracking::addAllocationInfo(size_t size)
+	{
+		m_currentUsage += size;
+		++m_numAllocationsInFrame;
+		++m_numAllocations;
+		m_maxUsageInFrame = max(m_maxUsageInFrame, m_currentUsage);
+	}
+
+	void MemoryTracking::addFreeInfo(size_t size)
+	{
+		m_currentUsage -= size;
+		--m_numFreesInFrame;
+		--m_numFrees;
+	}
+
+	void MemoryTracking::beginNewFrame()
+	{
+		m_numAllocationsInFrame = 0;
+		m_numFreesInFrame = 0;
+	}
+
 }
 }

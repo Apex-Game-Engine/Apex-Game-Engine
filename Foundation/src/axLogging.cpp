@@ -31,7 +31,8 @@ namespace logging {
 			return MSG_BUF;
 		}
 
-		Logger* g_logger;
+		Logger s_logger;
+		ConsoleSink_st s_stdoutSink;
 	}
 
 
@@ -51,12 +52,12 @@ namespace logging {
 
 	void Logger::initialize()
 	{
-		detail::g_logger = new Logger;
+		detail::s_logger.m_sinks.push_back(&detail::s_stdoutSink);
 	}
 
 	Logger& Logger::get()
 	{
-		return *detail::g_logger;
+		return detail::s_logger;
 	}
 
 	void Logger::log(ISink* sink, LogLevel level, const char* file, const char* funcsig, u32 lineno, const char* msg)

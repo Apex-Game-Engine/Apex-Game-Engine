@@ -13,6 +13,9 @@ target_compile_definitions(Foundation
     PRIVATE
     APEX_INTERNAL
     ${APEX_INTERNAL_ENABLES}
+
+    PUBLIC
+    "$<$<CONFIG:Debug,DebugGame,Development>:APEX_ENABLE_MEMORY_TRACKING>"
 )
 
 target_include_directories(Foundation

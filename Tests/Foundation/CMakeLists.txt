@@ -1,6 +1,6 @@
 enable_testing()
 
-file(GLOB SOURCES *.cpp)
+file(GLOB SOURCES *.cpp *.h)
 
 add_executable(Foundation_test
     ${SOURCES}
