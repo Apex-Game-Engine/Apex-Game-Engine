@@ -1,6 +1,8 @@
 # Apex Game Engine v0.2.x
 
-![Apex Game Engine logo](media/ApexGameEngine-logo.svg)
+<p align="center" width="100%">
+  <img width="40%" src="media/ApexGameEngine-logo.svg" />
+</p>
 
 ![Discord](https://img.shields.io/discord/727088685463371827?color=e8a30e&label=%20Discord&logo=Discord&logoColor=e8a30e)
 
