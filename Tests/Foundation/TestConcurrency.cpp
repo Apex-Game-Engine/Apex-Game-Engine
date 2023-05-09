@@ -37,3 +37,24 @@ TEST(TestConcurrency, TestSpinLock)
 
 	EXPECT_EQ(accumulator, numThreads * NUM_ITERATIONS);
 }
+
+
+TEST(TestConcurrency, TestReentrantLock)
+{
+	apex::concurrency::ReentrantLock32 reentrantLock;
+
+	auto lambda_A = [&reentrantLock]()
+	{
+		apex::concurrency::LockGuard lock(reentrantLock);
+		printf("Inside A\n");
+	};
+
+	auto lambda_B = [&reentrantLock, &lambda_A]
+	{
+		apex::concurrency::LockGuard lock(reentrantLock);
+
+		lambda_A();
+	};
+
+	lambda_B();
+}

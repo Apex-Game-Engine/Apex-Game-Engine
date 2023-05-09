@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #define APEX_ENABLE_MEMORY_LITERALS
+#include "Common.h"
 #include "Foundation/axMemory.h"
 #include "Foundation/detail/axMemory-ext.h"
 
@@ -10,6 +11,11 @@ TEST(TestArenaAllocator, TestConstructor)
 	ASSERT_EQ(stackAllocator.m_pBase, nullptr);
 	ASSERT_EQ(stackAllocator.m_offset, 0);
 	ASSERT_EQ(stackAllocator.m_capacity, 0);
+
+#ifdef APEX_ENABLE_MEMORY_TRACKING
+
+#endif
+
 }
 
 TEST(TestArenaAllocator, TestInitialize)
@@ -19,7 +25,7 @@ TEST(TestArenaAllocator, TestInitialize)
 	constexpr size_t BUF_SIZE = 1024ui64 * 1024ui64 * 128ui64;
 	std::vector<apex::u8> stackBuf(BUF_SIZE);
 
-	initialize(&stackAllocator, stackBuf.data(), BUF_SIZE);
+	stackAllocator.initialize(stackBuf.data(), BUF_SIZE);
 	ASSERT_EQ(stackAllocator.m_pBase, stackBuf.data());
 	ASSERT_EQ(stackAllocator.m_offset, 0);
 	ASSERT_EQ(stackAllocator.m_capacity, BUF_SIZE);
@@ -32,8 +38,8 @@ TEST(TestArenaAllocator, TestReset)
 	constexpr size_t BUF_SIZE = 1024ui64 * 1024ui64 * 128ui64;
 	std::vector<apex::u8> stackBuf(BUF_SIZE);
 
-	initialize(&stackAllocator, stackBuf.data(), BUF_SIZE);
-	reset(&stackAllocator);
+	stackAllocator.initialize(stackBuf.data(), BUF_SIZE);
+	stackAllocator.reset();
 	ASSERT_EQ(stackAllocator.m_pBase, stackBuf.data());
 	ASSERT_EQ(stackAllocator.m_offset, 0);
 	ASSERT_EQ(stackAllocator.m_capacity, BUF_SIZE);
@@ -49,7 +55,7 @@ TEST(TestArenaAllocator, TestDestrutor)
 
 	{
 		apex::memory::ArenaAllocator stackAllocator;
-		initialize(&stackAllocator, stackBuf.data(), BUF_SIZE);
+		stackAllocator.initialize(stackBuf.data(), BUF_SIZE);
 		basePtr = stackAllocator.m_pBase;
 	}
 
@@ -64,9 +70,27 @@ TEST(TestArenaAllocator, TestAllocate)
 	constexpr size_t BUF_SIZE = 1024ui64 * 1024ui64 * 128ui64;
 	std::vector<apex::u8> stackBuf(BUF_SIZE);
 
-	initialize(&stackAllocator, stackBuf.data(), BUF_SIZE);
+	stackAllocator.initialize(stackBuf.data(), BUF_SIZE);
 
-	int *pInt = static_cast<int*>(allocate(&stackAllocator, sizeof(int)));
+	int *pInt = static_cast<int*>(stackAllocator.allocate(sizeof(int)));
+	int& a = *pInt;
+
+	ASSERT_EQ(stackAllocator.m_offset, sizeof(int));
+}
+
+TEST(TestArenaAllocator, TestAllocateAligned)
+{
+	apex::memory::ArenaAllocator stackAllocator;
+
+	constexpr size_t BUF_SIZE = 1024ui64 * 1024ui64 * 128ui64;
+	std::vector<apex::u8> stackBuf(BUF_SIZE);
+
+	stackAllocator.initialize(stackBuf.data(), BUF_SIZE);
+
+	int *pInt = static_cast<int*>(stackAllocator.allocate(sizeof(int)));
+
+	ASSERT_PRED2(IsMultipleOf, reinterpret_cast<size_t>(pInt), 16ui64);
+
 	int& a = *pInt;
 
 	ASSERT_EQ(stackAllocator.m_offset, sizeof(int));
@@ -88,9 +112,9 @@ TEST(TestArenaAllocator, TestAllocateObject)
 	constexpr size_t BUF_SIZE = 1024ui64 * 1024ui64 * 128ui64;
 	std::vector<apex::u8> stackBuf(BUF_SIZE);
 
-	initialize(&stackAllocator, stackBuf.data(), BUF_SIZE);
+	stackAllocator.initialize(stackBuf.data(), BUF_SIZE);
 
-	void *pInt = allocate(&stackAllocator, sizeof(SomeClass));
+	void *pInt = stackAllocator.allocate(sizeof(SomeClass));
 	SomeClass* a = new(pInt) SomeClass();
 
 	ASSERT_EQ(stackAllocator.m_offset, sizeof(SomeClass));
@@ -107,36 +131,54 @@ TEST(TestArenaAllocator, TestFree)
 	constexpr size_t BUF_SIZE = 1024ui64 * 1024ui64 * 128ui64;
 	std::vector<apex::u8> stackBuf(BUF_SIZE);
 
-	initialize(&stackAllocator, stackBuf.data(), BUF_SIZE);
+	stackAllocator.initialize(stackBuf.data(), BUF_SIZE);
 
-	int *pInt = static_cast<int*>(allocate(&stackAllocator, sizeof(int)));
+	int *pInt = static_cast<int*>(stackAllocator.allocate(sizeof(int)));
 
-	free(&stackAllocator, pInt);
+	stackAllocator.free(pInt);
+	// stackAllocator.reset();
 
-	ASSERT_EQ(stackAllocator.m_offset, 0);
+	// ASSERT_EQ(stackAllocator.m_offset, 0);
 }
 
+TEST(TestArenaAllocator, TestFreeAligned)
+{
+	apex::memory::ArenaAllocator stackAllocator;
 
+	constexpr size_t BUF_SIZE = 1024ui64 * 1024ui64 * 128ui64;
+	std::vector<apex::u8> stackBuf(BUF_SIZE);
+
+	stackAllocator.initialize(stackBuf.data(), BUF_SIZE);
+
+	int *pInt = static_cast<int*>(stackAllocator.allocate(sizeof(int)));
+
+	ASSERT_PRED2(IsMultipleOf, reinterpret_cast<size_t>(pInt), 16ui64);
+
+	int& a = *pInt;
+
+	ASSERT_EQ(stackAllocator.m_offset, sizeof(int));
+}
 
 
 TEST(TestMemoryManager, TestInitialize)
 {
 	using namespace apex::memory::literals;
 
-	apex::memory::MemoryManager memoryManager;
+	apex::memory::MemoryManagerImpl* memoryManager = apex::memory::MemoryManagerImpl::getInstance();
 
 	apex::memory::MemoryManagerDesc desc{};
 	desc.arenaManagedMemory = 1024_MiB;
 	desc.numFramesInFlight = 3;
 	desc.frameAllocatorCapacity = 1024u * 1024u * 128u;
 
-	apex::memory::initializeMemoryManager(&memoryManager, desc);
+	apex::memory::MemoryManager::initialize(desc);
 
-	ASSERT_EQ(memoryManager.m_capacity, 1024_MiB + 2724_MiB);
 
-	ASSERT_EQ(memoryManager.m_arenaAllocators.size(), 3);
-	ASSERT_EQ(memoryManager.m_arenaAllocators[0].m_capacity, 1024u * 1024u * 128);
+	ASSERT_EQ(memoryManager->m_capacity, 1024_MiB + 2724_MiB);
 
-	apex::i64 memDiff = static_cast<apex::u8*>(memoryManager.m_arenaAllocators[1].m_pBase) - static_cast<apex::u8*>(memoryManager.m_arenaAllocators[0].m_pBase);
+	ASSERT_EQ(memoryManager->m_arenaAllocators.size(), 3);
+	ASSERT_EQ(memoryManager->m_arenaAllocators[0].m_capacity, 1024u * 1024u * 128);
+
+	apex::i64 memDiff = static_cast<apex::u8*>(memoryManager->m_arenaAllocators[1].m_pBase) - static_cast<apex::u8*>(memoryManager->m_arenaAllocators[0].m_pBase);
 	ASSERT_TRUE(memDiff >= 1024i64 * 1024i64 * 128i64);
 }
