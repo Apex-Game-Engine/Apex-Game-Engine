@@ -14,3 +14,4 @@ set_target_properties(gmock PROPERTIES FOLDER "GoogleTest")
 set_target_properties(gmock_main PROPERTIES FOLDER "GoogleTest")
 
 add_subdirectory(Foundation)
+add_subdirectory(Engine)
