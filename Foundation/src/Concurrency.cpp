@@ -1,5 +1,6 @@
-﻿#include "Foundation/axConcurrency.h"
-#include "Foundation/axAsserts.h"
+﻿#include "Concurrency/Concurrency.h"
+#include "Core/Asserts.h"
+#include "Core/Platform.h"
 
 namespace apex {
 namespace concurrency {

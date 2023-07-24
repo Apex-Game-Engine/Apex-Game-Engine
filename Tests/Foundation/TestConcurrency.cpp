@@ -1,5 +1,5 @@
 ﻿#include <gtest/gtest.h>
-#include "Foundation/axConcurrency.h"
+#include "Concurrency/Concurrency.h"
 
 #include <queue>
 

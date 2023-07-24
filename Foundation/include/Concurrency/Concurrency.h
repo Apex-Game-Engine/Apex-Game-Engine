@@ -1,7 +1,7 @@
 #pragma once
 #include <mutex>
 
-#include "Platform.h"
+#include "Core/Platform.h"
 
 namespace apex {
 namespace concurrency {
@@ -41,7 +41,7 @@ namespace concurrency {
 		void unlock();
 
 	private:
-		std::atomic_flag m_flag{ false };
+		std::atomic_flag m_flag{};
 	};
 
 	// ReentrantLock32 implementation as described by Jason Gregory in his book

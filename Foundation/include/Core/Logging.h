@@ -2,8 +2,8 @@
 
 #include <vector>
 
-#include "axTypes.h"
-#include "axConcurrency.h"
+#include "Core/Types.h"
+#include "Concurrency/Concurrency.h"
 
 namespace apex::concurrency::lock
 {
@@ -13,7 +13,7 @@ namespace apex::concurrency::lock
 namespace apex {
 namespace logging {
 
-	enum class LogLevel : u8
+	enum class LogLevel : apex::uint8
 	{
 		Verbose  = 0,
 		Debug    = 1,
@@ -27,11 +27,15 @@ namespace logging {
 
 	struct LogMsg
 	{
-		const char *file;
+		const char *filepath;
 		const char *funcsig;
 		const char *msg;
-		u32 lineno;
+		uint32 lineno;
 		LogLevel level;
+
+		LogMsg(const char *filepath, const char *funcsig, const char *msg, uint32 lineno, LogLevel level);
+
+		const char *filename;
 	};
 
 	struct ISink
@@ -42,13 +46,13 @@ namespace logging {
 
 	struct Logger
 	{
-		void log(LogLevel level, const char *file, const char *funcsig, u32 lineno, const char *msg) const;
+		void log(LogLevel level, const char *file, const char *funcsig, uint32 lineno, const char *msg) const;
 		void log(const LogMsg& log_msg) const;
 
 		static void initialize();
 		static Logger& get();
 
-		static void log(ISink* sink, LogLevel level, const char *file, const char *funcsig, u32 lineno, const char *msg);
+		static void log(ISink* sink, LogLevel level, const char *file, const char *funcsig, uint32 lineno, const char *msg);
 		static void log(ISink* sink, const LogMsg& log_msg);
 
 		std::vector<ISink*> m_sinks;
@@ -105,5 +109,6 @@ namespace logging {
 #define axLog(msg)      axLogLevel(apex::logging::LogLevel::Verbose, __FILE__, __FUNCTION__, __LINE__, msg)
 #define axDebug(msg)    axLogLevel(apex::logging::LogLevel::Debug, __FILE__, __FUNCTION__, __LINE__, msg)
 #define axInfo(msg)     axLogLevel(apex::logging::LogLevel::Info, __FILE__, __FUNCTION__, __LINE__, msg)
+#define axWarn(msg)     axLogLevel(apex::logging::LogLevel::Warn, __FILE__, __FUNCTION__, __LINE__, msg)
 #define axError(msg)    axLogLevel(apex::logging::LogLevel::Error, __FILE__, __FUNCTION__, __LINE__, msg)
 #define axCritical(msg) axLogLevel(apex::logging::LogLevel::Critical, __FILE__, __FUNCTION__, __LINE__, msg)

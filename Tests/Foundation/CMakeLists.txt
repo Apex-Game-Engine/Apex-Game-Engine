@@ -9,7 +9,12 @@ add_executable(Foundation_test
 target_link_libraries(Foundation_test
     PRIVATE
     Foundation
-    GTest::gtest_main
+    GTest::gtest
+)
+
+target_compile_definitions(Foundation_test
+    PRIVATE
+    APEX_ENABLE_TESTS
 )
 
 set_target_properties(Foundation_test PROPERTIES FOLDER "Tests")

@@ -1,6 +1,6 @@
 ﻿#include <gtest/gtest.h>
-#include "Foundation/axAsserts.h"
-#include "Foundation/axLogging.h"
+#include "Core/Asserts.h"
+#include "Core/Logging.h"
 
 void testDebug()
 {
@@ -13,8 +13,8 @@ TEST(TestLogging, TestConsoleLogger)
 
 	apex::logging::ConsoleSink_st consoleSink;
 
-	apex::logging::Logger::initialize();
-	apex::logging::Logger::get().m_sinks.push_back(&consoleSink);
+	//apex::logging::Logger::initialize();
+	//apex::logging::Logger::get().m_sinks.push_back(&consoleSink);
 
 	testDebug();
 

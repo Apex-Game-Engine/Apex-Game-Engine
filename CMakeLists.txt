@@ -4,15 +4,15 @@ include(FetchContent)
 
 set(CMAKE_CXX_EXCEPTIONS Off)
 set(CMAKE_CXX_RTTI Off)
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 
-FetchContent_Declare(
-    glfw
-    GIT_REPOSITORY https://github.com/glfw/glfw
-    GIT_TAG 8f470597d625ae28758c16b4293dd42d63e8a83a
-)
-
-FetchContent_MakeAvailable(glfw)
+# FetchContent_Declare(
+#     glfw
+#     GIT_REPOSITORY https://github.com/glfw/glfw
+#     GIT_TAG 8f470597d625ae28758c16b4293dd42d63e8a83a
+# )
+# 
+# FetchContent_MakeAvailable(glfw)
 
 
 project(ApexGameEngine
@@ -66,11 +66,22 @@ add_compile_definitions(
     $<$<CONFIG:Release>:APEX_CONFIG_RELEASE>
 )
 
+if(WIN32)
+    set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS On)
+    add_compile_definitions(APEX_PLATFORM_WIN32)
+else()
+endif()
+
+add_subdirectory(ExternalLibraries)
+
 add_subdirectory(Foundation)
-# add_subdirectory(Graphics)
+add_subdirectory(Graphics)
 add_subdirectory(Engine)
 # add_subdirectory(Runtime)
 # add_subdirectory(Editor)
 
 # Unit Tests
 add_subdirectory(Tests)
+
+# Examples
+add_subdirectory(examples)

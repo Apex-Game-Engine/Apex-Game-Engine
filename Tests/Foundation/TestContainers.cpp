@@ -1,5 +1,5 @@
 ﻿#include <gtest/gtest.h>
-#include "Foundation/axContainers.h"
+#include "Containers/Containers.h"
 
 TEST(TestContainers, TestFreeListInitialize)
 {
@@ -11,5 +11,11 @@ TEST(TestContainers, TestFreeListInitialize)
 		EXPECT_EQ(aCounters[i], reinterpret_cast<uintptr_t>(&aCounters[i+1]));
 	}*/
 
+}
+
+
+TEST(TestContainers, TestArray)
+{
+	
 }
 

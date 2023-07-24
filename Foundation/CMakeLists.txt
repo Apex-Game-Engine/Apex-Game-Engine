@@ -1,5 +1,5 @@
-file(GLOB_RECURSE HEADER_FILES include/*.h)
-file(GLOB_RECURSE SOURCE_FILES src/*.cpp src/*.h)
+file(GLOB_RECURSE HEADER_FILES include/*.h include/*.inl)
+file(GLOB_RECURSE SOURCE_FILES src/*.cpp src/*.h src/*.inl)
 
 group_header_files(${HEADER_FILES})
 group_source_files(${SOURCE_FILES})
