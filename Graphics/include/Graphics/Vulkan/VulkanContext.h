@@ -1,6 +1,6 @@
 #pragma once
 
-#include <vulkan/vulkan.h>
+#include <vulkan/vulkan_core.h>
 
 namespace apex {
 	struct Window;
@@ -19,18 +19,19 @@ namespace gfx {
 		VkPhysicalDeviceProperties m_physicalDeviceProperties{};
 		VkPhysicalDeviceFeatures   m_physicalDeviceFeatures{};
 
-		
+	
 	};
 
 	struct VulkanContext
 	{
-		static void InitializeVulkan(VulkanContext &obj, const char* app_name, Window* pwindow, bool enable_debugging);
-		static void CleanupVulkan();
+		void initialize(const char* app_name, Window* pwindow, bool enable_debugging);
+		void shutdown();
 
 		static VulkanContext* GetInstance() { return s_pInstance; }
 
-		VkInstance m_instance{};
-		Window    *m_pWindow{};
+		VkInstance               m_instance{};
+		VkDebugUtilsMessengerEXT m_debugMessenger{};
+		Window*                  m_pWindow{};
 
 		static VulkanContext *s_pInstance;
 		
@@ -39,7 +40,9 @@ namespace gfx {
 		void _cleanupVulkan();
 
 		void _createInstance(const char* app_name);
-
+		void _createDebugMessenger();
+		void _createSurface();
 	};
+
 }
 }

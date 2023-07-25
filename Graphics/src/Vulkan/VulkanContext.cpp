@@ -2,6 +2,7 @@
 
 #include "Core/Asserts.h"
 #include "Core/Logging.h"
+#include "Graphics/Vulkan/VulkanFunctions.h"
 
 namespace apex {
 namespace gfx {
@@ -21,15 +22,15 @@ namespace detail {
 
 
 #ifdef APEX_VK_ENABLE_VALIDATION
-	bool s_enableDebugLayers = true;
-	const char* s_validationLayerNames[] = {
+	bool kEnableDebugLayers = true;
+	const char* kValidationLayerNames[] = {
 		"VK_LAYER_KHRONOS_validation",
 	};
 #else
-	const bool s_enableDebugLayers = false;
+	const bool kEnableDebugLayers = false;
 #endif
 
-	const char* s_requiredInstanceExtensions[] = {
+	const char* kRequiredInstanceExtensions[] = {
 		// Required extensions for window surface creation
 		"VK_KHR_surface",
 		"VK_KHR_win32_surface",
@@ -42,20 +43,19 @@ namespace detail {
 #endif
 	};
 
-	const char* s_requiredDeviceExtensions[] = {
+	const char* kRequiredDeviceExtensions[] = {
 		VK_KHR_SWAPCHAIN_EXTENSION_NAME
 	};
 
 } // namespace detail
 
-
 	VulkanContext* VulkanContext::s_pInstance = nullptr;
 
-	void VulkanContext::InitializeVulkan(VulkanContext& obj, const char* app_name, Window* pwindow, bool enable_debugging)
+	void VulkanContext::initialize(const char* app_name, Window* pwindow, bool enable_debugging)
 	{
-		s_pInstance = &obj;
+		s_pInstance = this;
 
-		obj._initializeVulkan(app_name, pwindow, enable_debugging);
+		_initializeVulkan(app_name, pwindow, enable_debugging);
 	}
 
 	void VulkanContext::_initializeVulkan(const char* app_name, Window* pwindow, bool enable_debugging)
@@ -63,7 +63,7 @@ namespace detail {
 		m_pWindow = pwindow;
 
 		#ifdef APEX_VK_ENABLE_VALIDATION
-		detail::s_enableDebugLayers = enable_debugging;
+		detail::kEnableDebugLayers = enable_debugging;
 		#endif
 
 		// Create a Vulkan instance
@@ -79,29 +79,31 @@ namespace detail {
 	void VulkanContext::_createInstance(const char* app_name)
 	{
 		// TODO: Extract application and engine version info from env macros
-		VkApplicationInfo applicationInfo{};
-		applicationInfo.sType              = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-		applicationInfo.pApplicationName   = app_name;
-		applicationInfo.applicationVersion = VK_MAKE_VERSION(0, 0, 1);
-		applicationInfo.pEngineName        = "Apex Game Engine";
-		applicationInfo.engineVersion      = VK_MAKE_VERSION(0, 2, 0);
-		applicationInfo.apiVersion         = VK_API_VERSION_1_3;
+		VkApplicationInfo applicationInfo{
+		.sType              = VK_STRUCTURE_TYPE_APPLICATION_INFO,
+		.pApplicationName   = app_name,
+		.applicationVersion = VK_MAKE_VERSION(0, 0, 1),
+		.pEngineName        = "Apex Game Engine",
+		.engineVersion      = VK_MAKE_VERSION(0, 2, 0),
+		.apiVersion         = VK_API_VERSION_1_3,
+		};
 
-		VkInstanceCreateInfo instanceCreateInfo{};
-		instanceCreateInfo.sType            = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-		instanceCreateInfo.pApplicationInfo = &applicationInfo;
+		VkInstanceCreateInfo instanceCreateInfo{
+		.sType            = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
+		.pApplicationInfo = &applicationInfo,
+		};
 
 		// Check if validation layers are available
-		axAssertMsg(!(detail::s_enableDebugLayers && !detail::check_validation_layer_support()),
+		axAssertMsg(!(detail::kEnableDebugLayers && !detail::check_validation_layer_support()),
 			"Validation layers are requested but not supported!"
 		);
 
-		if (detail::s_enableDebugLayers)
-		{
-			instanceCreateInfo.enabledLayerCount   = static_cast<uint32>(std::size(detail::s_validationLayerNames));
-			instanceCreateInfo.ppEnabledLayerNames = detail::s_validationLayerNames;
+		VkDebugUtilsMessengerCreateInfoEXT debugMessengerCreateInfo = detail::debug_messenger_create_info();
 
-			VkDebugUtilsMessengerCreateInfoEXT debugMessengerCreateInfo = detail::debug_messenger_create_info();
+		if (detail::kEnableDebugLayers)
+		{
+			instanceCreateInfo.enabledLayerCount   = static_cast<uint32>(std::size(detail::kValidationLayerNames));
+			instanceCreateInfo.ppEnabledLayerNames = detail::kValidationLayerNames;
 			instanceCreateInfo.pNext = &debugMessengerCreateInfo;
 		}
 		else
@@ -110,32 +112,40 @@ namespace detail {
 			instanceCreateInfo.ppEnabledLayerNames = nullptr;
 		}
 
-		instanceCreateInfo.enabledExtensionCount   = static_cast<uint32>(std::size(detail::s_requiredInstanceExtensions));
-		instanceCreateInfo.ppEnabledExtensionNames = detail::s_requiredInstanceExtensions;
+		instanceCreateInfo.enabledExtensionCount   = static_cast<uint32>(std::size(detail::kRequiredInstanceExtensions));
+		instanceCreateInfo.ppEnabledExtensionNames = detail::kRequiredInstanceExtensions;
 
 		axVerifyMsg(VK_SUCCESS == vkCreateInstance(&instanceCreateInfo, nullptr, &m_instance),
 			"Failed to create Vulkan instance!"
 		);
 	}
 
+	void VulkanContext::_createDebugMessenger()
+	{
+		VkDebugUtilsMessengerCreateInfoEXT createInfo = detail::debug_messenger_create_info();
+
+		axAssertMsg(VK_SUCCESS == vk::createDebugUtilsMessengerEXT(m_instance, &createInfo, nullptr, &m_debugMessenger),
+			"Failed to create Vulkan debug utils messenger!"
+		);
+	}
 
 	// namespace detail :: definitions
 	VkDebugUtilsMessengerCreateInfoEXT detail::debug_messenger_create_info()
 	{
-		VkDebugUtilsMessengerCreateInfoEXT createInfo{};
-		createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
-		createInfo.messageSeverity = 
+		VkDebugUtilsMessengerCreateInfoEXT createInfo{
+		.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
+		.messageSeverity = 
 			//VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
 			//VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT |
 			VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
-			VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
-		createInfo.messageType =
+			VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT,
+		.messageType =
 			VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
 			VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
-			VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
-		createInfo.pfnUserCallback = detail::vulkan_debug_messenger_callback;
-		createInfo.pUserData = nullptr;
-
+			VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT,
+		.pfnUserCallback = detail::vulkan_debug_messenger_callback,
+		.pUserData = nullptr,
+		};
 		return createInfo;
 	}
 
@@ -178,5 +188,6 @@ namespace detail {
 		return VK_FALSE;
 
 	}
+
 } // namespace gfx
 } // namespace apex
