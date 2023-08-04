@@ -17,11 +17,13 @@
 
 		// TODO: move this to a GameContext struct
 		apex::gfx::VulkanContext vulkanContext;
-		apex::gfx::VulkanContext::InitializeVulkan(vulkanContext, APEX_DEFAULT_APPNAME, app->getWindow(), true);
+		vulkanContext.initialize(APEX_DEFAULT_APPNAME, app->getWindow(), true);
 
 		app->getWindow()->construct(hInstance);
 		app->getWindow()->show(nCmdShow);
 		app->run();
+
+		vulkanContext.shutdown();
 
 		return 0;
 	}
