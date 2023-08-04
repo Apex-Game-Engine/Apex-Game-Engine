@@ -4,7 +4,7 @@
 
 namespace apex {
 
-	VkResult vk::createDebugUtilsMessengerEXT(
+	VkResult vk::CreateDebugUtilsMessengerEXT(
 		VkInstance instance,
 		const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo,
 		const VkAllocationCallbacks* pAllocator,
@@ -21,7 +21,7 @@ namespace apex {
 		return VK_ERROR_EXTENSION_NOT_PRESENT;
 	}
 
-	void vk::destroyDebugUtilsMessengerEXT(
+	void vk::DestroyDebugUtilsMessengerEXT(
 		VkInstance instance,
 		VkDebugUtilsMessengerEXT messenger,
 		const VkAllocationCallbacks* pAllocator)

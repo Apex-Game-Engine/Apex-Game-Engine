@@ -9,16 +9,14 @@ namespace gfx {
 
 namespace detail {
 
-	VkDebugUtilsMessengerCreateInfoEXT debug_messenger_create_info();
-	bool check_validation_layer_support();
-	
-
-	static VKAPI_ATTR VkBool32 VKAPI_CALL vulkan_debug_messenger_callback(
+	extern constexpr VkDebugUtilsMessengerCreateInfoEXT debug_messenger_create_info();
+	extern VKAPI_ATTR VkBool32 VKAPI_CALL vulkan_debug_messenger_callback(
 	    VkDebugUtilsMessageSeverityFlagBitsEXT           messageSeverity,
 	    VkDebugUtilsMessageTypeFlagsEXT                  messageTypes,
 	    const VkDebugUtilsMessengerCallbackDataEXT*      pCallbackData,
 	    void*                                            pUserData
 	);
+	extern bool check_validation_layer_support();
 
 
 #ifdef APEX_VK_ENABLE_VALIDATION
@@ -28,6 +26,8 @@ namespace detail {
 	};
 #else
 	const bool kEnableDebugLayers = false;
+	const char* kValidationLayerNames[] = {
+	};
 #endif
 
 	const char* kRequiredInstanceExtensions[] = {
@@ -69,7 +69,10 @@ namespace detail {
 		// Create a Vulkan instance
 		_createInstance(app_name);
 
-		// Add debug messenger for handling debug callbnacks
+		// Add debug messenger for handling debug callbacks
+		_createDebugMessenger();
+
+
 	}
 
 	void VulkanContext::_cleanupVulkan()
@@ -98,7 +101,7 @@ namespace detail {
 			"Validation layers are requested but not supported!"
 		);
 
-		VkDebugUtilsMessengerCreateInfoEXT debugMessengerCreateInfo = detail::debug_messenger_create_info();
+		const VkDebugUtilsMessengerCreateInfoEXT debugMessengerCreateInfo = detail::debug_messenger_create_info();
 
 		if (detail::kEnableDebugLayers)
 		{
@@ -124,69 +127,9 @@ namespace detail {
 	{
 		VkDebugUtilsMessengerCreateInfoEXT createInfo = detail::debug_messenger_create_info();
 
-		axAssertMsg(VK_SUCCESS == vk::createDebugUtilsMessengerEXT(m_instance, &createInfo, nullptr, &m_debugMessenger),
+		axAssertMsg(VK_SUCCESS == vk::CreateDebugUtilsMessengerEXT(m_instance, &createInfo, nullptr, &m_debugMessenger),
 			"Failed to create Vulkan debug utils messenger!"
 		);
-	}
-
-	// namespace detail :: definitions
-	VkDebugUtilsMessengerCreateInfoEXT detail::debug_messenger_create_info()
-	{
-		VkDebugUtilsMessengerCreateInfoEXT createInfo{
-		.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
-		.messageSeverity = 
-			//VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
-			//VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT |
-			VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
-			VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT,
-		.messageType =
-			VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
-			VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
-			VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT,
-		.pfnUserCallback = detail::vulkan_debug_messenger_callback,
-		.pUserData = nullptr,
-		};
-		return createInfo;
-	}
-
-	bool detail::check_validation_layer_support()
-	{
-		// TODO: implement checking for support of validation layers
-		return true;
-	}
-
-	VkBool32 detail::vulkan_debug_messenger_callback(
-		VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
-		VkDebugUtilsMessageTypeFlagsEXT messageTypes,
-		const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
-		void* pUserData)
-	{
-		switch (messageSeverity)
-		{
-		case VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT:
-			{
-				axDebug(pCallbackData->pMessage);
-				break;
-			}
-		case VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT:
-			{
-				axInfo(pCallbackData->pMessage);
-				break;
-			}
-		case VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT:
-			{
-				axWarn(pCallbackData->pMessage);
-				break;
-			}
-		case VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT:
-			{
-				axError(pCallbackData->pMessage);
-				break;
-			}
-		case VK_DEBUG_UTILS_MESSAGE_SEVERITY_FLAG_BITS_MAX_ENUM_EXT: break;
-		}
-		return VK_FALSE;
-
 	}
 
 } // namespace gfx

@@ -16,3 +16,7 @@ __pycache__/
 
 # Download cache
 __download_cache__/
+
+# Compiled shaders
+*.spv
+*.d
