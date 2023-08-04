@@ -12,7 +12,7 @@ add_library(Foundation OBJECT
 target_compile_definitions(Foundation
     PRIVATE
     APEX_INTERNAL
-    ${APEX_INTERNAL_ENABLES}
+    ${APEX_ENABLES}
 
     PUBLIC
     "$<$<CONFIG:Debug,DebugGame,Development>:APEX_ENABLE_MEMORY_TRACKING>"

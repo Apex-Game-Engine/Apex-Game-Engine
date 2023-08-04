@@ -14,7 +14,7 @@ namespace logging {
 
 		const char* LOG_LEVEL_STR[static_cast<uint64>(LogLevel::_MAX_ENUM_)] =
 		{
-			"Verbose",
+			"Trace",
 			"Debug",
 			"Info",
 			"Warn",
@@ -72,7 +72,22 @@ namespace logging {
 
 	void IConsoleSink::log(const LogMsg& log_msg)
 	{
-		OutputDebugString(detail::format_log_msg(log_msg));
+		auto msgStr = detail::format_log_msg(log_msg);
+#if defined(APEX_CONFIG_DEBUG) || defined(APEX_CONFIG_DEBUGGAME) || defined(APEX_CONFIG_DEVELOPMENT)
+		if (log_msg.level == LogLevel::Trace)
+		{
+			OutputDebugString(msgStr);
+			return;
+		}
+#endif
+		if (log_msg.level < LogLevel::Error)
+		{
+			(void)fprintf(stdout, "%s", msgStr);
+		}
+		else
+		{
+			(void)fprintf(stderr, "%s", msgStr);
+		}
 	}
 
 	LogMsg::LogMsg(const char* filepath, const char* funcsig, const char* msg, uint32 lineno, LogLevel level)

@@ -96,7 +96,7 @@ namespace math {
 		float32 operator [](size_t index) const { return m_values[index]; }
 		float32& operator [](size_t index) { return m_values[index]; }
 
-		Vector3 operator-() const { return { -m_values[0],  -m_values[1], -m_values[2]}; }
+		Vector3 operator-() const { return { -m_values[0],  -m_values[1], -m_values[2] }; }
 
 		Vector3& operator+=(Vector3 const &v);
 		Vector3& operator-=(Vector3 const &v);
@@ -157,5 +157,5 @@ namespace math {
 
 
 #ifndef SKIP_INLINE_MATH
-#include "Vector.inl"
+#include "Vector3.inl"
 #endif

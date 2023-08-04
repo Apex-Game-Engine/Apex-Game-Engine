@@ -12,7 +12,7 @@ add_library(Engine SHARED
 target_compile_definitions(Engine
     PRIVATE
     APEX_INTERNAL
-    ${APEX_INTERNAL_ENABLES}
+    ${APEX_ENABLES}
     $<$<CONFIG:Debug>:APEX_ENABLE_CHECKS>
 )
 

@@ -6,8 +6,6 @@ namespace memory {
 	class IMemoryTracker
 	{
 	public:
-		virtual ~IMemoryTracker() = default;
-
 		[[nodiscard]] virtual size_t getTotalCapacity() const = 0;
 		[[nodiscard]] virtual size_t getCurrentUsage() const = 0;
 	};

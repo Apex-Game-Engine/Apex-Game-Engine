@@ -30,10 +30,42 @@ namespace math {
 		Vector4(float32         _x, float32         _y, Vector2 const &_zw) : m_values{_x, _y, _zw[0], _zw[1]} {}
 		Vector4(Vector2 const &_xy, Vector2 const &_zw) : m_values{_xy[0], _xy[1], _zw[0], _zw[1]} {}
 
+		#pragma region Overloaded operators
+
 		float32 operator [](size_t index) const { return m_values[index]; }
 		float32& operator [](size_t index) { return m_values[index]; }
 
+		Vector4 operator-() const { return { -m_values[0],  -m_values[1], -m_values[2], -m_values[3] }; }
 
+		Vector4& operator+=(Vector4 const &v);
+		Vector4& operator-=(Vector4 const &v);
+
+		Vector4& operator*=(Vector4 const &v);
+		Vector4& operator*=(float32 t);
+		Vector4& operator/=(float32 t);
+
+		#pragma endregion
 	};
+	
+	// Vector4 utility functions
+
+	Vector4 operator+(Vector4 const &u, Vector4 const &v); // element-wise addition of two vectors
+	Vector4 operator-(Vector4 const &u, Vector4 const &v); // element-wise subtraction of two vectors
+	Vector4 operator*(Vector4 const &u, Vector4 const &v); // element-wise multiplication of two vectors
+	Vector4 operator*(float32 t, Vector4 const &v); // multiply each element of vector with scalar
+	Vector4 operator*(Vector4 const &v, float32 t); // multiply each element of vector with scalar
+	Vector4 operator/(Vector4 const &v, float32 t); // divide each element of vector by scalar
+
+	bool operator==(Vector4 const &u, Vector4 const &v); // element-wise comparison
+	bool operator!=(Vector4 const &u, Vector4 const &v); // element-wise comparison
+	bool operator<(Vector4 const &u, Vector4 const &v); // element-wise comparison
+	bool operator>(Vector4 const &u, Vector4 const &v); // element-wise comparison
+	bool operator<=(Vector4 const &u, Vector4 const &v); // element-wise comparison
+	bool operator>=(Vector4 const &u, Vector4 const &v); // element-wise comparison
 }
 }
+
+
+#ifndef SKIP_INLINE_MATH
+#include "Vector4.inl"
+#endif

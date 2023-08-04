@@ -15,7 +15,7 @@ namespace logging {
 
 	enum class LogLevel : apex::uint8
 	{
-		Verbose  = 0,
+		Trace    = 0,
 		Debug    = 1,
 		Info     = 2,
 		Warn     = 3,
@@ -106,7 +106,7 @@ namespace logging {
 
 #define axLogLevel(level, file, funcsig, lineno, msg) apex::logging::Logger::get().log(level, file, funcsig, lineno, msg)
 
-#define axLog(msg)      axLogLevel(apex::logging::LogLevel::Verbose, __FILE__, __FUNCTION__, __LINE__, msg)
+#define axLog(msg)      axLogLevel(apex::logging::LogLevel::Trace, __FILE__, __FUNCTION__, __LINE__, msg)
 #define axDebug(msg)    axLogLevel(apex::logging::LogLevel::Debug, __FILE__, __FUNCTION__, __LINE__, msg)
 #define axInfo(msg)     axLogLevel(apex::logging::LogLevel::Info, __FILE__, __FUNCTION__, __LINE__, msg)
 #define axWarn(msg)     axLogLevel(apex::logging::LogLevel::Warn, __FILE__, __FUNCTION__, __LINE__, msg)

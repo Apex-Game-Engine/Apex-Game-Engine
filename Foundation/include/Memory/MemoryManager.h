@@ -49,6 +49,7 @@ namespace memory {
 		static void* getScratchMemory(size_t size);
 
 		static bool checkManaged(void* mem);
+		static bool canFree(void* ptr);
 
 		[[nodiscard]] static size_t getTotalCapacity();
 		[[nodiscard]] static size_t getAllocatedSize();

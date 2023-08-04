@@ -43,7 +43,7 @@ namespace apex::memory {
 
 		// update allocPtr to next block
 		Block *blockPtr = static_cast<Block*>(m_allocPtr);
-		if (blockPtr->pNext != nullptr)
+		if (blockPtr->pNext == nullptr)
 		{
 			m_allocPtr = static_cast<uint8*>(m_allocPtr) + m_blockSize;
 		}

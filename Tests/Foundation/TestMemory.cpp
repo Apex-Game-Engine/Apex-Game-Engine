@@ -1,15 +1,19 @@
 #include <gtest/gtest.h>
 
 #define APEX_ENABLE_MEMORY_LITERALS
+#include <array>
+
 #include "Common.h"
+#include "Containers/AxArray.h"
 #include "Core/Types.h"
 #include "Math/Vector3.h"
 #include "Memory/ArenaAllocator.h"
 #include "Memory/AxHandle.h"
-#include "Memory/Memory.h"
+#include "Memory/AxManagedClass.h"
 #include "Memory/MemoryManager.h"
 #include "Memory/MemoryManagerImpl.h"
 #include "Memory/PoolAllocator.h"
+#include "Memory/UniquePtr.h"
 
 namespace apex::memory {
 
@@ -253,38 +257,291 @@ namespace apex::memory {
 
 		{
 			AxHandle hManagedClass(sizeof(MyManagedClass));
-			auto pManagedClass = apex::make_unique<MyManagedClass>(hManagedClass);
+			auto pManagedClass = apex::unique_from_handle<MyManagedClass>(hManagedClass);
 			EXPECT_EQ(MemoryManager::getAllocatedSize(), 1024);
+		}
+		EXPECT_EQ(MemoryManager::getAllocatedSize(), 0);
+	}
+
+	struct StructWithDestructor : public AxManagedClass
+	{
+		inline static int32 s_count = 0;
+
+		char m_dbgName[64];
+
+		StructWithDestructor()
+		: m_dbgName{ "StructWithDestructor" }
+		{
+			++s_count;
+		}
+
+		~StructWithDestructor()
+		{
+			printf("dtor\n");
+			--s_count;
+		}
+	};
+	static_assert(sizeof(StructWithDestructor) == 64);
+
+	TEST_F(MemoryManagerTest, TestArrayHandle)
+	{
+		EXPECT_EQ(MemoryManager::getAllocatedSize(), 0);
+		{
+			AxHandle hArray(sizeof(AxHandle) + 8 * sizeof(int));
+			auto pArray = new(hArray) AxArray<int>();
+			//pArray->constructFromHandle(hArray);
+			//auto& arr = *pArray;
+			//EXPECT_EQ((size_t)&arr[0], (size_t)hArray.m_cachedPtr + 24);
+			EXPECT_EQ(MemoryManager::getAllocatedSize(), hArray.getBlockSize());
+			delete pArray;
 		}
 		EXPECT_EQ(MemoryManager::getAllocatedSize(), 0);
 
 		{
+			AxHandle hStruct( sizeof(StructWithDestructor) );
+			EXPECT_EQ(hStruct.getBlockSize(), 64);
+			EXPECT_EQ(MemoryManager::getAllocatedSize(), hStruct.getBlockSize());
+
+			auto pStruct = new(hStruct) StructWithDestructor();
+			EXPECT_EQ(StructWithDestructor::s_count, 1);
+
+			delete pStruct;
+		}
+		EXPECT_EQ(StructWithDestructor::s_count, 0);
+		EXPECT_EQ(MemoryManager::getAllocatedSize(), 0);
+
+		{
+			AxHandle hArray = apex::make_handle<int[]>(32);
+			EXPECT_EQ(hArray.getBlockSize(), 128);
+			EXPECT_EQ(MemoryManager::getAllocatedSize(), hArray.getBlockSize());
+
+			int* arr = new (hArray.m_cachedPtr) int[32]();
+
+
+			hArray.release();
+		}
+		EXPECT_EQ(MemoryManager::getAllocatedSize(), 0);
+	}
+
+	struct Base : public AxManagedClass
+	{
+		inline static int32 s_count = 0;
+
+		Base() { ++s_count; }
+		virtual ~Base() { printf("Base::dtor\n"); --s_count; }
+
+		virtual int32 getInt() const { return 42; }
+	};
+
+	struct Derived : public Base
+	{
+		inline static int32 s_count = 0;
+
+		Derived() { ++s_count; }
+		~Derived() override { printf("Derived::dtor\n"); --s_count; }
+
+		int32 getInt() const override { return 213; }
+	};
+
+	TEST_F(MemoryManagerTest, TestUniquePtr)
+	{
+		EXPECT_EQ(StructWithDestructor::s_count, 0);
+		{
+			AxHandle hStruct = apex::make_handle<StructWithDestructor>();
+			EXPECT_EQ(hStruct.getBlockSize(), 64);
+			EXPECT_EQ(MemoryManager::getAllocatedSize(), hStruct.getBlockSize());
 			
+			auto pStruct = apex::unique_from_handle<StructWithDestructor>(hStruct);
+			EXPECT_EQ(StructWithDestructor::s_count, 1);
+
+			EXPECT_STREQ(pStruct->m_dbgName, "StructWithDestructor");
+		}
+		EXPECT_EQ(StructWithDestructor::s_count, 0);
+		EXPECT_EQ(MemoryManager::getAllocatedSize(), 0);
+
+		{
+			AxHandle hDerived = make_handle<Derived>();
+			EXPECT_EQ(hDerived.getBlockSize(), 32);
+			EXPECT_EQ(MemoryManager::getAllocatedSize(), hDerived.getBlockSize());
+
+			UniquePtr<Base> pBase = unique_from_handle<Derived>(hDerived);
+			EXPECT_EQ(pBase->getInt(), 213);
+
+			EXPECT_EQ(Base::s_count, 1);
+			EXPECT_EQ(Derived::s_count, 1);
+		}
+		EXPECT_EQ(Base::s_count, 0);
+		EXPECT_EQ(Derived::s_count, 0);
+		EXPECT_EQ(MemoryManager::getAllocatedSize(), 0);
+
+		{
+			AxHandle h (sizeof(int));
+			EXPECT_EQ(h.getBlockSize(), 32);
+			EXPECT_EQ(MemoryManager::getAllocatedSize(), h.getBlockSize());
+
+			auto a = new (h) AxManagedClassAdapter<int>(2);
+			EXPECT_EQ(static_cast<int>(*a), 2);
+			*a = 3;
+			EXPECT_TRUE(*a == 3);
+
+			delete a;
+		}
+		EXPECT_EQ(MemoryManager::getAllocatedSize(), 0);
+
+		{
+			AxHandle h (sizeof(int));
+			EXPECT_EQ(h.getBlockSize(), 32);
+			EXPECT_EQ(MemoryManager::getAllocatedSize(), h.getBlockSize());
+
+			auto a = unique_from_handle<int>(h, 42);
+			EXPECT_TRUE(*a == 42);
+			*a = 213;
+			EXPECT_EQ(static_cast<int>(*a), 213);
+		}
+		EXPECT_EQ(MemoryManager::getAllocatedSize(), 0);
+
+		{
+			auto a = make_unique<StructWithDestructor>();
+			EXPECT_EQ(MemoryManager::getAllocatedSize(), 64);
+		}
+		EXPECT_EQ(MemoryManager::getAllocatedSize(), 0);
+
+		{
+			auto a = make_unique<int>(42);
+			EXPECT_EQ(MemoryManager::getAllocatedSize(), 32);
+		}
+		EXPECT_EQ(MemoryManager::getAllocatedSize(), 0);
+
+		{
+			AxHandle hArray = make_handle<int32[32]>();
+			EXPECT_EQ(hArray.getBlockSize(), 128);
+
+			auto pArray = unique_from_handle<int[]>(hArray, 32);
+
+			pArray[0] = 1;
+		}
+		EXPECT_EQ(MemoryManager::getAllocatedSize(), 0);
+
+		{
+			auto pArray = apex::make_unique<int[]>(32);
+			EXPECT_EQ(MemoryManager::getAllocatedSize(), 128);
+		}
+		EXPECT_EQ(MemoryManager::getAllocatedSize(), 0);
+	}
+
+	struct IntArrayWrapper
+	{
+		IntArrayWrapper(size_t size)
+		{
+			(void)new (this) int[size];
+		}
+
+		auto& operator[](size_t idx)
+		{
+			return unwrap()[idx];
+		}
+
+		void fill(size_t size)
+		{
+			int a = 0, b = 1;
+			for (size_t i = 0; i < size; i++)
+			{
+				unwrap()[i] = a;
+				int c = a + b;
+				a = b;
+				b = c;
+			}
+		}
+
+		int& operator*()
+		{
+			return *unwrap();
+		}
+
+		~IntArrayWrapper()
+		{
+			printf("IntArrayWrapper :: dtor\n");
+		}
+
+		int* unwrap()
+		{
+			return reinterpret_cast<int*>(this);
+		}
+	};
+
+	TEST_F(MemoryManagerTest, TestArrayWrapper)
+	{
+		{
+			void* mem = malloc(sizeof(int) * 32);
+			IntArrayWrapper* aw = new (mem) IntArrayWrapper(32);
+
+			(*aw)[0] = 1;
+			(*aw)[1] = 2;
+			(*aw)[31] = 32;
+
+			EXPECT_EQ((*aw)[0], 1);
+			EXPECT_EQ((*aw)[1], 2);
+			EXPECT_EQ((*aw)[31], 32);
+
+			aw->fill(32);
+
+			for (size_t i = 0; i < 32; i++)
+			{
+				printf("%d\n", (*aw)[i]);
+			}
+
+			delete aw;
+			//free(mem);
+		}
+
+		{
+			AxHandle handle = apex::make_handle<int[32]>();
+			EXPECT_EQ(MemoryManager::getAllocatedSize(), 128);
+
+			auto pAW = new (handle) AxManagedClassAdapter<IntArrayWrapper>(32);
+			IntArrayWrapper& aw = *pAW;
+
+			aw.fill(32);
+
+			for (size_t i = 0; i < 32; i++)
+			{
+				printf("%d\n", aw[i]);
+			}
+
+			delete pAW;
+		}
+		EXPECT_EQ(MemoryManager::getAllocatedSize(), 0);
+	}
+
+	TEST_F(MemoryManagerTest, TestAxArray)
+	{
+		{
+			AxHandle hArray ( AxArray<math::Vector3>::requiredMemory(32) );
+			EXPECT_EQ(hArray.getBlockSize(), 512);
+			EXPECT_EQ(MemoryManager::getAllocatedSize(), 512);
+
+			auto pArray = new (hArray) AxArray<math::Vector3>(hArray);
+
+			delete pArray;
+		}
+		EXPECT_EQ(MemoryManager::getAllocatedSize(), 0);
+
+		{
+			using math::Vector4;
+			auto hArray = AxArray<Vector4>::constructForCapacity(32);
+			auto& arr = *hArray.getAs<AxArray<Vector4>>();
+			arr.append({ 1.f, 0.f, 1.f, 1.f });
+			arr.emplace_back(2.f, 3.f, 0.f, 1.f);
+
+			uint32 i = 0;
+			for (auto& element : arr)
+			{
+				if (i == 0) EXPECT_EQ(element, Vector4( 1.f, 0.f, 1.f, 1.f ));
+				if (i == 1) EXPECT_EQ(element, Vector4( 2.f, 3.f, 0.f, 1.f ));
+
+				++i;
+			}
 		}
 	}
 
-//TEST(TestMemoryManager, TestInitialize)
-//{
-//	using namespace apex::memory::literals;
-//
-//	apex::memory::MemoryManagerImpl* memoryManager = apex::memory::MemoryManagerImpl::getInstance();
-//
-//	apex::memory::MemoryManagerDesc desc{};
-//	desc.arenaManagedMemory = 1024_MiB;
-//	desc.numFramesInFlight = 3;
-//	desc.frameAllocatorCapacity = 1024u * 1024u * 128u;
-//
-//	apex::memory::MemoryManager::initialize(desc);
-//
-//
-//	ASSERT_EQ(memoryManager->m_capacity, 1024_MiB + 2724_MiB);
-//
-//	ASSERT_EQ(memoryManager->m_arenaAllocators.size(), 3);
-//	ASSERT_EQ(memoryManager->m_arenaAllocators[0].m_capacity, 1024u * 1024u * 128);
-//
-//	apex::int64 memDiff = static_cast<apex::uint8*>(memoryManager->m_arenaAllocators[1].m_pBase) - static_cast<apex::uint8*>(memoryManager->m_arenaAllocators[0].m_pBase);
-//	ASSERT_TRUE(memDiff >= 1024i64 * 1024i64 * 128i64);
-//}
-
-	
 }

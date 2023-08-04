@@ -283,9 +283,9 @@ namespace math {
 
 	inline bool operator==(Vector3 const& u, Vector3 const& v)
 	{
-		return u.x == v.x
-			&& u.y == v.y
-			&& u.z == v.z;
+		return floatCompareAlmostEqual(u.x, v.x)
+			&& floatCompareAlmostEqual(u.y, v.y)
+			&& floatCompareAlmostEqual(u.z, v.z);
 	}
 
 	inline bool operator!=(Vector3 const& u, Vector3 const& v)
@@ -366,11 +366,6 @@ namespace math {
 	}
 
 #pragma endregion
-
-	/**************************************************************
-	 * Vector4
-	 *************************************************************/
-
 
 }
 }

@@ -32,6 +32,7 @@ namespace memory {
 		PoolAllocator& getMemoryPoolFromPointer(void* mem);
 
 		bool checkManaged(void* mem);
+		bool canFree(void* mem);
 
 		size_t getAllocatedSizeInPools() const;
 	};

@@ -52,18 +52,22 @@ set(CMAKE_EXE_LINKER_FLAGS_DEVELOPMENT ${CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO})
 set(CMAKE_SHARED_LINKER_FLAGS_DEBUGGAME   ${CMAKE_SHARED_LINKER_FLAGS_DEBUG})
 set(CMAKE_SHARED_LINKER_FLAGS_DEVELOPMENT ${CMAKE_SHARED_LINKER_FLAGS_RELWITHDEBINFO})
 
-set(APEX_INTERNAL_ENABLES
-    # APEX_ENABLE_ASSERTS
-    "$<$<CONFIG:Debug>:APEX_ENABLE_ASSERTS=2>"
-    "$<$<CONFIG:DebugGame,Development>:APEX_ENABLE_ASSERTS=1>"
-    "$<$<CONFIG:Release>:APEX_ENABLE_ASSERTS=0>"
-)
+#set(APEX_ENABLES
+#    # APEX_ENABLE_ASSERTS
+#    "$<$<CONFIG:Debug>:APEX_ENABLE_ASSERTS=2>"
+#    "$<$<CONFIG:DebugGame,Development>:APEX_ENABLE_ASSERTS=1>"
+#    "$<$<CONFIG:Release>:APEX_ENABLE_ASSERTS=0>"
+#)
 
 add_compile_definitions(
     $<$<CONFIG:Debug>:APEX_CONFIG_DEBUG>
     $<$<CONFIG:DebugGame>:APEX_CONFIG_DEBUGGAME>
     $<$<CONFIG:Development>:APEX_CONFIG_DEVELOPMENT>
     $<$<CONFIG:Release>:APEX_CONFIG_RELEASE>
+    
+    $<$<CONFIG:Debug>:APEX_ENABLE_ASSERTS=2>
+    $<$<CONFIG:DebugGame,Development>:APEX_ENABLE_ASSERTS=1>
+    $<$<CONFIG:Release>:APEX_ENABLE_ASSERTS=0>
 )
 
 if(WIN32)
@@ -84,4 +88,4 @@ add_subdirectory(Engine)
 add_subdirectory(Tests)
 
 # Examples
-add_subdirectory(examples)
+# add_subdirectory(examples)

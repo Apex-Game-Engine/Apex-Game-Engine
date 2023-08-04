@@ -1,4 +1,4 @@
-#include "Memory/Memory.h"
+#include "Memory/AxManagedClass.h"
 #include "Core/Logging.h"
 
 #include <cstdlib>
@@ -41,7 +41,8 @@ namespace apex {
 	{
 		if (memory::MemoryManager::checkManaged(ptr))
 		{
-			memory::MemoryManager::free(ptr);
+			if (memory::MemoryManager::canFree(ptr))
+				memory::MemoryManager::free(ptr);
 		}
 		else
 		{
@@ -57,18 +58,18 @@ namespace apex {
 
 	void* AxManagedClass::operator new [](size_t size, AxHandle& handle)
 	{
-		axAssert(handle.isValid());
+		axAssert(handle.isValid() && handle.getBlockSize() >= size);
 		return handle.m_cachedPtr;
 	}
 
 	void AxManagedClass::operator delete(void* ptr, AxHandle& handle)
 	{
-		free(ptr);
+		handle.release();
 	}
 
 	void AxManagedClass::operator delete [](void* ptr, AxHandle& handle)
 	{
-		free(ptr);
+		handle.release();
 	}
 
 }
@@ -77,27 +78,26 @@ namespace apex {
 
 void* operator new(size_t size)
 {
-	axInfo("new ()");
+	axLog("new ()");
 	return malloc(size);
 }
 
 void* operator new [](size_t size)
 {
-	axInfo("new[] ()");
+	axLog("new[] ()");
 	return malloc(size);
 }
 
 void operator delete(void* mem)
 {
-	axInfo("delete ()");
+	axLog("delete ()");
 	free(mem);
 }
 
 void operator delete [](void* mem)
 {
-	axInfo("delete[] ()");
+	axLog("delete[] ()");
 	free(mem);
 }
-
 
 #endif

@@ -1,5 +1,5 @@
 ﻿#define APEX_ENABLE_MEMORY_LITERALS
-#include "Memory/Memory.h"
+#include "Memory/AxManagedClass.h"
 #include "Memory/MemoryManager.h"
 #include "Memory/MemoryManagerImpl.h"
 #include "Memory/MemoryPool.h"
@@ -43,6 +43,13 @@ namespace memory {
 	bool MemoryManagerImpl::checkManaged(void* mem)
 	{
 		return mem >= m_pBase && mem <= m_pBase + m_poolMemorySize;
+	}
+
+	bool MemoryManagerImpl::canFree(void* mem)
+	{
+		PoolAllocator& pool = getMemoryPoolFromPointer(mem);
+		const ptrdiff_t relMemPos = reinterpret_cast<ptrdiff_t>(mem) - reinterpret_cast<ptrdiff_t>(pool.m_pBase);
+		return relMemPos % pool.m_blockSize == 0;
 	}
 
 	size_t MemoryManagerImpl::getAllocatedSizeInPools() const
@@ -155,7 +162,7 @@ namespace memory {
 
 	AxHandle MemoryManager::allocate(size_t size)
 	{
-		return {};
+		return { size };
 	}
 
 	void MemoryManager::free(void* mem)
@@ -166,6 +173,11 @@ namespace memory {
 	bool MemoryManager::checkManaged(void* mem)
 	{
 		return s_memoryManagerImpl.checkManaged(mem);
+	}
+
+	bool MemoryManager::canFree(void* mem)
+	{
+		return s_memoryManagerImpl.canFree(mem);
 	}
 
 	size_t MemoryManager::getTotalCapacity()

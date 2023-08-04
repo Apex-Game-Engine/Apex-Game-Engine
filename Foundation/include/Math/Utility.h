@@ -19,4 +19,10 @@ namespace apex {
 		return std::min(a, b);
 	}
 
+	template <typename T>
+	void memmove_s(T* const dst, const size_t dstCount, const void* const src, const size_t srcCount)
+	{
+		(void)::memmove_s(dst, sizeof(T) * dstCount, src, sizeof(T) * srcCount);
+	}
+
 }
