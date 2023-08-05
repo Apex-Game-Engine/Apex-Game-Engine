@@ -27,6 +27,12 @@ namespace apex {
 		void operator delete(void*);
 		void operator delete[](void*);
 
+		void* operator new(size_t size, void* mem);
+		void* operator new[](size_t size, void* mem);
+
+		void operator delete(void*, void*);
+		void operator delete[](void*, void*);
+
 		void* operator new(size_t size, AxHandle& handle);
 		void* operator new[](size_t size, AxHandle& handle);
 

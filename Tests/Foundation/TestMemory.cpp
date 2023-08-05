@@ -5,6 +5,7 @@
 
 #include "Common.h"
 #include "Containers/AxArray.h"
+#include "Containers/AxStringRef.h"
 #include "Core/Types.h"
 #include "Math/Vector3.h"
 #include "Memory/ArenaAllocator.h"
@@ -190,6 +191,8 @@ namespace apex::memory {
 		size_t getPoolCapacity(size_t alloc_size) { return getMemoryPool(alloc_size).getTotalCapacity(); }
 		size_t getPoolSize(size_t alloc_size) { return getMemoryPool(alloc_size).getTotalBlocks(); }
 
+		auto handle_getMemoryPoolIndex(AxHandle& handle) { return handle.m_memoryPoolIdx; }
+
 	protected:
 		MemoryManagerDesc memoryManagerDesc;
 	};
@@ -227,13 +230,13 @@ namespace apex::memory {
 		EXPECT_EQ( getPoolSize(32_MiB), 32 );    // 32 MiB  x  32   = 1024 MiB
 
 		AxHandle handle(1024);
-		EXPECT_EQ(handle.m_memoryPoolIdx, 7);
+		EXPECT_EQ(handle_getMemoryPoolIndex(handle), 7);
 	}
 
 	TEST_F(MemoryManagerTest, TestCheckManaged)
 	{
 		apex::AxHandle handle(1024);
-		EXPECT_TRUE(MemoryManager::checkManaged(handle.m_cachedPtr));
+		EXPECT_TRUE(MemoryManager::checkManaged(handle.getAs<void>()));
 
 		auto pSomeClass = std::make_unique<SomeClass>();
 		EXPECT_FALSE(MemoryManager::checkManaged(pSomeClass.get()));
@@ -289,7 +292,7 @@ namespace apex::memory {
 		{
 			AxHandle hArray(sizeof(AxHandle) + 8 * sizeof(int));
 			auto pArray = new(hArray) AxArray<int>();
-			//pArray->constructFromHandle(hArray);
+			//pArray->resizeToHandle(hArray);
 			//auto& arr = *pArray;
 			//EXPECT_EQ((size_t)&arr[0], (size_t)hArray.m_cachedPtr + 24);
 			EXPECT_EQ(MemoryManager::getAllocatedSize(), hArray.getBlockSize());
@@ -315,7 +318,7 @@ namespace apex::memory {
 			EXPECT_EQ(hArray.getBlockSize(), 128);
 			EXPECT_EQ(MemoryManager::getAllocatedSize(), hArray.getBlockSize());
 
-			int* arr = new (hArray.m_cachedPtr) int[32]();
+			int* arr = new (hArray.getAs<void>()) int[32]();
 
 
 			hArray.release();
@@ -516,7 +519,7 @@ namespace apex::memory {
 	TEST_F(MemoryManagerTest, TestAxArray)
 	{
 		{
-			AxHandle hArray ( AxArray<math::Vector3>::requiredMemory(32) );
+			AxHandle hArray ( AxArray<math::Vector3>::totalRequiredMemory(32) );
 			EXPECT_EQ(hArray.getBlockSize(), 512);
 			EXPECT_EQ(MemoryManager::getAllocatedSize(), 512);
 
@@ -528,10 +531,9 @@ namespace apex::memory {
 
 		{
 			using math::Vector4;
-			auto hArray = AxArray<Vector4>::constructForCapacity(32);
-			auto& arr = *hArray.getAs<AxArray<Vector4>>();
+			AxArray<Vector4> arr(32);
 			arr.append({ 1.f, 0.f, 1.f, 1.f });
-			arr.emplace_back(2.f, 3.f, 0.f, 1.f);
+			arr.emplace_back( 2.f, 3.f, 0.f, 1.f );
 
 			uint32 i = 0;
 			for (auto& element : arr)
@@ -541,6 +543,24 @@ namespace apex::memory {
 
 				++i;
 			}
+		}
+
+		{
+			AxArray<AxStringRef> strArr;
+			strArr.reserve(32);
+
+			strArr.append("Athang");
+			strArr.emplace_back("Oishi");
+			strArr[1] = "Oishi Saha";
+
+			EXPECT_STREQ(strArr[0].c_str(), "Athang");
+			EXPECT_STREQ(strArr[1].c_str(), "Oishi Saha");
+
+			for (auto& str : strArr)
+			{
+				printf("%s\n", str.c_str());
+			}
+
 		}
 	}
 

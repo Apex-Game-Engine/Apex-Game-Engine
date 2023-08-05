@@ -2,16 +2,17 @@
 #include "Core/Types.h"
 
 namespace apex {
-
-	struct AxHandle
+	namespace memory
 	{
+		class MemoryManagerTest;
+	}
+
+	class AxHandle
+	{
+	public:
 		AxHandle() = default;
 		AxHandle(size_t size);
 		~AxHandle() = default;
-
-		void*  m_cachedPtr { nullptr };
-		uint32 m_memoryPoolIdx {};
-		// uint32 m_memoryBlockIdx {};
 
 		void release();
 
@@ -24,6 +25,15 @@ namespace apex {
 			return static_cast<T*>(m_cachedPtr);
 		}
 
+		AxHandle(AxHandle const&) = delete;
+		AxHandle& operator=(AxHandle const&) = delete;
+
+	private:
+		void*  m_cachedPtr { nullptr };
+		uint32 m_memoryPoolIdx {};
+		// uint32 m_memoryBlockIdx {};
+
+		friend class memory::MemoryManagerTest;
 	};
 
 	template <typename T>

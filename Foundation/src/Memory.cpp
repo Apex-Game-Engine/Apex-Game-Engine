@@ -50,16 +50,36 @@ namespace apex {
 		}
 	}
 
+	void* AxManagedClass::operator new(size_t size, void* mem)
+	{
+		return mem;
+	}
+
+	void* AxManagedClass::operator new [](size_t size, void* mem)
+	{
+		return mem;
+	}
+
+	void AxManagedClass::operator delete(void*, void*)
+	{
+		return;
+	}
+
+	void AxManagedClass::operator delete [](void*, void*)
+	{
+		return;
+	}
+
 	void* AxManagedClass::operator new(size_t size, AxHandle& handle)
 	{
 		axAssert(handle.isValid() && handle.getBlockSize() >= size);
-		return handle.m_cachedPtr;
+		return handle.getAs<void>();
 	}
 
 	void* AxManagedClass::operator new [](size_t size, AxHandle& handle)
 	{
 		axAssert(handle.isValid() && handle.getBlockSize() >= size);
-		return handle.m_cachedPtr;
+		return handle.getAs<void>();
 	}
 
 	void AxManagedClass::operator delete(void* ptr, AxHandle& handle)

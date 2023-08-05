@@ -2,6 +2,7 @@
 #include <gtest/gtest.h>
 
 #include "Containers/AxArray.h"
+#include "Containers/AxStringRef.h"
 #include "Containers/Containers.h"
 
 TEST(TestContainers, TestFreeListInitialize)
@@ -109,5 +110,17 @@ namespace apex {
 		ASSERT_EQ(nonTrivialArray.capacity(), 8);
 	}
 
+	TEST(AxStringRefTest, TestAxStringRef)
+	{
+		AxStringRef strRefArr[2];
+
+		new (&strRefArr[1]) AxStringRef("oishi");
+
+		for (auto strRef : strRefArr)
+		{
+			if (strRef)
+				printf("%s\n", strRef.c_str());
+		}
+	}
 
 }

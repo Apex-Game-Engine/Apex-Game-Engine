@@ -8,9 +8,9 @@ namespace apex {
 
 	/**
 	 * \brief Non-resizable dynamic array
-	 * \tparam StoredType type of elements stored in the array
+	 * \tparam T type of elements stored in the array
 	 */
-	template <typename StoredType>
+	template <typename T>
 	class AxArray : public AxManagedClass
 	{
 	public:
@@ -36,60 +36,89 @@ namespace apex {
 		};
 
 	protected:
-		void constructFromMemory(void* mem, size_t mem_size)
+		template <typename... Args>
+		[[deprecated("Do not allocate memory on your own. If you need to allocate static memory and instantiate an array on it then use the AxStaticArray.")]]
+		void constructFromMemory(void* mem, size_t mem_size, Args&&... args) requires (std::is_constructible_v<T, Args...>)
 		{
-			m_data = static_cast<pointer>(mem);
 			m_capacity = mem_size / sizeof(value_type);
 			m_size = 0;
+			m_data = new (mem) T[m_capacity](std::forward<Args>(args)...);
+		}
+
+		[[deprecated("Do not allocate memory on your own. If you need to allocate static memory and instantiate an array on it then use the AxStaticArray.")]]
+		void constructFromMemory(void* mem, size_t mem_size) requires (!std::is_default_constructible_v<T>)
+		{
+			m_capacity = mem_size / sizeof(value_type);
+			m_size = 0;
+			m_data = static_cast<T*>(mem);
 		}
 
 	public:
-		using value_type = StoredType;
+		using stored_type = std::conditional_t<apex::managed_class<T>, T, AxManagedClassAdapter<T>>;
+		using value_type = T;
 		using pointer = value_type*;
 		using const_pointer = const value_type*;
 		using reference = value_type&;
 		using const_reference = const value_type&;
-		using iterator = Iterator<StoredType>;
-		using const_iterator = Iterator<const StoredType>;
+		using iterator = Iterator<T>;
+		using const_iterator = Iterator<const T>;
 
 		AxArray()
-		: m_data(nullptr)
-		, m_capacity(0)
+		: m_capacity(0)
 		, m_size(0)
+		, m_data(nullptr)
 		{
 		}
 
-		AxArray(void* mem, size_t mem_size)
+		AxArray(size_t capacity)
 		{
-			constructFromMemory(mem, mem_size);
+			reserve(capacity);
 		}
 
-		AxArray(AxHandle const& handle)
+		AxArray(AxHandle& handle)
 		{
-			constructFromHandle(handle);
+			constructFromMemory(handle.getAs<uint8>() + sizeof(AxArray), handle.getBlockSize() - sizeof(AxArray));
 		}
 
-		static size_t requiredMemory(size_t capacity)
+		template <typename... Args>
+		void resizeToHandle(AxHandle& handle, Args&&... args) requires (std::is_constructible_v<T, Args...>)
+		{
+			delete[] m_data;
+
+			m_capacity = handle.getBlockSize() / sizeof(value_type);
+			m_size = m_capacity;
+			m_data = new (handle) stored_type[m_capacity](std::forward<Args>(args)...);
+		}
+
+		template <typename... Args>
+		void resize(size_t size, Args&&... args) requires (std::is_constructible_v<T, Args...>)
+		{
+			AxHandle handle (sizeof(value_type) * size);
+
+		}
+
+		void setDataHandle(AxHandle& handle)
+		{
+			m_capacity = handle.getBlockSize() / sizeof(value_type);
+			m_size = 0;
+			m_data = handle.getAs<value_type>();
+		}
+
+		void reserve(size_t capacity)
+		{
+			AxHandle handle (sizeof(value_type) * capacity);
+			setDataHandle(handle);
+		}
+		
+		static size_t totalRequiredMemory(size_t capacity)
 		{
 			return sizeof(AxArray) + sizeof(value_type) * capacity;
-		}
-
-		static AxHandle constructForCapacity(size_t capacity)
-		{
-			AxHandle handle (sizeof(AxArray) + sizeof(value_type) * capacity);
-			AxArray *array = new (handle) AxArray(handle);
-			return handle;
-		}
-
-		void constructFromHandle(AxHandle const& handle)
-		{
-			constructFromMemory(static_cast<uint8*>(handle.m_cachedPtr) + sizeof(AxArray), handle.getBlockSize() - sizeof(AxArray));
 		}
 
 		template <typename... Args>
 		reference emplace_back(Args&&... args)
 		{
-			new (&m_data[m_size]) value_type(std::forward<Args>(args)...);
+			new ((void*)&m_data[m_size]) value_type(std::forward<Args>(args)...);
 			return m_data[m_size++];
 		}
 
@@ -116,12 +145,13 @@ namespace apex {
 			axAssert(index < m_size + 1 && index < m_capacity);
 			axAssertMsg(m_size < m_capacity, "Array size exceeds capacity!");
 			apex::memmove_s<value_type>(&m_data[index+1], m_capacity - index, &m_data[index], m_size - index);
+			m_data[index] = obj;
 			m_size++;
 		}
 
 		void insert(value_type&& obj, size_t index)
 		{
-			insert(obj, index);
+			insert(std::forward<value_type>(obj), index);
 		}
 
 		void remove(size_t index)
@@ -135,9 +165,17 @@ namespace apex {
 
 		void reset()
 		{
+			m_capacity = 0;
 			m_size = 0;
 		}
-		
+
+		void clear()
+		{
+			m_size = 0;
+		}
+
+		[[nodiscard]] auto data() { return m_data; }
+
 		[[nodiscard]] auto at(size_t index) { return this->operator[](index); }
 		[[nodiscard]] auto at(size_t index) const { return this->operator[](index); }
 
@@ -147,7 +185,7 @@ namespace apex {
 			return m_data[index];
 		}
 
-		[[nodiscard]] auto operator[] (size_t index) const -> std::conditional_t<std::is_trivial_v<StoredType>, value_type, const_reference>
+		[[nodiscard]] auto operator[] (size_t index) const -> std::conditional_t<std::is_trivial_v<T>, value_type, const_reference>
 		{
 			axAssert(index < m_size);
 			return m_data[index];
@@ -168,9 +206,9 @@ namespace apex {
 	#pragma endregion
 
 	private:
-		value_type *m_data;
 		size_t m_capacity;
 		size_t m_size;
+		value_type *m_data;
 
 		friend class AxArrayTest;
 	};
