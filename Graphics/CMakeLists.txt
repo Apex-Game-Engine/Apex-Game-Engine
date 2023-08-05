@@ -47,7 +47,6 @@ target_compile_definitions(Graphics
 
 target_link_libraries(Graphics
     PUBLIC
-    Foundation
     Vulkan::Vulkan
 )
 
@@ -58,4 +57,5 @@ target_include_directories(Graphics
 
     PRIVATE
     src
+    $<TARGET_PROPERTY:Foundation,INTERFACE_INCLUDE_DIRECTORIES>
 )

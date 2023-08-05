@@ -73,6 +73,7 @@ add_compile_definitions(
 if(WIN32)
     set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS On)
     add_compile_definitions(APEX_PLATFORM_WIN32)
+    add_compile_definitions(VK_USE_PLATFORM_WIN32_KHR)
 else()
 endif()
 

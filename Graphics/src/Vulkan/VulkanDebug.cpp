@@ -1,11 +1,13 @@
-﻿#include <vulkan/vulkan.h>
+﻿#include "Graphics/Vulkan/VulkanDebug.h"
 
 #include "Core/Logging.h"
+#include "Containers/AxArray.h"
 
-namespace apex::gfx {
-namespace detail {
+#include <vulkan/vulkan.h>
 
-	VkBool32 vulkan_debug_messenger_callback(
+namespace apex::vk {
+
+	VkBool32 debug_messenger_callback(
 		VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
 		VkDebugUtilsMessageTypeFlagsEXT messageTypes,
 		const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
@@ -39,7 +41,7 @@ namespace detail {
 
 	}
 
-	constexpr VkDebugUtilsMessengerCreateInfoEXT debug_messenger_create_info()
+	VkDebugUtilsMessengerCreateInfoEXT debug_messenger_create_info()
 	{
 		return VkDebugUtilsMessengerCreateInfoEXT {
 		.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
@@ -52,15 +54,9 @@ namespace detail {
 			VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
 			VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
 			VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT,
-		.pfnUserCallback = vulkan_debug_messenger_callback,
+		.pfnUserCallback = debug_messenger_callback,
 		.pUserData = nullptr,
 		};
 	}
 
-	bool check_validation_layer_support()
-	{
-		return true;
-	}
-
-}
 }
