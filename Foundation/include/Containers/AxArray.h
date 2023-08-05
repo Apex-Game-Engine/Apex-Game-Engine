@@ -80,7 +80,7 @@ namespace apex {
 			constructFromMemory(handle.getAs<uint8>() + sizeof(AxArray), handle.getBlockSize() - sizeof(AxArray));
 		}
 
-		template <typename... Args>
+		/*template <typename... Args>
 		void resizeToHandle(AxHandle& handle, Args&&... args) requires (std::is_constructible_v<T, Args...>)
 		{
 			delete[] m_data;
@@ -88,13 +88,17 @@ namespace apex {
 			m_capacity = handle.getBlockSize() / sizeof(value_type);
 			m_size = m_capacity;
 			m_data = new (handle) stored_type[m_capacity](std::forward<Args>(args)...);
-		}
+		}*/
 
 		template <typename... Args>
-		void resize(size_t size, Args&&... args) requires (std::is_constructible_v<T, Args...>)
+		void resize(size_t new_size, Args&&... args) requires (std::is_constructible_v<T, Args...>)
 		{
-			AxHandle handle (sizeof(value_type) * size);
-
+			if (new_size > m_capacity)
+			{
+				// _resize();
+			}
+			m_size = new_size;
+			new (m_data) stored_type[m_size](std::forward<Args>(args)...);
 		}
 
 		void setDataHandle(AxHandle& handle)
