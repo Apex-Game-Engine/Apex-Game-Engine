@@ -2,8 +2,8 @@
 #include <gtest/gtest.h>
 
 #include "Containers/AxArray.h"
+#include "Containers/AxRange.h"
 #include "Containers/AxStringRef.h"
-#include "Containers/Containers.h"
 
 TEST(TestContainers, TestFreeListInitialize)
 {
@@ -123,4 +123,65 @@ namespace apex {
 		}
 	}
 
+	TEST(AxRangeTest, TestAxRange)
+	{
+		{
+			std::vector<int> v = { 1, 2, 4, 6, 3, 4, 5, 7, 8, 9 };
+
+			ranges::AxRange<std::vector<int>> range (v.begin(), v.end());
+			{
+				int i = 0;
+				for (int &value : range)
+				{
+					printf("%d, ", value);
+					EXPECT_EQ(value, v[i]);
+					i++;
+				}
+				printf("\n");
+				EXPECT_EQ(i, 10);
+			}
+
+			{
+				ranges::AxView view ( range, [](int const& i) { return i % 2 == 0; } );
+
+				int i = 0;
+				for (int value : view)
+				{
+					printf("%d, ", value);
+					switch (i)
+					{
+					case 0: EXPECT_EQ(value, 2); break;
+					case 1: EXPECT_EQ(value, 4); break;
+					case 2: EXPECT_EQ(value, 6); break;
+					case 3: EXPECT_EQ(value, 4); break;
+					case 4: EXPECT_EQ(value, 8); break;
+					}
+					i++;
+				}
+				printf("\n");
+				EXPECT_EQ(i, 5);
+			}
+
+			{
+				const ranges::AxView view ( v, [](int const& i) { return i % 2 == 0; } );
+
+				int i = 0;
+				for (int value : view)
+				{
+					printf("%d, ", value);
+					switch (i)
+					{
+					case 0: EXPECT_EQ(value, 2); break;
+					case 1: EXPECT_EQ(value, 4); break;
+					case 2: EXPECT_EQ(value, 6); break;
+					case 3: EXPECT_EQ(value, 4); break;
+					case 4: EXPECT_EQ(value, 8); break;
+					}
+					i++;
+				}
+				printf("\n");
+				EXPECT_EQ(i, 5);
+			}
+		}
+	}
 }

@@ -40,6 +40,9 @@ namespace apex {
 		void operator delete[](void *ptr, AxHandle& handle);
 	};
 
+	struct ExternallyManaged {};
+	struct SelfManaged {};
+
 	template <typename T>
 	class AxManagedClassAdapter : public AxManagedClass, public T
 	{
@@ -50,7 +53,7 @@ namespace apex {
 		constexpr operator T() { return static_cast<T>(*this); }
 	};
 
-	template <typename T> requires (std::integral<T> || std::floating_point<T>)
+	template <typename T> requires (std::integral<T> || std::floating_point<T> || std::is_pointer_v<T>)
 	class AxManagedClassAdapter<T> : public AxManagedClass
 	{
 	public:
@@ -61,7 +64,10 @@ namespace apex {
 		constexpr AxManagedClassAdapter(T value) : m_value(value) {}
 		constexpr AxManagedClassAdapter& operator=(T other) { m_value = other; return *this; }
 
-		constexpr operator T() { return m_value; }
+		constexpr operator T() const { return m_value; }
+
+		T& value() { return m_value; }
+		const T& value() const { return m_value; }
 
 		constexpr bool operator<=>(T const& other) const { return m_value <=> other; }
 

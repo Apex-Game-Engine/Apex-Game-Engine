@@ -225,7 +225,7 @@ namespace memory {
 		m_memoryPoolIdx = poolIdx;
 	}
 
-	void AxHandle::release()
+	void AxHandle::free()
 	{
 		memory::s_memoryManagerImpl.freeFromMemoryPool(m_memoryPoolIdx, m_cachedPtr);
 		m_memoryPoolIdx = 0;

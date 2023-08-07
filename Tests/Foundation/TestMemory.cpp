@@ -2,9 +2,11 @@
 
 #define APEX_ENABLE_MEMORY_LITERALS
 #include <array>
+#include <ranges>
 
 #include "Common.h"
 #include "Containers/AxArray.h"
+#include "Containers/AxRange.h"
 #include "Containers/AxStringRef.h"
 #include "Core/Types.h"
 #include "Math/Vector3.h"
@@ -313,16 +315,17 @@ namespace apex::memory {
 		EXPECT_EQ(StructWithDestructor::s_count, 0);
 		EXPECT_EQ(MemoryManager::getAllocatedSize(), 0);
 
-		{
-			AxHandle hArray = apex::make_handle<int[]>(32);
-			EXPECT_EQ(hArray.getBlockSize(), 128);
-			EXPECT_EQ(MemoryManager::getAllocatedSize(), hArray.getBlockSize());
+		// TODO: The following scenario should be disallowed! Figure out a way to throw a compiler error on this sort of situation. Use AxArray instead (it is memory managed and will be made RAII)
+		//{
+		//	AxHandle hArray = apex::make_handle<int[]>(32);
+		//	EXPECT_EQ(hArray.getBlockSize(), 128);
+		//	EXPECT_EQ(MemoryManager::getAllocatedSize(), hArray.getBlockSize());
 
-			int* arr = new (hArray.getAs<void>()) int[32]();
+		//	int* arr = new (hArray.getAs<void>()) int[32]();
 
-
-			hArray.release();
-		}
+		//	delete arr;
+		//	//hArray.free();
+		//}
 		EXPECT_EQ(MemoryManager::getAllocatedSize(), 0);
 	}
 
@@ -518,20 +521,12 @@ namespace apex::memory {
 
 	TEST_F(MemoryManagerTest, TestAxArray)
 	{
-		{
-			AxHandle hArray ( AxArray<math::Vector3>::totalRequiredMemory(32) );
-			EXPECT_EQ(hArray.getBlockSize(), 512);
-			EXPECT_EQ(MemoryManager::getAllocatedSize(), 512);
-
-			auto pArray = new (hArray) AxArray<math::Vector3>(hArray);
-
-			delete pArray;
-		}
 		EXPECT_EQ(MemoryManager::getAllocatedSize(), 0);
-
 		{
 			using math::Vector4;
 			AxArray<Vector4> arr(32);
+			EXPECT_EQ(MemoryManager::getAllocatedSize(), 512);
+
 			arr.append({ 1.f, 0.f, 1.f, 1.f });
 			arr.emplace_back( 2.f, 3.f, 0.f, 1.f );
 
@@ -544,10 +539,12 @@ namespace apex::memory {
 				++i;
 			}
 		}
+		EXPECT_EQ(MemoryManager::getAllocatedSize(), 0);
 
 		{
 			AxArray<AxStringRef> strArr;
 			strArr.reserve(32);
+			EXPECT_EQ(MemoryManager::getAllocatedSize(), 256);
 
 			strArr.append("Athang");
 			strArr.emplace_back("Oishi");
@@ -561,6 +558,60 @@ namespace apex::memory {
 				printf("%s\n", str.c_str());
 			}
 
+		}
+		EXPECT_EQ(MemoryManager::getAllocatedSize(), 0);
+	}
+
+	TEST_F(MemoryManagerTest, TestAxArrayInitializerList)
+	{
+		EXPECT_EQ(MemoryManager::getAllocatedSize(), 0);
+		{
+			AxArray<int> iArr = { 1, 2, 3, 4 };
+			EXPECT_EQ(MemoryManager::getAllocatedSize(), 32);
+
+			EXPECT_EQ(iArr.size(), 4);
+			EXPECT_EQ(iArr[0], 1);
+			EXPECT_EQ(iArr[1], 2);
+			EXPECT_EQ(iArr[2], 3);
+			EXPECT_EQ(iArr[3], 4);
+		}
+		EXPECT_EQ(MemoryManager::getAllocatedSize(), 0);
+
+		{
+			AxArray<AxStringRef> strArr = { "Athang", "Oishi", "Saumitra" };
+			EXPECT_EQ(MemoryManager::getAllocatedSize(), 32);
+
+			EXPECT_EQ(strArr.size(), 3);
+			EXPECT_STREQ(strArr[0].c_str(), "Athang");
+			EXPECT_STREQ(strArr[1].c_str(), "Oishi");
+			EXPECT_STREQ(strArr[2].c_str(), "Saumitra");
+		}
+		EXPECT_EQ(MemoryManager::getAllocatedSize(), 0);
+
+		{
+			AxArray<const char*> strArr = { "Athang", "Oishi", "Saumitra" };
+			EXPECT_EQ(MemoryManager::getAllocatedSize(), 32);
+
+			EXPECT_EQ(strArr.size(), 3);
+			EXPECT_STREQ(strArr[0], "Athang");
+			EXPECT_STREQ(strArr[1], "Oishi");
+			EXPECT_STREQ(strArr[2], "Saumitra");
+		}
+		EXPECT_EQ(MemoryManager::getAllocatedSize(), 0);
+	}
+
+	static_assert(std::ranges::viewable_range<AxArray<int>>);
+
+	TEST_F(MemoryManagerTest, TestAxArrayRanges)
+	{
+		{
+			AxArray<int> iArr = { 1, 2, 3, 4, 5, 6, 7, 8 };
+			static_assert(apex::ranges::range<decltype(iArr)>);
+
+			ranges::AxRange range(iArr);
+			{
+				
+			}
 		}
 	}
 

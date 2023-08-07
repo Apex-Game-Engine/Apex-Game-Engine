@@ -84,12 +84,12 @@ namespace apex {
 
 	void AxManagedClass::operator delete(void* ptr, AxHandle& handle)
 	{
-		handle.release();
+		handle.free();
 	}
 
 	void AxManagedClass::operator delete [](void* ptr, AxHandle& handle)
 	{
-		handle.release();
+		handle.free();
 	}
 
 }

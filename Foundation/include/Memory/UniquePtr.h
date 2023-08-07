@@ -262,9 +262,9 @@ namespace apex {
 	template <typename T> requires (!apex::managed_class<std::remove_extent_t<T>> && std::is_array_v<T> && std::extent_v<T> == 0) // not managed_class , array
 	[[nodiscard]] constexpr auto unique_from_handle(apex::AxHandle& handle, const size_t size) -> UniquePtr<AxManagedClassAdapter<std::remove_extent_t<T>>[]>
 	{
-	    //static_assert(false, \
-			"apex::UniquePtr does not support unmanaged array types! " \
-			"Use an AxArray for dynamic sized arrays or AxStaticArray for static arrays!");
+	    /*static_assert(false,
+			"apex::UniquePtr does not support unmanaged array types! "
+			"Use an AxArray for dynamic sized arrays or AxStaticArray for static arrays!");*/
 
 		using inner_element_type = std::remove_extent_t<T>;
 		using element_type = AxManagedClassAdapter<inner_element_type>;

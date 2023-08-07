@@ -14,8 +14,6 @@ namespace apex {
 		AxHandle(size_t size);
 		~AxHandle() = default;
 
-		void release();
-
 		bool isValid() { return m_cachedPtr != nullptr; }
 		size_t getBlockSize() const;
 
@@ -27,6 +25,10 @@ namespace apex {
 
 		AxHandle(AxHandle const&) = delete;
 		AxHandle& operator=(AxHandle const&) = delete;
+
+	protected:
+		void free();
+		friend class AxManagedClass;
 
 	private:
 		void*  m_cachedPtr { nullptr };
