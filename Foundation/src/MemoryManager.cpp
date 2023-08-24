@@ -30,7 +30,7 @@ namespace memory {
 	PoolAllocator& MemoryManagerImpl::getMemoryPoolFromPointer(void* mem)
 	{
 		uint32 i = 0;
-		for (const auto elemSize : g_memoryPoolSizes | std::views::keys)
+		for ([[maybe_unused]] const auto elemSize : g_memoryPoolSizes | std::views::keys)
 		{
 			if (m_poolAllocators[i].containsPointer(mem))
 				break;
@@ -40,7 +40,7 @@ namespace memory {
 		return m_poolAllocators[i];
 	}
 
-	bool MemoryManagerImpl::checkManaged(void* mem)
+	bool MemoryManagerImpl::checkManaged(void* mem) const
 	{
 		return mem >= m_pBase && mem <= m_pBase + m_poolMemorySize;
 	}
@@ -220,16 +220,21 @@ namespace memory {
 	
 	AxHandle::AxHandle(size_t size)
 	{
-		auto [poolIdx, mem] = memory::s_memoryManagerImpl.allocateOnMemoryPool(size);
-		m_cachedPtr = mem;
-		m_memoryPoolIdx = poolIdx;
+		allocate(size);
 	}
 
 	void AxHandle::free()
 	{
 		memory::s_memoryManagerImpl.freeFromMemoryPool(m_memoryPoolIdx, m_cachedPtr);
-		m_memoryPoolIdx = 0;
 		m_cachedPtr = nullptr;
+		m_memoryPoolIdx = 0;
+	}
+
+	void AxHandle::allocate(size_t size)
+	{
+		auto [poolIdx, mem] = memory::s_memoryManagerImpl.allocateOnMemoryPool(size);
+		m_cachedPtr = mem;
+		m_memoryPoolIdx = poolIdx;
 	}
 
 	size_t AxHandle::getBlockSize() const

@@ -20,9 +20,15 @@ namespace apex {
 	}
 
 	template <typename T>
-	void memmove_s(T* const dst, const size_t dstCount, const void* const src, const size_t srcCount)
+	void memmove_s(T* const dst, const size_t dstCount, const T* const src, const size_t srcCount)
 	{
 		(void)::memmove_s(dst, sizeof(T) * dstCount, src, sizeof(T) * srcCount);
+	}
+
+	template <typename T>
+	void memcpy_s(void* const dst, const size_t dstCount, const void* const src, const size_t srcCount)
+	{
+		(void)::memcpy_s(dst, sizeof(T) * dstCount, src, sizeof(T) * srcCount);
 	}
 
 }

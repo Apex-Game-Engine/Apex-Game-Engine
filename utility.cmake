@@ -60,3 +60,8 @@ function(target_vulkan_shaders Target)
         target_sources(${Target} PRIVATE ${source}.spv)
     endforeach()
 endfunction()
+
+
+if(CMAKE_CXX_COMPILER_ID STREQUAL Clang AND "x${CMAKE_CXX_SIMULATE_ID}" STREQUAL "xMSVC")
+    set(APEX_COMPILER_TOOLSET_CLANG_CL TRUE)
+endif()

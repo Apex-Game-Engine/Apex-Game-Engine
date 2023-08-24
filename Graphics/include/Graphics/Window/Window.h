@@ -2,11 +2,11 @@
 
 namespace apex {
 
-	struct Window
+	class Window
 	{
+	public:
 		virtual ~Window() = default;
-
-		virtual void construct(void* hInstance) = 0;
+		
 		virtual void show(int nCmdShow) = 0;
 		virtual void draw() = 0;
 		virtual void pollOSEvents() = 0;

@@ -38,6 +38,7 @@ target_vulkan_shaders(Graphics
 target_compile_definitions(Graphics
     PRIVATE
     APEX_INTERNAL
+    APEX_EXPORTS
     ${APEX_ENABLES}
 
     PUBLIC

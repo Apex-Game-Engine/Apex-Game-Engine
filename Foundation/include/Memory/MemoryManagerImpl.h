@@ -10,16 +10,11 @@
 namespace apex {
 namespace memory {
 	
-	struct MemoryManagerImpl
+	class MemoryManagerImpl
 	{
+	public:
 		std::vector<ArenaAllocator> m_arenaAllocators;
 		std::vector<PoolAllocator> m_poolAllocators;
-
-		uint8 *m_pBase {};
-		size_t m_capacity {};
-
-		size_t m_arenaMemorySize;
-		size_t m_poolMemorySize;
 
 		void setUpMemoryPools();
 		void setUpMemoryArenas(uint32 numFramesInFlight, uint32 frameArenaSize);
@@ -31,10 +26,19 @@ namespace memory {
 		PoolAllocator& getMemoryPoolForSize(size_t allocSize);
 		PoolAllocator& getMemoryPoolFromPointer(void* mem);
 
-		bool checkManaged(void* mem);
+		bool checkManaged(void* mem) const;
 		bool canFree(void* mem);
 
 		size_t getAllocatedSizeInPools() const;
+
+	private:
+		uint8 *m_pBase {};
+		size_t m_capacity {};
+
+		size_t m_arenaMemorySize;
+		size_t m_poolMemorySize;
+
+		friend class MemoryManager;
 	};
 
 	namespace detail
@@ -60,7 +64,7 @@ namespace memory {
 				pAlignedPtr += align;
 
 			// Find the shift in alignment
-			uint64 shift = pAlignedPtr - raw_ptr;
+			uint64 shift = reinterpret_cast<uint64>(pAlignedPtr) - reinterpret_cast<uint64>(raw_ptr);
 			axAssert(shift > 0 && shift <= constants::uint8_MAX);
 
 			// Store the shift

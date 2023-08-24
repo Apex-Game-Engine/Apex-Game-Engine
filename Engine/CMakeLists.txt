@@ -12,11 +12,11 @@ add_library(Engine SHARED
 target_compile_definitions(Engine
     PRIVATE
     APEX_INTERNAL
+    APEX_EXPORTS
     ${APEX_ENABLES}
     $<$<CONFIG:Debug>:APEX_ENABLE_CHECKS>
 )
 
-# target_precompile_headers(Engine PUBLIC include/apex_pch.h)
 set_target_precompiled_header(Engine apex_pch.h src/apex_pch.cpp)
 
 target_link_libraries(Engine
@@ -31,12 +31,5 @@ target_include_directories(Engine
 
     PRIVATE
     src
-)
-
-add_custom_command(TARGET Engine POST_BUILD
-    COMMAND "${CMAKE_COMMAND}" -E copy
-        "$<TARGET_FILE:Engine>"
-        "$<TARGET_FILE_DIR:Engine_test>/$<TARGET_FILE_NAME:Engine>"
-    COMMENT "Copying to Engine_test"
 )
 

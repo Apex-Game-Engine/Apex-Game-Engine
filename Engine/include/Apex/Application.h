@@ -1,9 +1,11 @@
 ﻿#pragma once
 
+#include "Api.h"
+
 namespace apex {
 	struct Window;
 
-	struct Application
+	struct APEX_API Application
 	{
 		virtual ~Application() = default;
 

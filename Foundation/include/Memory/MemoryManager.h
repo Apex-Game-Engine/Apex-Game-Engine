@@ -3,11 +3,11 @@
 #include "Core/Types.h"
 
 namespace apex {
-	struct AxHandle;
+	class AxHandle;
 
 namespace memory {
-	struct MemoryManagerImpl;
-	struct PoolAllocator;
+	class MemoryManagerImpl;
+	class PoolAllocator;
 
 	constexpr size_t g_allocatorDefaultCapacity = 1024ui64 * 1024ui64 * 128ui64; // 128 MiB
 

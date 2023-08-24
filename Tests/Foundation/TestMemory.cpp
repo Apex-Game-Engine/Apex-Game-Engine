@@ -212,9 +212,11 @@ namespace apex::memory {
 		EXPECT_EQ( getPoolSize(48), 65536 );     // 48 B    x 65536 = 3 MiB
 		EXPECT_EQ( getPoolSize(64), 32768 );     // 64 B    x 32768 = 2 MiB
 		EXPECT_EQ( getPoolSize(80), 16384 );     // 80 B    x 16384 = 1.25 MiB
-		EXPECT_EQ( getPoolSize(128), 8192 );     // 128 B   x 8192  = 1 MiB
-		EXPECT_EQ( getPoolSize(256), 8192 );     // 256 B   x 8192  = 2 MiB
-		EXPECT_EQ( getPoolSize(512), 8192 );     // 512 B   x 8192  = 4 MiB
+		EXPECT_EQ( getPoolSize(128), 4096 );     // 128 B   x 4096  = 0.5 MiB
+		EXPECT_EQ( getPoolSize(160), 4096 );     // 160 B   x 4096  = 0.625 MiB
+		EXPECT_EQ( getPoolSize(256), 4096 );     // 256 B   x 4096  = 1 MiB
+		EXPECT_EQ( getPoolSize(320), 4096 );     // 320 B   x 4096  = 1.25 MiB
+		EXPECT_EQ( getPoolSize(512), 4096 );     // 512 B   x 4096  = 2 MiB
 		EXPECT_EQ( getPoolSize(1024), 4096 );    // 1 KiB   x 4096  = 4 MiB
 		EXPECT_EQ( getPoolSize(2048), 4096 );    // 2 KiB   x 4096  = 8 MiB
 		EXPECT_EQ( getPoolSize(4096), 4096 );    // 4 KiB   x 4096  = 16 MiB
@@ -232,7 +234,7 @@ namespace apex::memory {
 		EXPECT_EQ( getPoolSize(32_MiB), 32 );    // 32 MiB  x  32   = 1024 MiB
 
 		AxHandle handle(1024);
-		EXPECT_EQ(handle_getMemoryPoolIndex(handle), 7);
+		EXPECT_EQ(handle_getMemoryPoolIndex(handle), 9);
 	}
 
 	TEST_F(MemoryManagerTest, TestCheckManaged)
@@ -271,6 +273,7 @@ namespace apex::memory {
 	struct StructWithDestructor : public AxManagedClass
 	{
 		inline static int32 s_count = 0;
+		inline static int32 s_numDestroyed = 0;
 
 		char m_dbgName[64];
 
@@ -284,6 +287,7 @@ namespace apex::memory {
 		{
 			printf("dtor\n");
 			--s_count;
+			s_numDestroyed++;
 		}
 	};
 	static_assert(sizeof(StructWithDestructor) == 64);
@@ -433,6 +437,30 @@ namespace apex::memory {
 			EXPECT_EQ(MemoryManager::getAllocatedSize(), 128);
 		}
 		EXPECT_EQ(MemoryManager::getAllocatedSize(), 0);
+
+		{
+			AxHandle hArray = apex::make_handle<StructWithDestructor[]>(2);
+			EXPECT_EQ(MemoryManager::getAllocatedSize(), 160);
+		}
+	}
+
+	TEST_F(MemoryManagerTest, TestUniquePtrCallElementDestructor)
+	{
+		StructWithDestructor::s_numDestroyed = 0;
+		{
+			auto pStruct = apex::make_unique<StructWithDestructor>();
+			pStruct = apex::make_unique<StructWithDestructor>();
+			EXPECT_EQ(StructWithDestructor::s_numDestroyed, 1);
+		}
+		EXPECT_EQ(StructWithDestructor::s_numDestroyed, 2);
+
+		{
+
+			auto pStruct = apex::make_unique<StructWithDestructor[]>(16);
+			EXPECT_EQ(MemoryManager::getAllocatedSize(), 2048);
+			pStruct = apex::make_unique<StructWithDestructor[]>(32);
+		}
+		EXPECT_EQ(StructWithDestructor::s_numDestroyed, 50);
 	}
 
 	struct IntArrayWrapper

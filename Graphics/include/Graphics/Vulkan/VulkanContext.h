@@ -4,10 +4,12 @@
 
 #include <vulkan/vulkan_core.h>
 
+#include "VulkanDebugMessenger.h"
+
 namespace apex {
 	struct Window;
 
-namespace gfx {
+namespace vk {
 
 	struct VulkanInstanceContext
 	{
@@ -33,10 +35,10 @@ namespace gfx {
 		void _createSurface(Window* p_window);
 
 	private:
-		VkInstance               m_instance{};
-		
-		VkDebugUtilsMessengerEXT m_debugMessenger{};
-		Window*                  m_pWindow{};
+		VkInstance           m_instance{};
+
+		VulkanDebugMessenger m_debugMessenger{};
+		Window*              m_pWindow{};
 
 		static VulkanContext *s_pInstance;
 

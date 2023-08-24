@@ -8,8 +8,8 @@
 void* operator new(size_t size);
 void* operator new[](size_t size);
 
-void operator delete(void* mem);
-void operator delete[](void* mem);
+void operator delete(void* mem) noexcept;
+void operator delete[](void* mem) noexcept;
 #endif
 
 namespace apex {
@@ -19,8 +19,9 @@ namespace apex {
 		class MemoryManager;
 	}
 
-	struct AxManagedClass
+	class AxManagedClass
 	{
+	public:
 		void* operator new(size_t);
 		void* operator new[](size_t);
 
@@ -75,10 +76,18 @@ namespace apex {
 		T m_value;
 	};
 
+	static_assert(sizeof(AxManagedClassAdapter<bool>) == sizeof(bool));
+	static_assert(sizeof(AxManagedClassAdapter<uint8>) == sizeof(uint8));
+	static_assert(sizeof(AxManagedClassAdapter<uint16>) == sizeof(uint16));
+	static_assert(sizeof(AxManagedClassAdapter<uint32>) == sizeof(uint32));
+	static_assert(sizeof(AxManagedClassAdapter<uint64>) == sizeof(uint64));
+	static_assert(sizeof(AxManagedClassAdapter<float32>) == sizeof(float32));
+	static_assert(sizeof(AxManagedClassAdapter<float64>) == sizeof(float64));
+
 	template <typename T>
 	constexpr auto adapt_to_managed_class(T* ptr)
 	{
-		ptr = new (ptr) AxManagedClassAdapter<T>(ptr);
+		return new (ptr) AxManagedClassAdapter<T>(ptr);
 	}
 
 	template <typename T>
@@ -107,11 +116,3 @@ namespace apex {
 
 }
 
-//template <typename T>
-//inline constexpr bool std::is_array_v<apex::AxManagedClassAdapter<T>> = false;
-//
-//template <typename T>
-//inline constexpr bool std::is_array_v<apex::AxManagedClassAdapter<T[]>> = true;
-//
-//template <typename T, size_t N>
-//inline constexpr bool std::is_array_v<apex::AxManagedClassAdapter<T[N]>> = true;

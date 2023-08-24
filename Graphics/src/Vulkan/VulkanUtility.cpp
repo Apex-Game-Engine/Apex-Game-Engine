@@ -15,14 +15,12 @@ namespace apex::vk {
 		vkEnumerateInstanceLayerProperties(&instanceLayerCount, nullptr);
 
 		AxArray<VkLayerProperties> instanceLayerProperties(instanceLayerCount);
-		instanceLayerProperties.resize(instanceLayerCount);
-
 		vkEnumerateInstanceLayerProperties(&instanceLayerCount, instanceLayerProperties.data());
 
 		AxArray<bool> validationLayersPresent(instanceLayerCount);
 		validationLayersPresent.resize(instanceLayerCount, false);
 
-		int numValidationLayersPresent = 0;
+		size_t numValidationLayersPresent = 0;
 
 		for (VkLayerProperties& layer : instanceLayerProperties)
 		{

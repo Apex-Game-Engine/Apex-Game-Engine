@@ -1,4 +1,5 @@
 ﻿#pragma once
+#include "Core/Logging.h"
 #include "Core/Types.h"
 
 namespace apex {
@@ -28,6 +29,7 @@ namespace apex {
 
 	protected:
 		void free();
+		void allocate(size_t size);
 		friend class AxManagedClass;
 
 	private:
@@ -47,6 +49,9 @@ namespace apex {
 	template <typename T> requires (std::is_array_v<T> && std::extent_v<T> == 0)
 	AxHandle make_handle(const size_t size)
 	{
-		return AxHandle(sizeof(std::remove_extent_t<T>) * size);
+		if constexpr (std::is_trivially_destructible_v<T>)
+			return AxHandle(sizeof(std::remove_extent_t<T>) * size);
+		else
+			return AxHandle(sizeof(size_t) + sizeof(std::remove_extent_t<T>) * size);
 	}
 }

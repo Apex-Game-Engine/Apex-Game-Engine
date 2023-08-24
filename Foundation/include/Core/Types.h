@@ -1,5 +1,6 @@
 #pragma once
 #include <cfloat>
+#include <cmath>
 #include <limits>
 
 namespace apex {
@@ -63,7 +64,7 @@ namespace apex {
         constexpr float32 float32_EPSILON    = FLT_EPSILON;
         constexpr float32 float32_INFINITY   = std::numeric_limits<float32>::infinity();
         constexpr float32 float32_PI         = 3.1415926535897932385f;
-        constexpr float32 float32_ULP_DIFF   = 4;
+        constexpr int64   float32_ULP_DIFF     = 4;
 
         constexpr float64 float64_MAX        = DBL_MAX;
         constexpr float64 float64_MIN        = DBL_MIN;

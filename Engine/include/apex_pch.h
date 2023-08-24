@@ -1,6 +1,7 @@
 #pragma once
 
 #include "GlobalDefines.h"
+#include "Api.h"
 
 // Foundation
 #include "Core/Platform.h"

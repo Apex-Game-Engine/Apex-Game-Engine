@@ -13,6 +13,7 @@ namespace memory {
 	using pool_size = uint32;
 	using elem_size = uint32;
 
+	// TODO: Consider splitting this into multiple pool arenas { Game, Render, GPU }
 	static constexpr std::pair<elem_size, pool_size> g_memoryPoolSizes[] = {
 			// { 8, 131072 },     // 8 B     x 131072 = 1 MiB
 			// { 16, 65536 },     // 16 B    x 65536  = 1 MiB
@@ -20,9 +21,11 @@ namespace memory {
 			{ 48, 65536 },     // 48 B    x 65536 = 3 MiB
 			{ 64, 32768 },     // 64 B    x 32768 = 2 MiB
 			{ 80, 16384 },     // 80 B    x 16384 = 1.25 MiB
-			{ 128, 8192 },     // 128 B   x 8192  = 1 MiB
-			{ 256, 8192 },     // 256 B   x 8192  = 2 MiB
-			{ 512, 8192 },     // 512 B   x 8192  = 4 MiB
+			{ 128, 4096 },     // 128 B   x 4096  = 0.5 MiB
+			{ 160, 4096 },     // 160 B   x 4096  = 0.625 MiB
+			{ 256, 4096 },     // 256 B   x 4096  = 1 MiB
+			{ 320, 4096 },     // 320 B   x 4096  = 1.25 MiB
+			{ 512, 4096 },     // 512 B   x 4096  = 4 MiB
 			{ 1024, 4096 },    // 1 KiB   x 4096  = 4 MiB
 			{ 2048, 4096 },    // 2 KiB   x 4096  = 8 MiB
 			{ 4096, 4096 },    // 4 KiB   x 4096  = 16 MiB

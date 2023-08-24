@@ -29,7 +29,8 @@ namespace apex {
 	{
 		if (memory::MemoryManager::checkManaged(ptr))
 		{
-			memory::MemoryManager::free(ptr);
+			if (memory::MemoryManager::canFree(ptr))
+				memory::MemoryManager::free(ptr);
 		}
 		else
 		{
@@ -72,13 +73,28 @@ namespace apex {
 
 	void* AxManagedClass::operator new(size_t size, AxHandle& handle)
 	{
-		axAssert(handle.isValid() && handle.getBlockSize() >= size);
+		// TODO: Please change this to something smarter!
+		if (handle.isValid())
+		{
+			axAssert(handle.getBlockSize() >= size);
+		}
+		else
+		{
+			handle.allocate(size);
+		}
 		return handle.getAs<void>();
 	}
 
 	void* AxManagedClass::operator new [](size_t size, AxHandle& handle)
 	{
-		axAssert(handle.isValid() && handle.getBlockSize() >= size);
+		if (handle.isValid())
+		{
+			axAssert(handle.getBlockSize() >= size);
+		}
+		else
+		{
+			handle.allocate(size);
+		}
 		return handle.getAs<void>();
 	}
 

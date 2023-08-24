@@ -43,9 +43,12 @@ namespace apex {
 	template <apex::managed_class T>
 	class UniquePtr<T>
 	{
+		static_assert(!std::is_reference_v<T>);
+
 	public:
 		using element_type = T;
 		using pointer      = T*;
+		using reference    = T&;
 
 		// default ctor
 		constexpr UniquePtr() noexcept : m_ptr() {}
@@ -96,7 +99,7 @@ namespace apex {
 
 		// member methods
 
-		[[nodiscard]] constexpr std::add_lvalue_reference_t<element_type> operator*() const noexcept
+		[[nodiscard]] constexpr reference operator*() const noexcept
 		{
 			return *m_ptr;
 		}
@@ -144,9 +147,12 @@ namespace apex {
 	template <apex::managed_class T>
 	class UniquePtr<T[]>
 	{
+		static_assert(!std::is_reference_v<T>);
+
 	public:
 		using element_type = T;
 		using pointer      = T*;
+		using reference    = T&;
 
 		// default ctor
 		constexpr UniquePtr() noexcept : m_ptr() {}
@@ -198,7 +204,7 @@ namespace apex {
 
 		// member methods
 
-		[[nodiscard]] constexpr element_type& operator[](size_t idx) const noexcept
+		[[nodiscard]] constexpr reference operator[](size_t idx) const noexcept
 		{
 			return m_ptr[idx];
 		}
@@ -229,6 +235,9 @@ namespace apex {
 			pointer old = std::exchange(m_ptr, ptr);
 			internal::unique_ptr::default_delete<T[]>(old);
 		}
+		
+		UniquePtr(const UniquePtr&)            = delete;
+		UniquePtr& operator=(UniquePtr const&) = delete;
 
 	private:
 		pointer m_ptr;
@@ -255,7 +264,14 @@ namespace apex {
 	[[nodiscard]] constexpr auto unique_from_handle(apex::AxHandle& handle, const size_t size) -> UniquePtr<T>
 	{
 		using element_type = std::remove_extent_t<T>;
-		return UniquePtr<T>(new (handle) element_type[size]());
+		if constexpr (std::is_default_constructible_v<element_type>)
+		{
+			return UniquePtr<T>(new (handle) element_type[size]());
+		}
+		else
+		{
+			return UniquePtr<T>(new (handle) element_type[size]);
+		}
 	}
 
 	// make a UniquePtr from a AxHandle
@@ -292,8 +308,15 @@ namespace apex {
 	[[nodiscard]] constexpr UniquePtr<T> make_unique(const size_t size)
 	{
 	    using element_type = std::remove_extent_t<T>;
-		AxHandle handle ( sizeof(element_type) * size );
-	    return UniquePtr<T>(new (handle) element_type[size]());
+		AxHandle handle;
+		if constexpr (std::is_default_constructible_v<element_type>)
+		{
+			return UniquePtr<T>(new (handle) element_type[size]());
+		}
+		else
+		{
+			return UniquePtr<T>(new (handle) element_type[size]);
+		}
 	}
 
 	// make a UniquePtr

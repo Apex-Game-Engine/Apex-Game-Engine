@@ -12,6 +12,7 @@ add_library(Foundation OBJECT
 target_compile_definitions(Foundation
     PRIVATE
     APEX_INTERNAL
+    APEX_EXPORTS
     ${APEX_ENABLES}
 
     PUBLIC

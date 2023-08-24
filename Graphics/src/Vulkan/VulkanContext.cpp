@@ -6,11 +6,11 @@
 
 #include <vulkan/vulkan.h>
 
-#include "Graphics/Vulkan/VulkanDebug.h"
+#include "Graphics/Vulkan/VulkanDebugMessenger.h"
 #include "Graphics/Vulkan/VulkanUtility.h"
 
 namespace apex {
-namespace gfx {
+namespace vk {
 
 namespace detail {
 
@@ -50,6 +50,8 @@ namespace detail {
 	void VulkanContext::initialize(const char* app_name, Window* p_window, bool enable_debugging)
 	{
 		s_pInstance = this;
+
+		axInfo("Initializing Vulkan");
 
 		_initializeVulkan(app_name, p_window, enable_debugging);
 	}
@@ -103,7 +105,7 @@ namespace detail {
 			"Validation layers are requested but not supported!"
 		);
 
-		const VkDebugUtilsMessengerCreateInfoEXT debugMessengerCreateInfo = vk::debug_messenger_create_info();
+		const VkDebugUtilsMessengerCreateInfoEXT debugMessengerCreateInfo = m_debugMessenger.getCreateInfo();
 
 		if (detail::kEnableDebugLayers)
 		{
@@ -127,9 +129,9 @@ namespace detail {
 
 	void VulkanContext::_createDebugMessenger()
 	{
-		VkDebugUtilsMessengerCreateInfoEXT createInfo = vk::debug_messenger_create_info();
+		VkDebugUtilsMessengerCreateInfoEXT createInfo = m_debugMessenger.getCreateInfo();
 
-		axAssertMsg(VK_SUCCESS == vk::CreateDebugUtilsMessengerEXT(m_instance, &createInfo, nullptr, &m_debugMessenger),
+		axAssertMsg(VK_SUCCESS == vk::CreateDebugUtilsMessengerEXT(m_instance, &createInfo, nullptr, &m_debugMessenger.debugMessenger),
 			"Failed to create Vulkan debug utils messenger!"
 		);
 	}

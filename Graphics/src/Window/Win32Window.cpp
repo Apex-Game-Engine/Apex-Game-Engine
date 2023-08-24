@@ -6,7 +6,7 @@
 
 namespace apex {
 
-	const char Win32Window::WNDCLASS_NAME[] = "ApexGameEngine Window Class";
+	const char Win32Window::WNDCLASS_NAME[] = "apex::Win32Window";
 
 	Win32Window::Win32Window(HINSTANCE hInstance, int nCmdShow, WNDPROC lpfnWndProc, uint32 width, uint32 height, const char* name)
 	{
@@ -39,11 +39,6 @@ namespace apex {
 		);
 
 		axAssert(m_hWnd != nullptr);
-	}
-
-	void Win32Window::construct(HINSTANCE hInstance)
-	{
-
 	}
 
 	void Win32Window::show(int nCmdShow)
