@@ -106,4 +106,7 @@ namespace apex {
         const int ulpsDiff = abs(a.i - b.i);
         return (ulpsDiff <= maxUlpsDiff);
     }
+
+    template <typename T>
+    concept numeric = std::integral<T> || std::floating_point<T> || std::is_pointer_v<T> || std::is_enum_v<T>;
 }

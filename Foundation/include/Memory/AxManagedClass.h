@@ -54,7 +54,7 @@ namespace apex {
 		constexpr operator T() { return static_cast<T>(*this); }
 	};
 
-	template <typename T> requires (std::integral<T> || std::floating_point<T> || std::is_pointer_v<T>)
+	template <typename T> requires (apex::numeric<T>)
 	class AxManagedClassAdapter<T> : public AxManagedClass
 	{
 	public:
@@ -88,6 +88,19 @@ namespace apex {
 	constexpr auto adapt_to_managed_class(T* ptr)
 	{
 		return new (ptr) AxManagedClassAdapter<T>(ptr);
+	}
+
+	template <typename T>
+	constexpr auto from_managed_adapter(AxManagedClassAdapter<T>* ptr)
+	{
+		if constexpr (apex::numeric<T>)
+		{
+			return &ptr->value();
+		}
+		else
+		{
+			return static_cast<T*>(ptr);
+		}
 	}
 
 	template <typename T>

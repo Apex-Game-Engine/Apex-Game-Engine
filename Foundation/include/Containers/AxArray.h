@@ -71,7 +71,7 @@ namespace apex {
 		, m_size(init_list.size())
 		{
 			AxHandle handle(sizeof(value_type) * m_capacity);
-			setDataHandle(handle, m_size);
+			_SetDataHandle(handle, m_size);
 			apex::memcpy_s<value_type>(m_data, m_size, init_list.begin(), init_list.size());
 		}
 
@@ -100,13 +100,17 @@ namespace apex {
 				_ReallocateAndMove(new_size);
 			}
 			m_size = new_size;
-			fill(m_data + oldSize, m_data + new_size, std::forward<Args>(args)...);
+
+			if constexpr (sizeof...(args) > 0)
+			{
+				fill(m_data + oldSize, m_data + new_size, std::forward<Args>(args)...);
+			}
 		}
 
 		void reserve(size_t capacity)
 		{
 			AxHandle handle (sizeof(value_type) * capacity);
-			setDataHandle(handle, 0);
+			_SetDataHandle(handle, 0);
 		}
 
 		template <typename... Args>
@@ -174,7 +178,7 @@ namespace apex {
 			m_size = 0;
 		}
 
-		[[nodiscard]] auto data() { return m_data; }
+		[[nodiscard]] auto data() -> pointer { return _ConvertToValuePointer(); }
 
 		[[nodiscard]] auto at(size_t index) { return this->operator[](index); }
 		[[nodiscard]] auto at(size_t index) const { return this->operator[](index); }
@@ -201,6 +205,7 @@ namespace apex {
 		
 		[[nodiscard]] size_t size() const { return m_size; }
 		[[nodiscard]] size_t capacity() const { return m_capacity; }
+		[[nodiscard]] bool   empty() const { return m_size == 0; }
 
 	#pragma region Iterator functions
 		[[nodiscard]] iterator begin() { return iterator(m_data); }
@@ -222,14 +227,15 @@ namespace apex {
 
 		void _ReallocateAndMove(size_t new_capacity)
 		{
-			AxHandle newHandle (sizeof(value_type) * new_capacity);
 			auto oldData = m_data;
 			auto oldSize = m_size;
 			auto oldCapacity = m_capacity;
 
-			setDataHandle(newHandle, oldSize);
+			AxHandle newHandle (sizeof(value_type) * new_capacity);
+			_SetDataHandle(newHandle, oldSize);
 
-			apex::memmove_s<stored_type>(m_data, m_capacity, oldData, oldSize);
+			if (oldSize > 0)
+				apex::memmove_s<stored_type>(m_data, m_capacity, oldData, oldSize);
 
 			delete oldData;
 		}
@@ -250,6 +256,18 @@ namespace apex {
 			apex::memmove_s<stored_type>(&m_data[index], moveNum, &m_data[index+1], moveNum);
 		}
 
+		pointer _ConvertToValuePointer()
+		{
+			if constexpr (std::same_as<value_type, stored_type>)
+			{
+				return m_data;
+			}
+			else
+			{
+				return from_managed_adapter<value_type>(m_data);
+			}
+		}
+
 		template <typename... Args>
 		void fill(stored_type* first, stored_type* last, Args&&... args) requires (std::is_constructible_v<T, Args...>)
 		{
@@ -260,7 +278,7 @@ namespace apex {
 			}
 		}
 
-		void setDataHandle(AxHandle& handle, size_t init_size)
+		void _SetDataHandle(AxHandle& handle, size_t init_size)
 		{
 			m_capacity = handle.getBlockSize() / sizeof(value_type);
 			m_size = init_size;

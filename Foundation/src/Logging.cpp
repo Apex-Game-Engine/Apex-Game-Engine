@@ -107,7 +107,7 @@ namespace logging {
 			}
 		}
 
-		filename = filepath + i;
+		filename = filepath + i + 1;
 	}
 }
 }
