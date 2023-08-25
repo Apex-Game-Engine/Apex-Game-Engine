@@ -91,7 +91,7 @@ namespace apex {
 	}
 
 	template <typename T>
-	constexpr auto from_managed_adapter(AxManagedClassAdapter<T>* ptr)
+	constexpr auto from_managed_adapter(AxManagedClassAdapter<T>* const ptr) -> T*
 	{
 		if constexpr (apex::numeric<T>)
 		{
@@ -100,6 +100,19 @@ namespace apex {
 		else
 		{
 			return static_cast<T*>(ptr);
+		}
+	}
+
+	template <typename T>
+	constexpr auto from_managed_adapter(AxManagedClassAdapter<T> const* const ptr) -> const T*
+	{
+		if constexpr (apex::numeric<T>)
+		{
+			return &ptr->value();
+		}
+		else
+		{
+			return static_cast<const T*>(ptr);
 		}
 	}
 

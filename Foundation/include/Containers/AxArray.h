@@ -15,6 +15,8 @@ namespace apex {
 	class AxArray : public AxManagedClass
 	{
 	public:
+		using underlying_type = T;
+
 		template <typename IterType>
 		class Iterator
 		{
@@ -22,8 +24,8 @@ namespace apex {
 			using iterator_category = std::contiguous_iterator_tag;
 			using value_type        = IterType;
 			using difference_type   = ptrdiff_t;
-			using pointer           = IterType*;
-			using reference         = IterType&;
+			using pointer           = std::conditional_t<std::is_const_v<IterType>, const underlying_type*, underlying_type*>;
+			using reference         = std::conditional_t<std::is_const_v<IterType>, const underlying_type&, underlying_type&>;;
 
 			Iterator() : m_ptr() {}
 			Iterator(IterType* ptr) : m_ptr(ptr) {}
@@ -31,17 +33,30 @@ namespace apex {
 			Iterator operator++(int) { Iterator tmp(*this); operator++(); return tmp; } // post-increment
 			bool operator==(const Iterator& rhs) const { return m_ptr == rhs.m_ptr; }
 			bool operator!=(const Iterator& rhs) const { return m_ptr != rhs.m_ptr; }
-			reference operator*() const { return *m_ptr; }
-			pointer operator->() const { return m_ptr; }
+			reference operator*() const { return *_ToUnderlyingPointer(); }
+			pointer operator->() const { return _ToUnderlyingPointer(); }
+
+		protected:
+			[[nodiscard]] pointer _ToUnderlyingPointer() const
+			{
+				if constexpr (std::same_as<std::remove_cv_t<underlying_type>, std::remove_cv_t<IterType>>)
+				{
+					return m_ptr;
+				}
+				else
+				{
+					return apex::from_managed_adapter(m_ptr);
+				}
+			}
 
 		private:
 			IterType* m_ptr;
 		};
 
 	public:
-		using stored_type = std::conditional_t<apex::managed_class<T>, T, AxManagedClassAdapter<T>>;
+		using stored_type = std::conditional_t<apex::managed_class<T>, underlying_type, AxManagedClassAdapter<T>>;
 
-		using value_type = T;
+		using value_type = underlying_type;
 		using pointer = value_type*;
 		using const_pointer = const value_type*;
 		using reference = value_type&;
@@ -109,8 +124,10 @@ namespace apex {
 
 		void reserve(size_t capacity)
 		{
-			AxHandle handle (sizeof(value_type) * capacity);
-			_SetDataHandle(handle, 0);
+			if (m_capacity < capacity)
+			{
+				_Reserve(capacity, 0);
+			}
 		}
 
 		template <typename... Args>
@@ -225,14 +242,19 @@ namespace apex {
 			return std::construct_at(mem, std::forward<Args>(args)...);
 		}
 
+		void _Reserve(size_t capacity, size_t init_size)
+		{
+			AxHandle newHandle (sizeof(value_type) * capacity);
+			_SetDataHandle(newHandle, init_size);
+		}
+
 		void _ReallocateAndMove(size_t new_capacity)
 		{
 			auto oldData = m_data;
 			auto oldSize = m_size;
 			auto oldCapacity = m_capacity;
 
-			AxHandle newHandle (sizeof(value_type) * new_capacity);
-			_SetDataHandle(newHandle, oldSize);
+			_Reserve(new_capacity, oldSize);
 
 			if (oldSize > 0)
 				apex::memmove_s<stored_type>(m_data, m_capacity, oldData, oldSize);
@@ -293,5 +315,23 @@ namespace apex {
 
 		friend class AxArrayTest;
 	};
+
+
+	template <typename T>
+	void keepUniquesOnly_slow(AxArray<T>& arr)
+	{
+		size_t i = arr.size() - 1;
+		for (; i > 0; --i)
+		{
+			for (size_t j = 0; j < i; j++)
+			{
+				if (arr[i] == arr[j])
+				{
+					arr.remove(i);
+					break;
+				}
+			}
+		}
+	}
 
 }
