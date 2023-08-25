@@ -34,6 +34,10 @@
 
 		apex::memory::MemoryManager::shutdown();
 
+	#if defined(APEX_CONFIG_DEBUG) || defined(APEX_CONFIG_DEVELOPMENT)
+		system("pause");
+	#endif
+
 		return 0;
 	}
 #else

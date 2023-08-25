@@ -1,11 +1,12 @@
 ﻿#include "apex_pch.h"
 #include "Apex/Win32Application.h"
+#include "Graphics/Window/Win32Window.h"
 
 #include <cassert>
 
 
 #ifdef APEX_PLATFORM_WIN32
-#include "Graphics/Window/Win32Window.h"
+#include <ShellScalingApi.h>
 
 namespace apex {
 
@@ -20,17 +21,20 @@ namespace apex {
 	}
 
 	Win32Application::Win32Application(HINSTANCE hInstance, int nCmdShow, uint32 width, uint32 height, const char* name)
-	: m_window(hInstance, nCmdShow, Win32Application::ProcessWindowsEvents, width, height, name)
-	, m_running(true)
+	:m_running(true)
 	{
+		setupDPIAwareness();
+
+		m_window = apex::make_unique<Win32Window>(hInstance, nCmdShow, Win32Application::ProcessWindowsEvents, width, height, name);
 	}
 
 	LRESULT Win32Application::ProcessWindowsEvents(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	{
 		if (s_pInstance)
+		{
 			return static_cast<Win32Application*>(s_pInstance)->processWindowsEvents(hWnd, uMsg, wParam, lParam);
-		else
-			return DefWindowProc(hWnd, uMsg, wParam, lParam);
+		}
+		return DefWindowProc(hWnd, uMsg, wParam, lParam);
 	}
 
 	LRESULT Win32Application::processWindowsEvents(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
@@ -41,28 +45,25 @@ namespace apex {
 			{
 				break;
 			}
+		case WM_CLOSE: // window close event
+			{
+				// TODO: Add quit event to event queue
+				m_window->close();
+				break;
+			}
 		case WM_DESTROY:
 			{
-				PostQuitMessage(0);                                                                 
-
-				// TODO: Add quit event to event queue
-				exit();
-				return 0;
+				m_running = false;
+				break;
 			}
 		case WM_PAINT:
 			{
-				m_window.draw();
-				return 0;
+				m_window->draw();
+				break;
 			}
 		case WM_DRAWITEM:
 			{
-				m_window.draw(reinterpret_cast<LPDRAWITEMSTRUCT>(lParam));
-				break;
-			}
-		case WM_COMMAND:
-			{
-				if (m_window.m_hWnd == hWnd)
-					m_window.onCommand(wParam, lParam);
+				m_window->draw(reinterpret_cast<LPDRAWITEMSTRUCT>(lParam));
 				break;
 			}
 		default:
@@ -72,11 +73,29 @@ namespace apex {
 		return DefWindowProc(hWnd, uMsg, wParam, lParam);
 	}
 
+	void Win32Application::setupDPIAwareness()
+	{
+		typedef HRESULT *(__stdcall *SetProcessDpiAwarenessFunc)(PROCESS_DPI_AWARENESS);
+
+		HMODULE shCore = LoadLibraryA("Shcore.dll");
+		if (shCore)
+		{
+			SetProcessDpiAwarenessFunc setProcessDpiAwareness = (SetProcessDpiAwarenessFunc)GetProcAddress(shCore, "SetProcessDpiAwareness");
+
+			if (nullptr != setProcessDpiAwareness)
+			{
+				setProcessDpiAwareness(PROCESS_PER_MONITOR_DPI_AWARE);
+			}
+
+			FreeLibrary(shCore);
+		}
+	}
+
 	void Win32Application::run()
 	{
 		while (m_running)
 		{
-			m_window.pollOSEvents();
+			m_window->pollOSEvents();
 		}
 	}
 
@@ -87,7 +106,7 @@ namespace apex {
 
 	Window* Win32Application::getWindow()
 	{
-		return &m_window;
+		return m_window.get();
 	}
 }
 
