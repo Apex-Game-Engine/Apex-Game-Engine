@@ -43,6 +43,10 @@ namespace apex {
 	class AxArrayTest : public testing::Test
 	{
 	public:
+		void SetUp() override
+		{
+			apex::memory::MemoryManager::initialize({ .frameArenaSize = 0, .numFramesInFlight = 0 });
+		}
 		//void floatArray_constructFromMemory(void* mem, size_t mem_size) { floatArray.constructFromMemory(mem, mem_size); }
 		//void nonTrivialArray_constructFromMemory(void* mem, size_t mem_size) { nonTrivialArray.constructFromMemory(mem, mem_size); }
 
@@ -55,7 +59,6 @@ namespace apex {
 
 	TEST_F(AxArrayTest, TestFloatArrayFromStaticMemory)
 	{
-		apex::memory::MemoryManager::initialize({ .frameArenaSize = 0, .numFramesInFlight = 0 });
 
 		constexpr size_t BUF_SIZE = 8 * sizeof(float);
 		std::array<apex::uint8, BUF_SIZE> arenaBuf { 0 };
@@ -115,6 +118,30 @@ namespace apex {
 		
 		ASSERT_EQ(nonTrivialArray.size(), 0);
 		ASSERT_EQ(nonTrivialArray.capacity(), 8);
+	}
+
+	TEST_F(AxArrayTest, TestKeepOnlyUniquesSlow)
+	{
+		AxArray<uint32> arr;
+		arr.reserve(8);
+		EXPECT_EQ(arr.size(), 0);
+
+		arr.append(1);
+		arr.append(1);
+		arr.append(2);
+		arr.append(1);
+		arr.append(4);
+		arr.append(2);
+		arr.append(3);
+		EXPECT_EQ(arr.size(), 7);
+
+		keepUniquesOnly_slow(arr);
+
+		EXPECT_EQ(arr.size(), 4);
+		EXPECT_EQ(arr[0], 1);
+		EXPECT_EQ(arr[1], 2);
+		EXPECT_EQ(arr[2], 4);
+		EXPECT_EQ(arr[3], 3);
 	}
 
 	TEST(AxStringRefTest, TestAxStringRef)
