@@ -8,10 +8,10 @@
 namespace apex {
 
 	/**
-	 * \brief Non-resizable dynamic array
+	 * \brief Resizable dynamic array
 	 * \tparam T type of elements stored in the array
 	 */
-	template <typename T, typename = SelfManaged>
+	template <typename T>
 	class AxArray : public AxManagedClass
 	{
 	public:
@@ -196,6 +196,7 @@ namespace apex {
 		}
 
 		[[nodiscard]] auto data() -> pointer { return _ConvertToValuePointer(); }
+		[[nodiscard]] auto data() const -> const_pointer { return const_cast<AxArray* const>(this)->_ConvertToValuePointer(); }
 
 		[[nodiscard]] auto at(size_t index) { return this->operator[](index); }
 		[[nodiscard]] auto at(size_t index) const { return this->operator[](index); }
@@ -206,7 +207,7 @@ namespace apex {
 
 			if constexpr (apex::is_managed_adapted_class_v<stored_type>)
 			{
-				return m_data[index].value();
+				return *from_managed_adapter(&m_data[index]);
 			}
 			else
 			{
@@ -216,8 +217,7 @@ namespace apex {
 
 		[[nodiscard]] auto operator[] (size_t index) const -> std::conditional_t<std::is_trivial_v<T>, value_type, const_reference>
 		{
-			axAssert(index < m_size);
-			return m_data[index];
+			return const_cast<AxArray* const>(this)->operator[](index);
 		}
 		
 		[[nodiscard]] size_t size() const { return m_size; }
@@ -312,10 +312,9 @@ namespace apex {
 		size_t m_size { 0 };
 
 		stored_type* m_data { nullptr };
-
+		
 		friend class AxArrayTest;
 	};
-
 
 	template <typename T>
 	void keepUniquesOnly_slow(AxArray<T>& arr)
@@ -333,5 +332,27 @@ namespace apex {
 			}
 		}
 	}
+
+	/**
+	 * \brief Non-owning reference to a contiguous sequence of elements
+	 * \tparam T type of elements stored in the array
+	 */
+	template <typename T>
+	struct AxArrayRef
+	{
+		T* data;
+		size_t count;
+
+		[[nodiscard]] auto operator[](size_t index) -> T&
+		{
+			axAssert(index < count);
+			return data[index];
+		}
+
+		[[nodiscard]] auto operator[](size_t index) const -> T const&
+		{
+			return const_cast<AxArrayRef* const>(this)->operator[](index);
+		}
+	};
 
 }
