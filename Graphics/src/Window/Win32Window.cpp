@@ -8,7 +8,7 @@ namespace apex {
 
 	const char Win32Window::WNDCLASS_NAME[] = "apex::Win32Window";
 
-	Win32Window::Win32Window(HINSTANCE hInstance, int nCmdShow, WNDPROC lpfnWndProc, uint32 width, uint32 height, const char* name)
+	Win32Window::Win32Window(HINSTANCE hInstance, WNDPROC lpfnWndProc, uint32 width, uint32 height, const char* name)
 	{
 		static bool isWndClassRegistered = false;
 		if (!isWndClassRegistered)
@@ -39,6 +39,14 @@ namespace apex {
 		);
 
 		axAssert(m_hWnd != nullptr);
+
+		m_isOpen = true;
+	}
+
+	Win32Window::~Win32Window()
+	{
+		if (m_isOpen)
+			Win32Window::close();
 	}
 
 	void Win32Window::show(int nCmdShow)
@@ -48,6 +56,7 @@ namespace apex {
 
 	void Win32Window::draw()
 	{
+		ValidateRect(m_hWnd, nullptr);
 	}
 
 	void Win32Window::draw(LPDRAWITEMSTRUCT lpDrawItemStruct)
@@ -80,8 +89,24 @@ namespace apex {
 		return m_hWnd;
 	}
 
-	void Win32Window::onCommand(WPARAM wParam, LPARAM lParam)
+	HWND Win32Window::getWin32WindowHandle()
 	{
+		return m_hWnd;
+	}
+
+	void Win32Window::getFramebufferSize(int& width, int& height)
+	{
+		RECT rect;
+		GetClientRect(m_hWnd, &rect);
+		
+		width = rect.right;
+		height = rect.bottom;
+	}
+
+	void Win32Window::close()
+	{
+		DestroyWindow(m_hWnd);
+		m_isOpen = false;
 	}
 }
 

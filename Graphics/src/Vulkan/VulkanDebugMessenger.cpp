@@ -5,6 +5,8 @@
 
 #include <vulkan/vulkan.h>
 
+#include "Graphics/Vulkan/VulkanFunctions.h"
+
 namespace apex::vk {
 
 	static VKAPI_ATTR VkBool32 VKAPI_CALL debug_messenger_callback(
@@ -16,15 +18,30 @@ namespace apex::vk {
 		return static_cast<VulkanDebugMessenger*>(pUserData)->callback(messageSeverity, messageTypes, pCallbackData);
 	}
 
+	void VulkanDebugMessenger::create(VkInstance instance, VkAllocationCallbacks const* pAllocator)
+	{
+		const VkDebugUtilsMessengerCreateInfoEXT createInfo = getCreateInfo();
+
+		axVerifyMsg(VK_SUCCESS == vk::CreateDebugUtilsMessengerEXT(instance, &createInfo, pAllocator, &debugMessenger),
+			"Failed to create Vulkan debug utils messenger!"
+		);
+	}
+
+	void VulkanDebugMessenger::destroy(VkInstance instance, VkAllocationCallbacks const* pAllocator)
+	{
+		vk::DestroyDebugUtilsMessengerEXT(instance, debugMessenger, pAllocator);
+	}
+	
 	VkDebugUtilsMessengerCreateInfoEXT VulkanDebugMessenger::getCreateInfo()
 	{
-		return VkDebugUtilsMessengerCreateInfoEXT {
-		.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
-		.messageSeverity = messageSeverityFlags,
-		.messageType = messageTypeFlags,
-		.pfnUserCallback = debug_messenger_callback,
-		.pUserData = nullptr,
+		static VkDebugUtilsMessengerCreateInfoEXT ci {
+			.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
+			.messageSeverity = messageSeverityFlags,
+			.messageType = messageTypeFlags,
+			.pfnUserCallback = debug_messenger_callback,
+			.pUserData = nullptr,
 		};
+		return ci;
 	}
 
 	VkBool32 VulkanDebugMessenger::callback(

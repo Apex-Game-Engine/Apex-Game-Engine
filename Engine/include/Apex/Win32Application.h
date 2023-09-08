@@ -1,6 +1,8 @@
 ﻿#pragma once
 #include "Application.h"
 #include "Core/Types.h"
+#include "Graphics/ForwardRenderer.h"
+#include "Graphics/Vulkan/VulkanContext.h"
 #include "Memory/UniquePtr.h"
 
 #ifdef APEX_PLATFORM_WIN32
@@ -10,19 +12,32 @@ namespace apex {
 
 	struct Win32Application : public Application
 	{
-		Win32Application(HINSTANCE hInstance, int nCmdShow, uint32 width, uint32 height, const char* name);
-
+		Win32Application(uint32 width, uint32 height, const char* name);
 		static LRESULT CALLBACK ProcessWindowsEvents(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
 		LRESULT CALLBACK processWindowsEvents(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 		void setupDPIAwareness();
 		
+		void initialize() override;
 		void run() override;
 		void exit() override;
-		Window* getWindow() override;
+		void shutdown() override;
 
+		Window* getWindow() override;
+		ApplicationState getState() override;
+
+		// Application
+		HINSTANCE m_hInstance;
 		UniquePtr<Win32Window> m_window;
 		bool m_running;
+		ApplicationState m_applicationState;
+		
+
+		// Graphics
+		vk::VulkanContext m_vulkanContext;
+		gfx::ForwardRenderer m_forwardRenderer;
+
+		//Game
 	};
 
 }

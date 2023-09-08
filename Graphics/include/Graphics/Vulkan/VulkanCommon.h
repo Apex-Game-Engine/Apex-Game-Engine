@@ -7,7 +7,7 @@
 #include "Containers/AxArray.h"
 
 namespace apex {
-namespace gfx {
+namespace vk {
 
 	struct VulkanQueueFamilyIndices
 	{
@@ -16,21 +16,22 @@ namespace gfx {
 		std::optional<uint32> transferFamily; // For moving/copying
 		std::optional<uint32> computeFamily;  // For compute shaders
 
-		bool isRenderComplete() const
+		[[nodiscard]] bool isRenderComplete() const
 		{
-			return graphicsFamily.has_value() && presentFamily.has_value();
+			return graphicsFamily.has_value() && presentFamily.has_value() && transferFamily.has_value();
 		}
 
-		bool isComplete() const
+		[[nodiscard]] bool isComplete() const
 		{
-			return isRenderComplete() && transferFamily.has_value();
+			return isRenderComplete() && computeFamily.has_value();
 		}
 	};
 
 	struct VulkanSwapchainSupportDetails
 	{
 		VkSurfaceCapabilitiesKHR capabilities;
-		//AxUnorderedArray<>
+		AxArray<VkSurfaceFormatKHR> formats;
+		AxArray<VkPresentModeKHR> presentModes;
 	};
 
 }
