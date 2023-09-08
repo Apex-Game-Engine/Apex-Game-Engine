@@ -16,8 +16,8 @@
 #define axAssertMsg(condition, msg) do { if (!(condition)) { axError("Assertion Failed! : " XSTR(condition)); axError(msg); DEBUG_BREAK(); } else {} } while (false)
 
 // Strong Asserts : Level 0 assertions : These are enabled in all builds, and cause SIGKILL in Release builds
-#define asStrongAssert(condition) do { if (!(condition)) { axError("Strong Assertion Failed : " XSTR(condition)); DEBUG_BREAK(); } else {} } while (false)
-#define asStrongAssertMsg(condition, msg) do { if (!(condition)) { axError("Strong Assertion Failed : " XSTR(condition)); axError(msg); DEBUG_BREAK(); } else {} } while (false)
+#define axStrongAssert(condition) do { if (!(condition)) { axError("Strong Assertion Failed : " XSTR(condition)); DEBUG_BREAK(); } else {} } while (false)
+#define axStrongAssertMsg(condition, msg) do { if (!(condition)) { axError("Strong Assertion Failed : " XSTR(condition)); axError(msg); DEBUG_BREAK(); } else {} } while (false)
 
 // Verifies : Level 0 assertions : These are enabled in all builds, but do not raise errors in Release builds
 #define axVerify(condition) do { if (!(condition)) { axError("Verify Failed! : " XSTR(condition)); DEBUG_BREAK(); } else {} } while (false)
@@ -34,8 +34,8 @@
 #define axAssertMsg(condition, msg) do { if (!(condition)) { axError("Assertion Failed! : " XSTR(condition)); axError(msg); DEBUG_BREAK(); } else {} } while (false)
 
 // Strong Asserts : Level 0 assertions : These are enabled in all builds, and cause SIGKILL in Release builds
-#define asStrongAssert(condition) do { if (!(condition)) { axError("Strong Assertion Failed : " XSTR(condition)); DEBUG_BREAK(); } else {} } while (false)
-#define asStrongAssertMsg(condition, msg) do { if (!(condition)) { axError("Strong Assertion Failed : " XSTR(condition)); axError(msg); DEBUG_BREAK(); } else {} } while (false)
+#define axStrongAssert(condition) do { if (!(condition)) { axError("Strong Assertion Failed : " XSTR(condition)); DEBUG_BREAK(); } else {} } while (false)
+#define axStrongAssertMsg(condition, msg) do { if (!(condition)) { axError("Strong Assertion Failed : " XSTR(condition)); axError(msg); DEBUG_BREAK(); } else {} } while (false)
 
 // Verifies : Level 0 assertions : These are enabled in all builds, but do not raise errors in Release builds
 #define axVerify(condition) do { if (!(condition)) { axError("Assertion Failed! : " XSTR(condition)); DEBUG_BREAK(); } else {} } while (false)
@@ -52,8 +52,8 @@
 #define axAssertMsg(condition, msg)
 
 // Strong Asserts : Level 0 assertions : These are enabled in all builds, and cause SIGKILL in Release builds
-#define asStrongAssert(condition) do { if (!(condition)) { KILL(); } else {} } while (false)
-#define asStrongAssertMsg(condition, msg) do { if (!(condition)) { KILL(); } else {} } while (false)
+#define axStrongAssert(condition) do { if (!(condition)) { KILL(); } else {} } while (false)
+#define axStrongAssertMsg(condition, msg) do { if (!(condition)) { KILL(); } else {} } while (false)
 
 // Verifies : Level 0 assertions : These are enabled in all builds, but do not raise errors in Release builds
 #define axVerify(condition) do { (condition); } while (false)
