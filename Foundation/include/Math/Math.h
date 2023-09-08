@@ -43,10 +43,10 @@ namespace math {
 #include "Vector3.h"
 #include "Vector4.h"
 
-// TODO: Move to separate file
 namespace apex {
 namespace math {
 
+	// TODO: Move to separate file
 	struct Ray
 	{
 		Point3D origin;

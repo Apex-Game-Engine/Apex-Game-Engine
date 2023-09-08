@@ -109,4 +109,8 @@ namespace apex {
 
     template <typename T>
     concept numeric = std::integral<T> || std::floating_point<T> || std::is_pointer_v<T> || std::is_enum_v<T>;
+
+    // TODO: Create a new Timestep class that provides conversion to nanos, micros, millis and seconds
+    using Timestep = float32;
+
 }

@@ -15,10 +15,10 @@ namespace math {
 			float32 m_values[2] = { 0.f, 0.f };
 		};
 
-		Vector2() = default;
-		Vector2(float32 v0, float32 v1) : m_values{v0, v1} {}
+		constexpr Vector2() = default;
+		constexpr Vector2(float32 v0, float32 v1) : m_values{v0, v1} {}
+		constexpr Vector2(float32 val): m_values{val, val} {}
 		Vector2(float32 values[2]) : m_values{values[0], values[1]} {}
-		Vector2(float32 val): m_values{val, val} {}
 
 		#pragma region Overloaded operators
 
@@ -42,6 +42,8 @@ namespace math {
 		Vector2& normalize_();
 		[[nodiscard]] Vector2 normalize() const;
 	};
+
+	static_assert(sizeof(Vector2) == 2 * sizeof(float));
 
 	Vector2 operator+(Vector2 const &u, Vector2 const &v); // element-wise addition of two vectors
 	Vector2 operator-(Vector2 const &u, Vector2 const &v); // element-wise subtraction of two vectors
@@ -75,10 +77,10 @@ namespace math {
 			float32 m_values[3] = { 0.f, 0.f, 0.f };
 		};
 
-		Vector3() = default;
-		Vector3(float32 v0, float32 v1, float32 v2) : m_values{v0, v1, v2} {}
+		constexpr Vector3() = default;
+		constexpr Vector3(float32 v0, float32 v1, float32 v2) : m_values{v0, v1, v2} {}
+		constexpr Vector3(float32 val) : m_values{val, val, val} {}
 		Vector3(float32 values[3]) : m_values{values[0], values[1], values[2]} {}
-		Vector3(float32 val) : m_values{val, val, val} {}
 
 		// Ctors from Vector2
 		Vector3(Vector2 const &_xy, float32 _z) : m_values{ _xy[0], _xy[1], _z} {}
@@ -121,6 +123,8 @@ namespace math {
 		static Vector3 random_unit_vector();
 		static bool check_near_zero(Vector3 const &v);
 	};
+
+	static_assert(sizeof(Vector3) == 3 * sizeof(float));
 
 	// Vector3 utility functions
 

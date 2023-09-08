@@ -16,10 +16,10 @@ namespace math {
 			float32 m_values[4] = { 0.f, 0.f, 0.f, 0.f };
 		};
 
-		Vector4() = default;
-		Vector4(float32 v0, float32 v1, float32 v2, float32 v3) : m_values{v0, v1, v2, v3} {}
+		constexpr Vector4() = default;
+		constexpr Vector4(float32 v0, float32 v1, float32 v2, float32 v3) : m_values{v0, v1, v2, v3} {}
+		constexpr Vector4(float32 val) : m_values{val, val, val, val} {}
 		Vector4(float32 values[4]) : m_values{values[0], values[1], values[2], values[3]} {}
-		Vector4(float32 val) : m_values{val, val, val, val} {}
 
 		// Ctors from Vector3
 		Vector4(Vector3 const &_xyz, float32 _w) : m_values{_xyz[0], _xyz[1], _xyz[2], _w} {}
@@ -46,7 +46,9 @@ namespace math {
 
 		#pragma endregion
 	};
-	
+
+	static_assert(sizeof(Vector4) == 4 * sizeof(float));
+
 	// Vector4 utility functions
 
 	Vector4 operator+(Vector4 const &u, Vector4 const &v); // element-wise addition of two vectors

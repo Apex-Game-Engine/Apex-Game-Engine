@@ -5,6 +5,7 @@
 #include "Containers/AxArray.h"
 #include "Containers/AxRange.h"
 #include "Containers/AxStringRef.h"
+#include "Math/Vector3.h"
 #include "Memory/MemoryManager.h"
 
 TEST(TestContainers, TestFreeListInitialize)
