@@ -4,8 +4,8 @@
 namespace apex{
 namespace vk {
 
-	constexpr char VkCreateDebugUtilsMessengerEXT_Name[] = "vkCreateDebugUtilsMessengerEXT";
-	constexpr char VkDestroyDebugUtilsMessengerEXT_Name[] = "VkDestroyDebugUtilsMessengerEXT";
+	constexpr char vkCreateDebugUtilsMessengerEXT_Name[]  = "vkCreateDebugUtilsMessengerEXT";
+	constexpr char vkDestroyDebugUtilsMessengerEXT_Name[] = "vkDestroyDebugUtilsMessengerEXT";
 
 	VkResult CreateDebugUtilsMessengerEXT(
 		VkInstance instance,

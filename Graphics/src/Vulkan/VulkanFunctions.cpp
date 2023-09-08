@@ -10,14 +10,14 @@ namespace apex {
 		const VkAllocationCallbacks* pAllocator,
 		VkDebugUtilsMessengerEXT* pMessenger)
 	{
-		static auto func = (PFN_vkCreateDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance, VkCreateDebugUtilsMessengerEXT_Name);
+		static auto func = (PFN_vkCreateDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance, vkCreateDebugUtilsMessengerEXT_Name);
 
 		if (nullptr != func)
 		{
 			return func(instance, pCreateInfo, pAllocator, pMessenger);
 		}
 
-		axAssertMsg(false, "Vulkan extension not found: VkCreateDebugUtilsMessengerEXT");
+		axAssertMsg(false, "Vulkan extension not found: vkCreateDebugUtilsMessengerEXT");
 		return VK_ERROR_EXTENSION_NOT_PRESENT;
 	}
 
@@ -26,12 +26,12 @@ namespace apex {
 		VkDebugUtilsMessengerEXT messenger,
 		const VkAllocationCallbacks* pAllocator)
 	{
-		static auto func = (PFN_vkDestroyDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance, VkDestroyDebugUtilsMessengerEXT_Name);
+		static auto func = (PFN_vkDestroyDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance, vkDestroyDebugUtilsMessengerEXT_Name);
 
 		if (nullptr != func)
 		{
 			return func(instance, messenger, pAllocator);
 		}
-		axAssertMsg(false, "Vulkan extension not found: VkDestroyDebugUtilsMessengerEXT");
+		axAssertMsg(false, "Vulkan extension not found: vkDestroyDebugUtilsMessengerEXT");
 	}
 }

@@ -3,6 +3,7 @@
 #include "Apex/Application.h"
 
 #include "Core/Logging.h"
+#include "Graphics/ForwardRenderer.h"
 
 #include "Graphics/Vulkan/VulkanContext.h"
 #include "Memory/MemoryManager.h"
@@ -16,22 +17,18 @@
 		apex::logging::Logger::initialize();
 		apex::memory::MemoryManager::initialize({ .frameArenaSize = 0, .numFramesInFlight = 3 });
 
-		apex::Application *app = apex::Application::Construct(hInstance, nCmdShow, 1366u, 768u, APEX_DEFAULT_APPNAME);
+		apex::Application *app = apex::Application::Construct(1366u, 768u, APEX_DEFAULT_APPNAME);
 
 	#if defined(APEX_CONFIG_DEBUG) || defined(APEX_CONFIG_DEVELOPMENT)
 		apex::Console console(APEX_DEFAULT_APPNAME);
 		console.connect();
 	#endif
 
-		// TODO: move this to a GameContext struct
-		apex::vk::VulkanContext vulkanContext;
-		vulkanContext.initialize(APEX_DEFAULT_APPNAME, app->getWindow(), true);
-
 		app->getWindow()->show(nCmdShow);
+		app->initialize();
 		app->run();
 
-		vulkanContext.shutdown();
-
+		app->shutdown();
 		apex::memory::MemoryManager::shutdown();
 
 	#if defined(APEX_CONFIG_DEBUG) || defined(APEX_CONFIG_DEVELOPMENT)

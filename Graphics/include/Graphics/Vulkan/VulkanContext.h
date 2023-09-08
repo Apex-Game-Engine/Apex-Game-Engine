@@ -5,13 +5,22 @@
 #include <vulkan/vulkan_core.h>
 
 #include "VulkanDebugMessenger.h"
+#include "VulkanDevice.h"
+#include "VulkanPipeline.h"
+#include "VulkanRenderPass.h"
+#include "VulkanSwapchain.h"
 
 namespace apex {
+	namespace gfx
+	{
+		class ForwardRenderer;
+	}
+
 	struct Window;
 
 namespace vk {
 
-	struct VulkanInstanceContext
+	struct VulkanInstance
 	{
 		VkInstance m_instance{};
 		AxArray<VkExtensionProperties> m_supportedInstanceExtensions{};
@@ -23,25 +32,36 @@ namespace vk {
 		void initialize(const char* app_name, Window* p_window, bool enable_debugging);
 		void shutdown();
 
-		static VulkanContext* GetInstance() { return s_pInstance; }
+		void onWindowResize(uint32 width, uint32 height);
+		bool isInitialized() { return m_isInitialized; }
+
+		static constexpr uint32 kMaxFramesInFlight = 2;
+
 
 	private:
+		void handleWindowResize();
+
 		// internal methods
 		void _initializeVulkan(const char* app_name, Window* p_window, bool enable_debugging);
 		void _cleanupVulkan();
 
 		void _createInstance(const char* app_name);
-		void _createDebugMessenger();
 		void _createSurface(Window* p_window);
+		void _recreateSwapchain(uint32 width, uint32 height);
 
 	private:
 		VkInstance           m_instance{};
-
-		VulkanDebugMessenger m_debugMessenger{};
 		Window*              m_pWindow{};
 
-		static VulkanContext *s_pInstance;
+		VulkanDebugMessenger m_debugMessenger{};
+		VkSurfaceKHR         m_surface{};
+		VulkanDevice         m_device{};
+		VulkanSwapchain      m_swapchain{};
 
+		bool                 m_isInitialized = false;
+
+
+		friend class ::apex::gfx::ForwardRenderer;
 	};
 
 }

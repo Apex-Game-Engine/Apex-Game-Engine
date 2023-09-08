@@ -21,8 +21,9 @@ macro(group_shader_files)
         get_filename_component(_source_path "${_source}" PATH)
         string(REPLACE "${CMAKE_CURRENT_SOURCE_DIR}/shaders" "" _group_path "${_source_path}")
         string(REPLACE "/" "\\" _group_path "${_group_path}")
+        cmake_path(GET _source FILENAME _source_filename)
         source_group("Shader Files\\${_group_path}" FILES "${_source}")
-        source_group("Shader Outputs\\${_group_path}" FILES "${_source}.spv")
+        source_group("Shader Outputs\\${_group_path}" FILES "${CMAKE_CURRENT_BINARY_DIR}/spv/${_source_filename}.spv")
     endforeach()
 endmacro(group_shader_files)
 
@@ -47,17 +48,20 @@ endfunction(ignore_precompiled_header)
 function(target_vulkan_shaders Target)
     cmake_parse_arguments(PARSE_ARGV 1 arg "" "" "SOURCES")
     foreach(source ${arg_SOURCES})
-        message(STATUS "Adding ${source} as shader source")
+        cmake_path(GET source FILENAME source_filename)
+        set(output_path "${CMAKE_CURRENT_BINARY_DIR}/spv/${source_filename}.spv")
+        message(STATUS "Adding ${source_filename} as shader source")
         add_custom_command(
-            OUTPUT ${source}.spv
+            OUTPUT ${output_path}
             DEPENDS ${source}
             COMMAND
                 ${GLSLC}
-                -o ${source}.spv
+                -o ${output_path}
                 ${source}
             COMMENT "Compiling shader file : ${source}"
         )
-        target_sources(${Target} PRIVATE ${source}.spv)
+        target_sources(${Target} PRIVATE ${output_path})
+        set_target_properties(${Target} PROPERTIES RESOURCE ${output_path})
     endforeach()
 endfunction()
 
