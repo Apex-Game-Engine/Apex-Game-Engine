@@ -1,4 +1,7 @@
 ﻿#pragma once
+#pragma message("Including Vector4.inl")
+
+#include "Vector4.h"
 
 namespace apex {
 namespace math {
@@ -87,10 +90,10 @@ namespace math {
 
 	inline bool operator==(Vector4 const& u, Vector4 const& v)
 	{
-		return floatCompareAlmostEqual(u.x, v.x)
-			&& floatCompareAlmostEqual(u.y, v.y)
-			&& floatCompareAlmostEqual(u.z, v.z)
-			&& floatCompareAlmostEqual(u.w, v.w);
+		return floatCompareApproximatelyEqual(u.x, v.x)
+			&& floatCompareApproximatelyEqual(u.y, v.y)
+			&& floatCompareApproximatelyEqual(u.z, v.z)
+			&& floatCompareApproximatelyEqual(u.w, v.w);
 	}
 
 	inline bool operator!=(Vector4 const& u, Vector4 const& v)

@@ -1,0 +1,109 @@
+﻿#pragma once
+#include "Core/Types.h"
+
+#ifndef APEX_MATH_SKIP_INLINE_IMPL
+#	define APEX_MATH_SKIP_INLINE_IMPL
+#	include "Vector4.h"
+#	undef APEX_MATH_SKIP_INLINE_IMPL
+#else
+#	include "Vector4.h"
+#endif
+
+namespace apex {
+namespace math {
+
+	struct column_major{};
+	struct row_major{};
+
+	// Column-major 4x4 matrix. Compliant with GLSL mat4
+	struct Matrix4x4
+	{
+		using col_type = Vector4;
+		using row_type = Vector4;
+		
+		Vector4 m_columns[4] {};
+
+		constexpr Matrix4x4() = default;
+
+		// Constructs a 4x4 matrix with given values
+		constexpr Matrix4x4(
+			float32 x0, float32 y0, float32 z0, float32 w0,
+			float32 x1, float32 y1, float32 z1, float32 w1,
+			float32 x2, float32 y2, float32 z2, float32 w2,
+			float32 x3, float32 y3, float32 z3, float32 w3)
+		: m_columns { 
+			{ x0, y0, z0, w0 },
+			{ x1, y1, z1, w1 },
+			{ x2, y2, z2, w2 },
+			{ x3, y3, z3, w3 }
+		}
+		{}
+
+		constexpr Matrix4x4(row_major,
+			float32 x0, float32 x1, float32 x2, float32 x3,
+			float32 y0, float32 y1, float32 y2, float32 y3,
+			float32 z0, float32 z1, float32 z2, float32 z3,
+			float32 w0, float32 w1, float32 w2, float32 w3)
+		: m_columns { 
+			{ x0, y0, z0, w0 },
+			{ x1, y1, z1, w1 },
+			{ x2, y2, z2, w2 },
+			{ x3, y3, z3, w3 }
+		}
+		{}
+
+		// Constructs a 4x4 matrix with given column vectors
+		constexpr Matrix4x4(Vector4 c0, Vector4 c1, Vector4 c2, Vector4 c3)
+		: m_columns { c0, c1, c2, c3 }
+		{}
+
+		// Constructs an identity matrix scaled by given diagonal value
+		explicit constexpr Matrix4x4(float32 diagonal_value)
+		: m_columns {
+			{ diagonal_value, 0.f, 0.f, 0.f },
+			{ 0.f, diagonal_value, 0.f, 0.f },
+			{ 0.f, 0.f, diagonal_value, 0.f },
+			{ 0.f, 0.f, 0.f, diagonal_value }
+		}
+		{}
+
+		explicit constexpr Matrix4x4(float32 d0, float32 d1, float32 d2, float32 d3)
+		: m_columns {
+			{ d0, 0.f, 0.f, 0.f },
+			{ 0.f, d1, 0.f, 0.f },
+			{ 0.f, 0.f, d2, 0.f },
+			{ 0.f, 0.f, 0.f, d3 }
+		}
+		{}
+
+		Vector4 operator [](size_t index) const { return m_columns[index]; }
+		Vector4& operator [](size_t index) { return m_columns[index]; }
+
+		Matrix4x4 transpose() const;
+
+		static constexpr Matrix4x4 identity()
+		{
+			return Matrix4x4(1.f);
+		}
+	};
+
+	static_assert(sizeof(Matrix4x4) == 16 * sizeof(float));
+
+	// Matrix4x4 utility functions
+
+	Vector4 operator*(Matrix4x4 const &m, Vector4 const &v); // matrix-vector multiplication
+
+	Matrix4x4 rotateX(Matrix4x4 const &m, float32 angle); // rotation about the x-axis
+	Matrix4x4 rotateY(Matrix4x4 const &m, float32 angle); // rotation about the y-axis
+	Matrix4x4 rotateZ(Matrix4x4 const &m, float32 angle); // rotation about the z-axis
+
+	// rotation by euler angles (as a compound matrix transformation)
+	// equivalent to rotateZ(rotateY(rotateX(m, angleX), angleY), angleZ)
+	Matrix4x4 generateEulerMatrix(float32 angleX, float32 angleY, float32 angleZ);
+
+}
+}
+
+#ifndef APEX_MATH_SKIP_INLINE_IMPL
+#include "Matrix4x4.inl"
+#endif

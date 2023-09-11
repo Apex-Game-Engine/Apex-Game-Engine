@@ -1,4 +1,4 @@
-﻿#include <windows.h>
+#include <windows.h>
 
 #include "Core/Logging.h"
 #include "Core/Types.h"
@@ -10,7 +10,7 @@ namespace logging {
 	namespace detail
 	{
 		constexpr const char* LOG_MSG_FORMAT = "[%s::(%s):%d] <%s> :: %s\n";
-		char MSG_BUF[1024] {};
+		char MSG_BUF[2048] {};
 
 		const char* LOG_LEVEL_STR[static_cast<uint64>(LogLevel::_MAX_ENUM_)] =
 		{

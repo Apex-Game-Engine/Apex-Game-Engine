@@ -1,50 +1,33 @@
 ﻿#pragma once
-
-#include <random>
+#pragma message("Including Math.h")
 
 #include "Core/Types.h"
 
 namespace apex {
 namespace math {
+	struct Vector2;
+	struct Vector3;
+	struct Vector4;
 
 	float32 sqrt(float32 val);
 	float32 clamp(float32 val, float32 min, float32 max);
-	float32 degrees_to_radians(float32 degrees);
-	float32 radians_to_degrees(float32 radians);
-
-	struct Random
-	{
-		using mt_engine = std::mt19937;
-
-		static void init();
-
-		static int32 getInt32();
-		static float32 getFloat32();
-
-		static int32 getInt32(int32 min, int32 max);
-		static float32 getFloat32(float32 min, float32 max);
-
-		inline static mt_engine s_engine;
-		inline static std::uniform_int_distribution<mt_engine::result_type> s_distribution;
-	};
-
-	struct FastRandom
-	{
-		static int32 getInt32(uint32 seed);
-		static float32 getFloat32(uint32 seed);
-
-		static int32 getInt32(uint32 seed, int32 min, int32 max);
-		static float32 getFloat32(uint32 seed, float32 min, float32 max);
-	};
+	float32 radians(float32 degrees);
+	float32 degrees(float32 radians);
 
 }
 }
-
-#include "Vector3.h"
-#include "Vector4.h"
 
 namespace apex {
 namespace math {
+
+#ifdef APEX_ENABLE_GLSL_MATH_TYPE_NAMES
+	using vec2 = Vector2;
+	using vec3 = Vector3;
+	using vec4 = Vector4;
+	using mat4 = Matrix4x4;
+#endif
+
+#ifdef APEX_RAYTRACING_DEFINITIONS
 
 	// TODO: Move to separate file
 	struct Ray
@@ -64,9 +47,11 @@ namespace math {
 		virtual bool intersect(Ray const &ray) = 0;
 	};
 
+#endif
+
 }
 }
 
-#ifndef SKIP_INLINE_MATH
+#ifndef APEX_MATH_SKIP_INLINE_IMPL
 #include "Math.inl"
 #endif

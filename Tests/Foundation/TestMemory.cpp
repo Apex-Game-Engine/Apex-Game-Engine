@@ -10,6 +10,7 @@
 #include "Containers/AxStringRef.h"
 #include "Core/Types.h"
 #include "Math/Vector3.h"
+#include "Math/Vector4.h"
 #include "Memory/ArenaAllocator.h"
 #include "Memory/AxHandle.h"
 #include "Memory/AxManagedClass.h"
@@ -187,6 +188,11 @@ namespace apex::memory {
 			memoryManagerDesc.frameArenaSize = 1024;
 			memoryManagerDesc.numFramesInFlight = 3;
 			MemoryManager::initialize(memoryManagerDesc);
+		}
+
+		void TearDown() override
+		{
+			MemoryManager::shutdown();
 		}
 
 		PoolAllocator& getMemoryPool(size_t size) { return MemoryManager::getImplInstance().getMemoryPoolForSize(size); }

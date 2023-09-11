@@ -143,7 +143,7 @@ namespace memory {
 		s_memoryManagerImpl.m_poolAllocators.resize(numPools);
 
 		s_memoryManagerImpl.m_capacity = s_memoryManagerImpl.m_arenaMemorySize + s_memoryManagerImpl.m_poolMemorySize;
-		s_memoryManagerImpl.m_pBase = static_cast<uint8*>(malloc(s_memoryManagerImpl.m_capacity));
+		s_memoryManagerImpl.m_pBase = static_cast<uint8*>(::malloc(s_memoryManagerImpl.m_capacity));
 
 		s_memoryManagerImpl.setUpMemoryPools();
 		s_memoryManagerImpl.setUpMemoryArenas(desc.numFramesInFlight, desc.frameArenaSize);
@@ -157,7 +157,7 @@ namespace memory {
 		}
 
 		s_memoryManagerImpl.m_capacity = 0;
-		free(s_memoryManagerImpl.m_pBase);
+		::free(s_memoryManagerImpl.m_pBase);
 	}
 
 	AxHandle MemoryManager::allocate(size_t size)

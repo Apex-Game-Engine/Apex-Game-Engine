@@ -1,6 +1,15 @@
 ﻿#pragma once
+#pragma message("Including Vector4.h")
+
 #include "Core/Types.h"
-#include "Vector3.h"
+
+#ifndef APEX_MATH_SKIP_INLINE_IMPL
+#	define APEX_MATH_SKIP_INLINE_IMPL
+#	include "Vector3.h"
+#	undef APEX_MATH_SKIP_INLINE_IMPL
+#else
+#	include "Vector3.h"
+#endif
 
 namespace apex {
 namespace math {
@@ -45,6 +54,15 @@ namespace math {
 		Vector4& operator/=(float32 t);
 
 		#pragma endregion
+
+		static constexpr Vector4 unitX() { return { 1.f, 0.f, 0.f, 0.f }; }
+		static constexpr Vector4 unitY() { return { 0.f, 1.f, 0.f, 0.f }; }
+		static constexpr Vector4 unitZ() { return { 0.f, 0.f, 1.f, 0.f }; }
+		static constexpr Vector4 unitW() { return { 0.f, 0.f, 0.f, 1.f }; }
+
+		static constexpr Vector4 unitX_w1() { return { 1.f, 0.f, 0.f, 1.f }; }
+		static constexpr Vector4 unitY_w1() { return { 0.f, 1.f, 0.f, 1.f }; }
+		static constexpr Vector4 unitZ_w1() { return { 0.f, 0.f, 1.f, 1.f }; }
 	};
 
 	static_assert(sizeof(Vector4) == 4 * sizeof(float));
@@ -68,6 +86,6 @@ namespace math {
 }
 
 
-#ifndef SKIP_INLINE_MATH
+#ifndef APEX_MATH_SKIP_INLINE_IMPL
 #include "Vector4.inl"
 #endif

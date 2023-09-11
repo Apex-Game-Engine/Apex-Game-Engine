@@ -64,7 +64,6 @@ namespace apex {
         constexpr float32 float32_EPSILON    = FLT_EPSILON;
         constexpr float32 float32_INFINITY   = std::numeric_limits<float32>::infinity();
         constexpr float32 float32_PI         = 3.1415926535897932385f;
-        constexpr int64   float32_ULP_DIFF     = 4;
 
         constexpr float64 float64_MAX        = DBL_MAX;
         constexpr float64 float64_MIN        = DBL_MIN;
@@ -79,33 +78,88 @@ namespace apex {
 
 	namespace detail
     {
-	    union Float
+	    union Float32
 	    {
-		    Float(float num = 0.0f) : f(num) {}
+            /* Floating point representation helper struct
+             * https://stackoverflow.com/a/3423299
+             */
 
-            bool isNegative() const { return (i >> 31) != 0; }
-            int32 rawMantissa() const { return i & ((i << 23) - 1); }
-            int32 rawExponent() const { return (i >> 23) & 0xff; }
+            using raw_type         = float32;
+            using bits_type        = uint32;
+            using signed_bits_type = int32;
 
-            int32 i;
-            float32 f;
+			static constexpr size_t kMaxUlps          = 4;
+
+            static constexpr size_t kBitCount         = sizeof(raw_type) * 8;
+            static constexpr size_t kFractionBitCount = std::numeric_limits<raw_type>::digits - 1;
+            static constexpr size_t kExponentBitCount = kBitCount - 1 - kFractionBitCount;
+
+            static constexpr uint32 kSignBitMask      = static_cast<uint32>(1) << (kBitCount - 1);
+            static constexpr uint32 kFractionBitMask  = ~static_cast<uint32>(0) >> (kExponentBitCount + 1);
+            static constexpr uint32 kExponentBitMask  = ~(kSignBitMask | kFractionBitMask);
+
+            static_assert(kFractionBitMask == 0x007fffff);
+            static_assert(kExponentBitMask == 0x7f800000);
+
+		    Float32(float32 num = 0.0f) : f(num) {}
+
+            [[nodiscard]] bits_type signBit() const { return bits & kSignBitMask; }
+            [[nodiscard]] bits_type fractionBits() const { return bits & kFractionBitMask; }
+            [[nodiscard]] bits_type exponentBits() const { return bits & kExponentBitMask; }
+
+	    	bool isNegative() const { return static_cast<bool>(signBit()); }
+            bool isNan() const { return (exponentBits() == kExponentBitMask) && (fractionBits() != 0); }
+
+            bool almostEqual(Float32 const& rhs) const
+		    {
+			    if (isNan() || rhs.isNan()) return false;
+
+                return _distanceBetweenNumbers(bits, rhs.bits) <= kMaxUlps;
+		    }
+
+            static bits_type _biasedRepresentation(bits_type const& b)
+		    {
+			    if (b & kSignBitMask)
+			    {
+				    return ~b + 1;
+			    }
+		    	else
+			    {
+				    return kSignBitMask | b;
+			    }
+		    }
+
+            static bits_type _distanceBetweenNumbers(bits_type const& b1, bits_type const& b2)
+		    {
+			    const bits_type biased1 = _biasedRepresentation(b1);
+			    const bits_type biased2 = _biasedRepresentation(b2);
+
+                return (biased1 >= biased2) ? (biased1 - biased2) : (biased2 - biased1);
+		    }
+
+	    private:
+            raw_type         f;
+            bits_type        bits;
 	    };
     }
 
-    inline bool floatCompareAlmostEqual(float A, float B, int maxUlpsDiff = constants::float32_ULP_DIFF)
+    inline bool floatCompareApproximatelyEqual(float32 a, float32 b)
     {
-	    detail::Float a { A };
-        detail::Float b { B };
-
-        if (a.isNegative() != b.isNegative())
-        {
-            // check for +0 == -0
-            return (A == B);
-        }
-
-        const int ulpsDiff = abs(a.i - b.i);
-        return (ulpsDiff <= maxUlpsDiff);
+        return fabsf(a - b) <= ( (a == 0 || b == 0) ? constants::float32_EPSILON : ((fabsf(a) < fabsf(b) ? fabsf(b) : fabsf(a)) * constants::float32_EPSILON ));
     }
+
+    inline bool floatCompareAlmostEqual(float32 a, float32 b)
+    {
+	    detail::Float32 A { a };
+        detail::Float32 B { b };
+
+        return A.almostEqual(B);
+    }
+
+	inline bool floatCompareNearZero(float32 const& v)
+	{
+		return fabsf(v) < constants::float32_EPSILON;
+	}
 
     template <typename T>
     concept numeric = std::integral<T> || std::floating_point<T> || std::is_pointer_v<T> || std::is_enum_v<T>;
