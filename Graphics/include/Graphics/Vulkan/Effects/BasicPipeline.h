@@ -10,13 +10,16 @@ namespace vk {
 		void create(
 			VkDevice device,
 			VulkanShaderStagesDesc const& shader_stages_desc,
+			AxArrayRef<VkDescriptorSetLayout> const& descriptor_set_layouts,
 			VkExtent2D swapchain_extent,
 			VkRenderPass render_pass,
 			VkAllocationCallbacks const* pAllocator) override;
 		
 	protected:
-		void createPipelineLayout(VkDevice device, VkAllocationCallbacks const* pAllocator) override;
-		void createDescriptorSetLayouts(VkDevice device, VkAllocationCallbacks const* pAllocator) override;
+		void createPipelineLayout(
+			VkDevice device,
+			AxArrayRef<VkDescriptorSetLayout> const& descriptor_set_layouts,
+			VkAllocationCallbacks const* pAllocator) override;
 	};
 
 }

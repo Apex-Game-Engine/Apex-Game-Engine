@@ -1,64 +1,95 @@
 ﻿#include "Graphics/ForwardRenderer.h"
 
 #include "Core/Asserts.h"
+#include "Graphics/Camera.h"
 #include "Graphics/Geometry/IndexBufferCPU.h"
 #include "Graphics/Geometry/VertexBufferCPU.h"
 #include "Graphics/Primitives/Quad.h"
 #include "Graphics/Vulkan/VulkanContext.h"
+#include "Math/Math.h"
+#include "Math/Matrix4x4.h"
 
 namespace apex::gfx {
+
+#define VULKAN_NULL_ALLOCATOR (VkAllocationCallbacks*)nullptr
 
 	void ForwardRenderer::initialize(vk::VulkanContext& context)
 	{
 		m_context = &context;
 
 		// Create render pass
-		m_renderPass.create(m_context->m_device.logicalDevice, m_context->m_swapchain.surfaceFormat.format, nullptr);
+		m_renderPass.create(m_context->m_device.logicalDevice, m_context->m_swapchain.surfaceFormat.format, VULKAN_NULL_ALLOCATOR);
 
 		// Create swapchain framebuffers
-		m_context->m_swapchain.createFramebuffers(m_context->m_device.logicalDevice, m_renderPass.renderPass, nullptr);
+		m_context->m_swapchain.createFramebuffers(m_context->m_device.logicalDevice, m_renderPass.renderPass, VULKAN_NULL_ALLOCATOR);
+
+		// Create descriptor set layouts
+		m_cameraDescriptorSetLayout.create(m_context->m_device.logicalDevice, VULKAN_NULL_ALLOCATOR);
+
+		VkDescriptorSetLayout descriptorSetLayouts[] = { m_cameraDescriptorSetLayout.layout };
 
 		// Create pipeline
 		vk::VulkanShaderStagesDesc shaderStagesDesc {
 			.vertShaderFile = "D:\\Repos\\ApexGameEngine-Vulkan\\build-msvc\\Graphics\\spv\\basic.vert.spv",
 			.fragShaderFile = "D:\\Repos\\ApexGameEngine-Vulkan\\build-msvc\\Graphics\\spv\\basic.frag.spv"
 		};
-		m_pipeline.create(m_context->m_device.logicalDevice, shaderStagesDesc, m_context->m_swapchain.extent, m_renderPass.renderPass, nullptr);
+		m_pipeline.create(
+			m_context->m_device.logicalDevice,
+			shaderStagesDesc,
+		    { descriptorSetLayouts, std::size(descriptorSetLayouts) },
+			m_context->m_swapchain.extent,
+			m_renderPass.renderPass,
+			VULKAN_NULL_ALLOCATOR);
 
 		// Create sync objects
-		createSyncObjects(m_context->m_device.logicalDevice, nullptr);
+		createSyncObjects(m_context->m_device, VULKAN_NULL_ALLOCATOR);
 
 		// Allocate command buffers
-		allocateCommandBuffers(m_context->m_device.logicalDevice, m_context->m_device.commandPool);
+		allocateCommandBuffers(m_context->m_device, m_context->m_device.commandPool);
 
 		// Prepare geometry
-		prepareGeometry();
+		prepareGeometry(m_context->m_device, VULKAN_NULL_ALLOCATOR);
+
+		// Create descriptor pool and sets
+		createDescriptorPool(m_context->m_device, VULKAN_NULL_ALLOCATOR);
+
+		// Create uniform buffers
+		createUniformBuffers(m_context->m_device, VULKAN_NULL_ALLOCATOR);
+
+		// Allocate and populate descriptor sets
+		createDescriptorSets(m_context->m_device);
 	}
 
 	void ForwardRenderer::shutdown()
 	{
 		vkDeviceWaitIdle(m_context->m_device.logicalDevice);
 
-		m_vertexBuffer.destroy(m_context->m_device, nullptr);
-		m_indexBuffer.destroy(m_context->m_device, nullptr);
+		m_vertexBuffer.destroy(m_context->m_device.logicalDevice, VULKAN_NULL_ALLOCATOR);
+		m_indexBuffer.destroy(m_context->m_device.logicalDevice, VULKAN_NULL_ALLOCATOR);
 
-		for (uint32 frame = 0; frame < vk::VulkanContext::kMaxFramesInFlight; frame++)
+		for (uint32 i = 0; i < kMaxFramesInFlight; i++)
 		{
-			vkFreeCommandBuffers(m_context->m_device.logicalDevice, m_context->m_device.commandPool, 1, &m_commandBuffers[frame]);
+			vkFreeCommandBuffers(m_context->m_device.logicalDevice, m_context->m_device.commandPool, 1, &m_commandBuffers[i]);
 
-			vkDestroySemaphore(m_context->m_device.logicalDevice, m_imageAvailableSemaphores[frame], nullptr);
-			vkDestroySemaphore(m_context->m_device.logicalDevice, m_renderFinishedSemaphores[frame], nullptr);
-			vkDestroyFence(m_context->m_device.logicalDevice, m_inFlightFences[frame], nullptr);
+			vkDestroySemaphore(m_context->m_device.logicalDevice, m_imageAvailableSemaphores[i], VULKAN_NULL_ALLOCATOR);
+			vkDestroySemaphore(m_context->m_device.logicalDevice, m_renderFinishedSemaphores[i], VULKAN_NULL_ALLOCATOR);
+			vkDestroyFence(m_context->m_device.logicalDevice, m_inFlightFences[i], VULKAN_NULL_ALLOCATOR);
+
+			m_uniformBuffers[i].destroy(m_context->m_device.logicalDevice, VULKAN_NULL_ALLOCATOR);
 		}
 
-		m_pipeline.destroy(m_context->m_device.logicalDevice, nullptr);
+		m_cameraDescriptorSetLayout.destroy(m_context->m_device.logicalDevice, VULKAN_NULL_ALLOCATOR);
 
-		m_renderPass.destroy(m_context->m_device.logicalDevice, nullptr);
+		vkDestroyDescriptorPool(m_context->m_device.logicalDevice, m_descriptorPool, VULKAN_NULL_ALLOCATOR);
+
+		m_pipeline.destroy(m_context->m_device.logicalDevice, VULKAN_NULL_ALLOCATOR);
+
+		m_renderPass.destroy(m_context->m_device.logicalDevice, VULKAN_NULL_ALLOCATOR);
 	}
 
 	void ForwardRenderer::onUpdate(Timestep dt)
 	{
-		drawFrame(m_context->m_device.logicalDevice, m_context->m_swapchain.swapchain);
+		drawFrame(m_context->m_device, m_context->m_swapchain);
 	}
 
 	void ForwardRenderer::onWindowResize(uint32 /*width*/, uint32 /*height*/)
@@ -69,10 +100,10 @@ namespace apex::gfx {
 	void ForwardRenderer::resizeFramebuffers()
 	{
 		// Recreate swapchain framebuffers
-		m_context->m_swapchain.createFramebuffers(m_context->m_device.logicalDevice, m_renderPass.renderPass, nullptr);
+		m_context->m_swapchain.createFramebuffers(m_context->m_device.logicalDevice, m_renderPass.renderPass, VULKAN_NULL_ALLOCATOR);
 	}
 
-	void ForwardRenderer::createSyncObjects(VkDevice device, VkAllocationCallbacks const* pAllocator)
+	void ForwardRenderer::createSyncObjects(vk::VulkanDevice const& device, VkAllocationCallbacks const* pAllocator)
 	{
 		VkSemaphoreCreateInfo semaphoreCreateInfo {
 			.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO
@@ -83,35 +114,35 @@ namespace apex::gfx {
 			.flags = VK_FENCE_CREATE_SIGNALED_BIT
 		};
 
-		for (uint32 frame = 0; frame < vk::VulkanContext::kMaxFramesInFlight; frame++)
+		for (uint32 frame = 0; frame < kMaxFramesInFlight; frame++)
 		{
 			axVerifyMsg(
-				VK_SUCCESS == vkCreateSemaphore(device, &semaphoreCreateInfo, pAllocator, &m_imageAvailableSemaphores[frame]) &&
-				VK_SUCCESS == vkCreateSemaphore(device, &semaphoreCreateInfo, pAllocator, &m_renderFinishedSemaphores[frame]),
+				VK_SUCCESS == vkCreateSemaphore(device.logicalDevice, &semaphoreCreateInfo, pAllocator, &m_imageAvailableSemaphores[frame]) &&
+				VK_SUCCESS == vkCreateSemaphore(device.logicalDevice, &semaphoreCreateInfo, pAllocator, &m_renderFinishedSemaphores[frame]),
 				"Failed to create semaphore!"
 			);
 
-			axVerifyMsg(VK_SUCCESS == vkCreateFence(device, &fenceCreateInfo, pAllocator, &m_inFlightFences[frame]),
+			axVerifyMsg(VK_SUCCESS == vkCreateFence(device.logicalDevice, &fenceCreateInfo, pAllocator, &m_inFlightFences[frame]),
 				"Failed to create fence!"
 			);
 		}
 	}
 
-	void ForwardRenderer::allocateCommandBuffers(VkDevice device, VkCommandPool command_pool)
+	void ForwardRenderer::allocateCommandBuffers(vk::VulkanDevice const& device, VkCommandPool command_pool)
 	{
 		VkCommandBufferAllocateInfo allocateInfo {
 			.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
 			.commandPool = command_pool,
 			.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-			.commandBufferCount = vk::VulkanContext::kMaxFramesInFlight
+			.commandBufferCount = kMaxFramesInFlight
 		};
 
-		axVerifyMsg(VK_SUCCESS == vkAllocateCommandBuffers(device, &allocateInfo, m_commandBuffers),
+		axVerifyMsg(VK_SUCCESS == vkAllocateCommandBuffers(device.logicalDevice, &allocateInfo, m_commandBuffers),
 			"Failed to allocate command buffers!"
 		);
 	}
 
-	void ForwardRenderer::prepareGeometry()
+	void ForwardRenderer::prepareGeometry(vk::VulkanDevice const& device, VkAllocationCallbacks const* pAllocator)
 	{
 		// TODO: Gather all static meshes and create the vertex buffers
 		// Create buffers in CPU memory
@@ -119,8 +150,89 @@ namespace apex::gfx {
 		IndexBufferCPU indexBufferCpu = Quad::getIndexBuffer();
 
 		// Transfer buffers to GPU memory
-		vk::VulkanBuffer::CreateVertexBufferGPU(m_vertexBuffer, m_context->m_device, vertexBufferCpu, nullptr);
-		vk::VulkanBuffer::CreateIndexBufferGPU(m_indexBuffer, m_context->m_device, indexBufferCpu, nullptr);
+		vk::VulkanBuffer::CreateVertexBufferGPU(m_vertexBuffer, device, vertexBufferCpu, pAllocator);
+		vk::VulkanBuffer::CreateIndexBufferGPU(m_indexBuffer, device, indexBufferCpu, pAllocator);
+	}
+
+	void ForwardRenderer::createUniformBuffers(vk::VulkanDevice const& device, VkAllocationCallbacks const* pAllocator)
+	{
+		const auto bufferSize = sizeof(Camera);
+		uint32 queueFamilyIndices[] = { device.queueFamilyIndices.graphicsFamily.value() };
+
+		for (uint32 i = 0; i < kMaxFramesInFlight; i++)
+		{
+			m_uniformBuffers[i].create(
+				device,
+				bufferSize,
+				VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+				VK_SHARING_MODE_EXCLUSIVE,
+				{ queueFamilyIndices, std::size(queueFamilyIndices) },
+				VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+				pAllocator);
+
+			axVerifyMsg(VK_SUCCESS == vkMapMemory(device.logicalDevice, m_uniformBuffers[i].memory, 0, bufferSize, 0, &m_uniformBuffersMapped[i]),
+				"Failed to map uniform buffer memory!"
+			);
+		}
+	}
+
+	void ForwardRenderer::createDescriptorPool(vk::VulkanDevice const& device, VkAllocationCallbacks const* pAllocator)
+	{
+		VkDescriptorPoolSize poolSize {
+			.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+			.descriptorCount = kMaxFramesInFlight
+		};
+
+		VkDescriptorPoolCreateInfo poolCreateInfo {
+			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+			.maxSets = kMaxFramesInFlight,
+			.poolSizeCount = 1,
+			.pPoolSizes = &poolSize,
+		};
+
+		axVerifyMsg(VK_SUCCESS == vkCreateDescriptorPool(device.logicalDevice, &poolCreateInfo, pAllocator, &m_descriptorPool),
+			"Failed to create descriptor pool!"
+		);
+	}
+
+	void ForwardRenderer::createDescriptorSets(vk::VulkanDevice const& device)
+	{
+		AxArray<VkDescriptorSetLayout> layouts(kMaxFramesInFlight);
+		layouts.resize(kMaxFramesInFlight, m_cameraDescriptorSetLayout.layout);
+
+		VkDescriptorSetAllocateInfo allocateInfo {
+			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+			.descriptorPool = m_descriptorPool,
+			.descriptorSetCount = kMaxFramesInFlight,
+			.pSetLayouts = layouts.data(),
+		};
+
+		axVerifyMsg(VK_SUCCESS == vkAllocateDescriptorSets(device.logicalDevice, &allocateInfo, m_descriptorSets),
+			"Failed to allocate descriptor sets!"
+		);
+
+		for (uint32 i = 0; i < kMaxFramesInFlight; i++)
+		{
+			VkDescriptorBufferInfo bufferInfo {
+				.buffer = m_uniformBuffers[i].buffer,
+				.offset = 0,
+				.range = VK_WHOLE_SIZE
+			};
+
+			VkWriteDescriptorSet descriptorWrite {
+				.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+				.dstSet = m_descriptorSets[i],
+				.dstBinding = 0,
+				.dstArrayElement = 0,
+				.descriptorCount = 1,
+				.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+				.pImageInfo = nullptr,
+				.pBufferInfo = &bufferInfo,
+				.pTexelBufferView = nullptr
+			};
+
+			vkUpdateDescriptorSets(device.logicalDevice, 1, &descriptorWrite, 0, nullptr);
+		}
 	}
 
 	void ForwardRenderer::recordCommandBuffer(VkCommandBuffer command_buffer, uint32 image_index)
@@ -175,6 +287,9 @@ namespace apex::gfx {
 
 		vkCmdSetScissor(command_buffer, 0, 1, &scissor);
 
+		// Bind descriptor sets
+		vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline.pipelineLayout, 0, 1, &m_descriptorSets[m_currentFrame], 0, nullptr);
+
 		// Bind vertex buffers
 		VkBuffer vertexBuffers[] = { m_vertexBuffer.buffer };
 		VkDeviceSize offsets[] = { 0 };
@@ -197,7 +312,25 @@ namespace apex::gfx {
 		);
 	}
 
-	void ForwardRenderer::drawFrame(VkDevice device, VkSwapchainKHR swapchain)
+	void ForwardRenderer::updateUniformBuffers()
+	{
+		static auto startTime = std::chrono::high_resolution_clock::now();
+
+		auto currentTime = std::chrono::high_resolution_clock::now();
+		float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
+
+		Camera* camera = (Camera*)m_uniformBuffersMapped[m_currentFrame];
+		camera->model = math::rotateZ(math::Matrix4x4::identity(), time * math::radians(90.f));
+		camera->model = math::rotateX(camera->model, math::radians(-75.f));
+		camera->view = math::lookAt({ 0.f, 0.f, 3.f }, -math::Vector3::unitZ(), math::Vector3::unitY());
+
+		float32 fov = math::radians(60.f);
+		float32 aspect = static_cast<float32>(m_context->m_swapchain.extent.width) / static_cast<float32>(m_context->m_swapchain.extent.height);
+		camera->projection = math::perspective(fov, aspect, 0.1f, 100.f);
+		camera->projection[1][1] *= -1;
+	}
+
+	void ForwardRenderer::drawFrame(vk::VulkanDevice const& device, vk::VulkanSwapchain const& swapchain)
 	{
 		VkCommandBuffer& commandBuffer = m_commandBuffers[m_currentFrame];
 		VkSemaphore& imageAvailableSemaphore = m_imageAvailableSemaphores[m_currentFrame];
@@ -207,11 +340,11 @@ namespace apex::gfx {
 		// Check if framebuffer has been resized
 
 		// Wait for the previous frame to finish
-		vkWaitForFences(device, 1, &inFlightFence, VK_TRUE, constants::uint64_MAX);
+		vkWaitForFences(device.logicalDevice, 1, &inFlightFence, VK_TRUE, constants::uint64_MAX);
 
 		// Acquire an image from the swapchain
 		uint32 imageIndex;
-		VkResult result = vkAcquireNextImageKHR(device, swapchain, constants::uint64_MAX, imageAvailableSemaphore, VK_NULL_HANDLE, &imageIndex);
+		VkResult result = vkAcquireNextImageKHR(device.logicalDevice, swapchain.swapchain, constants::uint64_MAX, imageAvailableSemaphore, VK_NULL_HANDLE, &imageIndex);
 
 		if (VK_ERROR_OUT_OF_DATE_KHR == result)
 		{
@@ -222,11 +355,14 @@ namespace apex::gfx {
 		axAssertMsg(VK_SUCCESS == result || VK_SUBOPTIMAL_KHR == result, "Failed to acquire swapchain image!");
 
 		// Reset fence to unsignalled state to begin rendering next frame
-		vkResetFences(device, 1, &inFlightFence);
+		vkResetFences(device.logicalDevice, 1, &inFlightFence);
 
 		// Record the command buffer for drawing on acquired image
 		vkResetCommandBuffer(commandBuffer, 0);
 		recordCommandBuffer(commandBuffer, imageIndex);
+
+		// Udpate uniforms
+		updateUniformBuffers();
 
 		// Submit the command buffer
 		VkSemaphore waitSemaphores[] = { imageAvailableSemaphore }; // semaphores to wait on before execution
@@ -255,7 +391,7 @@ namespace apex::gfx {
 			.waitSemaphoreCount = static_cast<uint32>(std::size(signalSemaphores)),
 			.pWaitSemaphores = signalSemaphores,
 			.swapchainCount = 1,
-			.pSwapchains = &swapchain,
+			.pSwapchains = &swapchain.swapchain,
 			.pImageIndices = &imageIndex,
 			.pResults = nullptr
 		};
@@ -273,6 +409,6 @@ namespace apex::gfx {
 		}
 
 		// Advance to next frame
-		m_currentFrame = (m_currentFrame + 1) % vk::VulkanContext::kMaxFramesInFlight;
+		m_currentFrame = (m_currentFrame + 1) % kMaxFramesInFlight;
 	}
 }

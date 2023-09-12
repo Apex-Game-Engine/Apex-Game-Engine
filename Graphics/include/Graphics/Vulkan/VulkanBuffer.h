@@ -22,8 +22,9 @@ namespace vk {
 			VulkanDevice const& device,
 			VkDeviceSize size,
 			VkBufferUsageFlags usage,
-			VkMemoryPropertyFlags properties,
-			VkAllocationCallbacks const* pAllocator);
+			VkSharingMode sharing_mode,
+			AxArrayRef<uint32> const& queue_family_indices, VkMemoryPropertyFlags properties, VkAllocationCallbacks const*
+			pAllocator);
 
 		void createStagingBuffer(
 			VulkanDevice const& device,
@@ -32,15 +33,15 @@ namespace vk {
 
 		void createVertexBuffer(
 			VulkanDevice const& device,
-			gfx::VertexBufferCPU const& cpu_buffer,
+			VkDeviceSize size,
 			VkAllocationCallbacks const* pAllocator);
 
 		void createIndexBuffer(
 			VulkanDevice const& device,
-			gfx::IndexBufferCPU const& cpu_buffer,
+			VkDeviceSize size,
 			VkAllocationCallbacks const* pAllocator);
 
-		void destroy(VulkanDevice const& device, VkAllocationCallbacks const* pAllocator);
+		void destroy(VkDevice device, VkAllocationCallbacks const* pAllocator);
 
 		void allocateMemory(VulkanDevice const& device, VkMemoryPropertyFlags properties, VkAllocationCallbacks const* pAllocator);
 		void loadVertexBufferData(VulkanDevice const& device, gfx::VertexBufferCPU const& cpu_buffer);

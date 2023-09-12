@@ -14,6 +14,7 @@ namespace vk {
 		VkDevice         logicalDevice{};
 
 		VulkanQueueFamilyIndices queueFamilyIndices{};
+		bool             hasDedicatedTransferQueue{};
 
 		VkQueue          graphicsQueue{};
 		VkQueue          presentQueue{};

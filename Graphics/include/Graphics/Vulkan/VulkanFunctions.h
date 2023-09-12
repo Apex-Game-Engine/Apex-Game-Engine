@@ -6,6 +6,7 @@ namespace vk {
 
 	constexpr char vkCreateDebugUtilsMessengerEXT_Name[]  = "vkCreateDebugUtilsMessengerEXT";
 	constexpr char vkDestroyDebugUtilsMessengerEXT_Name[] = "vkDestroyDebugUtilsMessengerEXT";
+	constexpr char vkSetDebugUtilsObjectNameEXT_Name[]    = "vkSetDebugUtilsObjectNameEXT";
 
 	VkResult CreateDebugUtilsMessengerEXT(
 		VkInstance instance,
@@ -18,6 +19,11 @@ namespace vk {
 		VkInstance instance,
 		VkDebugUtilsMessengerEXT messenger,
 		const VkAllocationCallbacks* pAllocator
+	);
+
+	VkResult SetDebugUtilsObjectNameEXT(
+		VkDevice                                    device,
+		const VkDebugUtilsObjectNameInfoEXT*        pNameInfo
 	);
 }
 }

@@ -35,9 +35,6 @@ namespace vk {
 		void onWindowResize(uint32 width, uint32 height);
 		bool isInitialized() { return m_isInitialized; }
 
-		static constexpr uint32 kMaxFramesInFlight = 2;
-
-
 	private:
 		void handleWindowResize();
 

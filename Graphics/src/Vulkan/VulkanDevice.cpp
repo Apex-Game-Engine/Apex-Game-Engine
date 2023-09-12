@@ -4,6 +4,7 @@
 
 #include "Graphics/Vulkan/VulkanCommon.h"
 #include "Graphics/Vulkan/VulkanConfig.h"
+#include "Graphics/Vulkan/VulkanFunctions.h"
 #include "Graphics/Vulkan/VulkanSwapchain.h"
 #include "Graphics/Vulkan/VulkanUtility.h"
 
@@ -59,6 +60,13 @@ namespace apex::vk {
 
 		// Store the required queue families' indices
 		queueFamilyIndices = detail::find_queue_families(physicalDevice, surface);
+		hasDedicatedTransferQueue = queueFamilyIndices.transferFamily.has_value();
+		if (!hasDedicatedTransferQueue)
+		{
+			queueFamilyIndices.transferFamily = queueFamilyIndices.graphicsFamily.value();
+		}
+
+		axAssert(hasDedicatedTransferQueue);
 	}
 
 	void VulkanDevice::createLogicalDevice(VkAllocationCallbacks const* pAllocator)
@@ -139,7 +147,7 @@ namespace apex::vk {
 				.queueFamilyIndex = queueFamilyIndices.transferFamily.value()
 			};
 
-			axVerifyMsg(VK_SUCCESS == vkCreateCommandPool(logicalDevice, &graphicsPoolCreateInfo, pAllocator, &transferCommandPool),
+			axVerifyMsg(VK_SUCCESS == vkCreateCommandPool(logicalDevice, &transferPoolCreateInfo, pAllocator, &transferCommandPool),
 				"Failed to create transfer command pool!"
 			);
 		}
@@ -166,6 +174,15 @@ namespace apex::vk {
 		axVerifyMsg(VK_SUCCESS == vkAllocateCommandBuffers(logicalDevice, &commandBufferAllocateInfo, &commandBuffer),
 			"Failed to allocate command buffer!"
 		);
+
+		VkDebugUtilsObjectNameInfoEXT commandBufferNameInfo {
+			.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT,
+			.objectType = VK_OBJECT_TYPE_COMMAND_BUFFER,
+			.objectHandle = reinterpret_cast<uint64>(commandBuffer),
+			.pObjectName = "One-shot Command Buffer",
+		};
+
+		vk::SetDebugUtilsObjectNameEXT(logicalDevice, &commandBufferNameInfo);
 
 		VkCommandBufferBeginInfo commandBufferBeginInfo {
 			.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
@@ -318,7 +335,6 @@ namespace apex::vk {
 			if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT)
 			{
 				indices.graphicsFamily = i;
-				indices.transferFamily = i;
 			}
 
 			// Find a queue family that supports presenting to the window surface
@@ -329,16 +345,18 @@ namespace apex::vk {
 				indices.presentFamily = i;
 			}
 
-			// Find a dedicated transfer queue family
-			if (queueFamily.queueFlags & VK_QUEUE_TRANSFER_BIT && !(queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT))
-			{
-				indices.transferFamily = i;
-			}
-
 			// Find a dedicated compute queue family
 			if (queueFamily.queueFlags & VK_QUEUE_COMPUTE_BIT)
 			{
 				indices.computeFamily = i;
+			}
+
+			// Find a dedicated transfer queue family
+			if ((queueFamily.queueFlags & VK_QUEUE_TRANSFER_BIT)
+				&& !(queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT)
+				&& !(queueFamily.queueFlags & VK_QUEUE_COMPUTE_BIT))
+			{
+				indices.transferFamily = i;
 			}
 
 			if (indices.isComplete())
