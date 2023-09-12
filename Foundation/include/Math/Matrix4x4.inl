@@ -3,6 +3,9 @@
 
 #include "Matrix4x4.h"
 
+#include "Vector3.inl"
+#include "Vector4.inl"
+
 namespace apex {
 namespace math {
 
@@ -40,6 +43,16 @@ namespace math {
 			(c0.z * v.x) + (c1.z * v.y) + (c2.z * v.z) + (c3.z * v.w),
 			(c0.w * v.x) + (c1.w * v.y) + (c2.w * v.z) + (c3.w * v.w)
 		};
+	}
+
+	inline Matrix4x4 operator*(Matrix4x4 const& m1, Matrix4x4 const& m2)
+	{
+		Vector4 X = m1 * m2[0];
+		Vector4 Y = m1 * m2[1];
+		Vector4 Z = m1 * m2[2];
+		Vector4 W = m1 * m2[3];
+
+		return Matrix4x4{ X, Y, Z, W };
 	}
 
 	Matrix4x4 rotateX(Matrix4x4 const& m, float32 angle)
@@ -106,6 +119,65 @@ namespace math {
 		};
 
 		return res;
+	}
+
+	inline Matrix4x4 lookAt_slow(Vector3 eye, Vector3 target, Vector3 up)
+	{
+		Vector3 Z = normalize(eye - target);
+		Vector3 X = normalize(cross(up, Z));
+		Vector3 Y = cross(Z, X);
+
+		// Transpose (inverse) of the rotation matrix
+		Matrix4x4 Rot { row_major{},
+			X.x, X.y, X.z, 0,
+			Y.x, Y.y, Y.z, 0,
+			Z.x, Z.y, Z.z, 0,
+			  0,   0,   0, 1
+		};
+
+		// Inverse of the translation matrix. T(v)^-1 = T(-v)
+		Matrix4x4 Trn {
+			Vector4::unitX(),
+			Vector4::unitY(),
+			Vector4::unitZ(),
+			{ -eye, 1.f }
+		};
+
+		// Inverse of camera transformation matrix
+		// View = (TR)^-1 = (R^-1)(T^-1)
+		return Rot * Trn;
+	}
+
+	inline Matrix4x4 lookAt(Vector3 eye, Vector3 target, Vector3 up)
+	{
+		Vector3 Z = normalize(eye - target);
+		Vector3 X = normalize(cross(up, Z));
+		Vector3 Y = cross(Z, X);
+
+		// Transpose (inverse) of the rotation matrix
+		Matrix4x4 View { row_major{},
+			X.x, X.y, X.z, -dot(X, eye),
+			Y.x, Y.y, Y.z, -dot(Y, eye),
+			Z.x, Z.y, Z.z, -dot(Z, eye),
+			  0,   0,   0, 1
+		};
+
+		return View;
+	}
+
+	inline Matrix4x4 perspective(float32 fov, float32 aspect_ratio, float32 near_z, float32 far_z)
+	{
+		float32 recip_tan_fov_by_2 = cos(fov * 0.5f) / sin(fov * 0.5f);
+		float32 z_range = far_z - near_z;
+
+		Matrix4x4 Proj { row_major{},
+			recip_tan_fov_by_2 / aspect_ratio,          0        ,              0              ,             0                ,
+			              0                  , recip_tan_fov_by_2,              0              ,             0                ,
+			              0                  ,          0        , -(near_z + far_z) / z_range , -2 * near_z * far_z / z_range,
+			              0                  ,          0        ,             -1              ,             0
+		};
+
+		return Proj;
 	}
 
 	inline Matrix4x4 generateEulerMatrix(float32 angleX, float32 angleY, float32 angleZ)

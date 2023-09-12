@@ -99,4 +99,26 @@ namespace apex::math {
 		}
 	}
 
+	TEST(TestMatrix4x4, TestViewProjection)
+	{
+		{
+			Vector3 eye = { 0.f, 0.f, 0.f };
+			Vector3 target = -math::Vector3::unitZ();
+			Vector3 up = Vector3::unitY();
+
+			Matrix4x4 view1 = math::lookAt(eye, target, up);
+			Matrix4x4 view2 = math::lookAt_slow(eye, target, up);
+
+			EXPECT_TRUE(view1[0] == view2[0]);
+			EXPECT_TRUE(view1[1] == view2[1]);
+			EXPECT_TRUE(view1[2] == view2[2]);
+			EXPECT_TRUE(view1[3] == view2[3]);
+
+			printf("%0.8f %0.8f %0.8f %0.8f\n", view1[0][0], view1[1][0], view1[2][0], view1[3][0]);
+			printf("%0.8f %0.8f %0.8f %0.8f\n", view1[0][1], view1[1][1], view1[2][1], view1[3][1]);
+			printf("%0.8f %0.8f %0.8f %0.8f\n", view1[0][2], view1[1][2], view1[2][2], view1[3][2]);
+			printf("%0.8f %0.8f %0.8f %0.8f\n", view1[0][3], view1[1][3], view1[2][3], view1[3][3]);
+		}
+	}
+
 }
