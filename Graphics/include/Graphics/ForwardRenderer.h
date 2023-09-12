@@ -6,6 +6,7 @@
 #include "Vulkan/VulkanBuffer.h"
 #include "Vulkan/Effects/BasicPipeline.h"
 #include "Vulkan/Effects/BasicRenderPass.h"
+#include "Vulkan/Effects/CameraDescriptorSetLayout.h"
 #include "Vulkan/Effects/ScreenPipeline.h"
 
 namespace apex::vk
@@ -27,35 +28,49 @@ namespace gfx {
 
 	protected:
 		void resizeFramebuffers();
-		void createSyncObjects(VkDevice device, VkAllocationCallbacks const* pAllocator);
-		void allocateCommandBuffers(VkDevice device, VkCommandPool command_pool);
-		void prepareGeometry();
-		void recordCommandBuffer(VkCommandBuffer command_buffer, uint32 image_index);
-		void drawFrame(VkDevice device, VkSwapchainKHR swapchain);
+		void createSyncObjects(vk::VulkanDevice const& device, VkAllocationCallbacks const* pAllocator);
+		void allocateCommandBuffers(vk::VulkanDevice const& device, VkCommandPool command_pool);
+		void prepareGeometry(vk::VulkanDevice const& device, VkAllocationCallbacks const* pAllocator);
+		void createUniformBuffers(vk::VulkanDevice const& device, VkAllocationCallbacks const* pAllocator);
+		void createDescriptorPool(vk::VulkanDevice const& device, VkAllocationCallbacks const* pAllocator);
+		void createDescriptorSets(vk::VulkanDevice const& device);
 
+		// per frame commands
+		void recordCommandBuffer(VkCommandBuffer command_buffer, uint32 image_index);
+		void updateUniformBuffers();
+		void drawFrame(vk::VulkanDevice const& device, vk::VulkanSwapchain const& swapchain);
+
+		static constexpr uint32  kMaxFramesInFlight { 1 };
 
 	private:
 		// Renderer-specific // TODO: Consider moving to separate struct for renderer
-		vk::BasicRenderPass      m_renderPass{}; // TODO: Replace with array
-		vk::BasicPipeline        m_pipeline{}; // TODO: Add more pipelines as required
+		vk::BasicRenderPass            m_renderPass{}; // TODO: Add more render passes as required
+		vk::BasicPipeline              m_pipeline{}; // TODO: Add more pipelines as required
 
-		VkCommandBuffer          m_commandBuffers[vk::VulkanContext::kMaxFramesInFlight]{}; // TODO: Replace with array
+		VkDescriptorPool               m_descriptorPool{};
+		vk::CameraDescriptorSetLayout  m_cameraDescriptorSetLayout{}; // TODO: Add more descriptor set layouts as required
 
-		VkSemaphore              m_imageAvailableSemaphores[vk::VulkanContext::kMaxFramesInFlight]{};
-		VkSemaphore              m_renderFinishedSemaphores[vk::VulkanContext::kMaxFramesInFlight]{};
-		VkFence                  m_inFlightFences[vk::VulkanContext::kMaxFramesInFlight]{};
+		VkDescriptorSet                m_descriptorSets[kMaxFramesInFlight]{}; // TODO: Add more as required
+
+		vk::VulkanBuffer               m_uniformBuffers[kMaxFramesInFlight]{};
+		void*                          m_uniformBuffersMapped[kMaxFramesInFlight]{};
+
+		VkCommandBuffer                m_commandBuffers[kMaxFramesInFlight]{}; // TODO: Replace with array
+
+		VkSemaphore                    m_imageAvailableSemaphores[kMaxFramesInFlight]{};
+		VkSemaphore                    m_renderFinishedSemaphores[kMaxFramesInFlight]{};
+		VkFence                        m_inFlightFences[kMaxFramesInFlight]{};
 
 		// TODO: Move to Mesh/ECS/somewhere with the mesh data
-		vk::VulkanBuffer         m_vertexBuffer{}, m_indexBuffer{};
+		vk::VulkanBuffer               m_vertexBuffer{}, m_indexBuffer{};
 
+		uint32                         m_currentFrame = 0;
 
-		uint32                   m_currentFrame = 0;
+		VkClearValue                   m_clearColor{{ 0.f, 0.f, 0.f, 1.f }};
 
-		VkClearValue             m_clearColor{{ 0.f, 0.f, 0.f, 1.f }};
+		bool                           m_isFramebufferResized = false;
 
-		bool                     m_isFramebufferResized = false;
-
-		vk::VulkanContext*       m_context{};
+		vk::VulkanContext*             m_context{};
 	};
 
 }

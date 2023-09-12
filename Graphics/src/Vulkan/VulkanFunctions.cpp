@@ -34,4 +34,18 @@ namespace apex {
 		}
 		axAssertMsg(false, "Vulkan extension not found: vkDestroyDebugUtilsMessengerEXT");
 	}
+
+	VkResult vk::SetDebugUtilsObjectNameEXT(
+		VkDevice device,
+		const VkDebugUtilsObjectNameInfoEXT* pNameInfo)
+	{
+		static auto func = (PFN_vkSetDebugUtilsObjectNameEXT) vkGetDeviceProcAddr(device, vkSetDebugUtilsObjectNameEXT_Name);
+
+		if (nullptr != func)
+		{
+			return func(device, pNameInfo);
+		}
+		axAssertMsg(false, "Vulkan extension not found: vkSetDebugUtilsObjectNameEXT");
+		return VK_ERROR_EXTENSION_NOT_PRESENT;
+	}
 }

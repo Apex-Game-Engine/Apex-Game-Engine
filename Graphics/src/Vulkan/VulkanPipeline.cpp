@@ -8,11 +8,6 @@ namespace apex::vk {
 	{
 		vkDestroyPipeline(device, pipeline, pAllocator);
 		vkDestroyPipelineLayout(device, pipelineLayout, pAllocator);
-
-		for (const auto descriptorSetLayout : descriptorSetLayouts)
-		{
-			vkDestroyDescriptorSetLayout(device, descriptorSetLayout, pAllocator);
-		}
 	}
 
 }

@@ -3,6 +3,7 @@
 #include "Graphics/Geometry/VertexBufferCPU.h"
 #include "Graphics/Geometry/IndexBufferCPU.h"
 #include "Graphics/Vulkan/VulkanDevice.h"
+#include "Graphics/Vulkan/VulkanFunctions.h"
 
 namespace apex::vk {
 	
@@ -20,21 +21,72 @@ namespace apex::vk {
 			.size = size,
 			.usage = usage,
 			.sharingMode = sharing_mode,
-			.queueFamilyIndexCount = static_cast<uint32>(queue_family_indices.size),
+			.queueFamilyIndexCount = static_cast<uint32>(queue_family_indices.count),
 			.pQueueFamilyIndices = queue_family_indices.data
 		};
 
 		axVerifyMsg(VK_SUCCESS == vkCreateBuffer(device.logicalDevice, &bufferCreateInfo, pAllocator, &buffer), 
-			"Failed to create vertex buffer!"
+			"Failed to create buffer!"
 		);
 
 		allocateMemory(device, properties, pAllocator);
 	}
 
-	void VulkanBuffer::destroy(VulkanDevice const& device, VkAllocationCallbacks const* pAllocator)
+	void VulkanBuffer::createStagingBuffer(VulkanDevice const& device, VkDeviceSize size, VkAllocationCallbacks const* pAllocator)
 	{
-		vkDestroyBuffer(device.logicalDevice, buffer, pAllocator);
-		vkFreeMemory(device.logicalDevice, memory, pAllocator);
+		uint32 queueFamilyIndices[] = { device.queueFamilyIndices.transferFamily.value() };
+
+		create(
+			device,
+			size,
+			VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+			VK_SHARING_MODE_EXCLUSIVE,
+			{ queueFamilyIndices, std::size(queueFamilyIndices) },
+			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+			pAllocator);
+	}
+ 
+	void VulkanBuffer::createVertexBuffer(VulkanDevice const& device, VkDeviceSize size, VkAllocationCallbacks const* pAllocator)
+	{
+		uint32 queueFamilyIndices[] = { device.queueFamilyIndices.graphicsFamily.value(), device.queueFamilyIndices.transferFamily.value() };
+
+		create(
+			device,
+			size,
+			VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+			VK_SHARING_MODE_CONCURRENT,
+			{ queueFamilyIndices, std::size(queueFamilyIndices) },
+			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+			pAllocator);
+
+		VkDebugUtilsObjectNameInfoEXT objectNameInfo {
+			.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT,
+			.objectType = VK_OBJECT_TYPE_BUFFER,
+			.objectHandle = reinterpret_cast<uint64>(buffer),
+			.pObjectName = "Vertex Buffer",
+		};
+
+		vk::SetDebugUtilsObjectNameEXT(device.logicalDevice, &objectNameInfo);
+	}
+
+	void VulkanBuffer::createIndexBuffer(VulkanDevice const& device, VkDeviceSize size, VkAllocationCallbacks const* pAllocator)
+	{
+		uint32 queueFamilyIndices[] = { device.queueFamilyIndices.graphicsFamily.value(), device.queueFamilyIndices.transferFamily.value() };
+
+		create(
+			device,
+			size,
+			VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+			VK_SHARING_MODE_CONCURRENT,
+			{ queueFamilyIndices, std::size(queueFamilyIndices) },
+			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+			pAllocator);
+	}
+
+	void VulkanBuffer::destroy(VkDevice device, VkAllocationCallbacks const* pAllocator)
+	{
+		vkDestroyBuffer(device, buffer, pAllocator);
+		vkFreeMemory(device, memory, pAllocator);
 	}
 
 	void VulkanBuffer::allocateMemory(VulkanDevice const& device, VkMemoryPropertyFlags properties, VkAllocationCallbacks const* pAllocator)
@@ -64,7 +116,7 @@ namespace apex::vk {
 			"Failed to map buffer memory!"
 		);
 
-		apex::memcpy_s<float>(data, cpu_buffer.size(), cpu_buffer.getData().data, cpu_buffer.size());
+		apex::memcpy_s<float>(data, cpu_buffer.size(), cpu_buffer.data().data, cpu_buffer.size());
 
 		vkUnmapMemory(device.logicalDevice, memory);
 	}
@@ -76,7 +128,7 @@ namespace apex::vk {
 			"Failed to map buffer memory!"
 		);
 
-		apex::memcpy_s<uint32>(data, cpu_buffer.size(), cpu_buffer.getData().data, cpu_buffer.size());
+		apex::memcpy_s<uint32>(data, cpu_buffer.count(), cpu_buffer.data().data, cpu_buffer.count());
 
 		vkUnmapMemory(device.logicalDevice, memory);
 	}
@@ -91,46 +143,19 @@ namespace apex::vk {
 
 		// Create a temporary staging buffer
 		VulkanBuffer stagingBuffer;
-
-		VkBufferCreateInfo bufferCreateInfo {
-			.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
-			.size = bufferSize,
-			.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-			.sharingMode = VK_SHARING_MODE_EXCLUSIVE,
-			.queueFamilyIndexCount = 1,
-			.pQueueFamilyIndices = &device.queueFamilyIndices.transferFamily.value()
-		};
-
-		axVerifyMsg(VK_SUCCESS == vkCreateBuffer(device.logicalDevice, &bufferCreateInfo, pAllocator, &stagingBuffer.buffer),
-			"Failed to create staging buffer!"
-		);
-		stagingBuffer.allocateMemory(device, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, pAllocator);
+		stagingBuffer.createStagingBuffer(device, bufferSize, pAllocator);
 
 		// Fill the buffer
 		stagingBuffer.loadVertexBufferData(device, cpu_buffer);
 
 		// Create the vertex buffer
-		vertex_buffer.create(
-			device,
-			bufferSize,
-			VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-			,, VK_MEMORY_HEAP_DEVICE_LOCAL_BIT, pAllocator
-		);
-
-		VkBufferCreateInfo vertexBufferCreateInfo {
-			.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
-			.size = bufferSize,
-			.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-			.sharingMode = VK_SHARING_MODE_CONCURRENT,
-			.queueFamilyIndexCount = 1,
-			.pQueueFamilyIndices = &device.queueFamilyIndices.transferFamily.value()
-		};
+		vertex_buffer.createVertexBuffer(device, bufferSize, pAllocator);
 
 		// Copy vertex data from staging buffer to vertex buffer
 		CopyBufferData(device, vertex_buffer, stagingBuffer, bufferSize);
 
 		// Cleanup staging buffer
-		stagingBuffer.destroy(device, pAllocator);
+		stagingBuffer.destroy(device.logicalDevice, pAllocator);
 	}
 
 	void VulkanBuffer::CreateIndexBufferGPU(
@@ -143,29 +168,19 @@ namespace apex::vk {
 
 		// Create a temporary staging buffer
 		VulkanBuffer stagingBuffer;
-		stagingBuffer.create(
-			device,
-			bufferSize,
-			VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-			,, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, pAllocator
-		);
+		stagingBuffer.createStagingBuffer(device, bufferSize, pAllocator);
 
 		// Fill the buffer
 		stagingBuffer.loadIndexBufferData(device, cpu_buffer);
 
 		// Create the index buffer
-		index_buffer.create(
-			device,
-			bufferSize,
-			VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-			,, VK_MEMORY_HEAP_DEVICE_LOCAL_BIT, pAllocator
-		);
+		index_buffer.createIndexBuffer(device, bufferSize, pAllocator);
 
 		// Copy index data from staging buffer to index buffer
 		CopyBufferData(device, index_buffer, stagingBuffer, bufferSize);
 
 		// Cleanup staging buffer
-		stagingBuffer.destroy(device, pAllocator);
+		stagingBuffer.destroy(device.logicalDevice, pAllocator);
 	}
 
 	void VulkanBuffer::CopyBufferData(VulkanDevice const& device, VulkanBuffer const& dst_buffer, VulkanBuffer const& src_buffer, VkDeviceSize size)

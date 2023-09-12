@@ -18,12 +18,12 @@ namespace vk {
 
 		[[nodiscard]] bool isRenderComplete() const
 		{
-			return graphicsFamily.has_value() && presentFamily.has_value() && transferFamily.has_value();
+			return graphicsFamily.has_value() && presentFamily.has_value();
 		}
 
 		[[nodiscard]] bool isComplete() const
 		{
-			return isRenderComplete() && computeFamily.has_value();
+			return isRenderComplete() && computeFamily.has_value() && transferFamily.has_value();
 		}
 	};
 

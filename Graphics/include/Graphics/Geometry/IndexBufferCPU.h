@@ -22,7 +22,7 @@ namespace gfx {
 		size_t count() const { return m_data.count; }
 		size_t sizeInBytes() const { return m_data.count * sizeof(uint32); }
 
-		auto getData() const { return m_data; }
+		auto data() const { return m_data; }
 
 	private:
 		AxArrayRef<const uint32> m_data;

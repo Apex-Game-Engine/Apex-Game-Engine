@@ -65,11 +65,9 @@ namespace math {
 
 		[[nodiscard]] bool is_near_zero() const;
 
-		/*static Vector3 random();
-		static Vector3 random(float32 min, float32 max);
-		static Vector3 random_in_unit_sphere();
-		static Vector3 random_unit_vector();
-		static bool check_near_zero(Vector3 const &v);*/
+		static constexpr Vector3 unitX() { return { 1.f, 0.f, 0.f }; }
+		static constexpr Vector3 unitY() { return { 0.f, 1.f, 0.f }; }
+		static constexpr Vector3 unitZ() { return { 0.f, 0.f, 1.f }; }
 	};
 
 	static_assert(sizeof(Vector3) == 3 * sizeof(float));

@@ -92,10 +92,15 @@ namespace math {
 	// Matrix4x4 utility functions
 
 	Vector4 operator*(Matrix4x4 const &m, Vector4 const &v); // matrix-vector multiplication
+	Matrix4x4 operator*(Matrix4x4 const &m1, Matrix4x4 const &m2); // matrix-vector multiplication
 
 	Matrix4x4 rotateX(Matrix4x4 const &m, float32 angle); // rotation about the x-axis
 	Matrix4x4 rotateY(Matrix4x4 const &m, float32 angle); // rotation about the y-axis
 	Matrix4x4 rotateZ(Matrix4x4 const &m, float32 angle); // rotation about the z-axis
+
+	Matrix4x4 lookAt(Vector3 eye, Vector3 target, Vector3 up); // look-at matrix for camera facing in -Z direction
+
+	Matrix4x4 perspective(float32 fov, float32 aspect_ratio, float32 near_z, float32 far_z); // perspective projection
 
 	// rotation by euler angles (as a compound matrix transformation)
 	// equivalent to rotateZ(rotateY(rotateX(m, angleX), angleY), angleZ)

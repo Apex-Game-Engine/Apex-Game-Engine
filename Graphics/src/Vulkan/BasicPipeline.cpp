@@ -7,6 +7,7 @@ namespace apex::vk {
 	void BasicPipeline::create(
 		VkDevice device,
 		VulkanShaderStagesDesc const& shader_stages_desc,
+		AxArrayRef<VkDescriptorSetLayout> const& descriptor_set_layouts,
 		VkExtent2D swapchain_extent,
 		VkRenderPass render_pass,
 		VkAllocationCallbacks const* pAllocator)
@@ -78,8 +79,8 @@ namespace apex::vk {
 			.depthClampEnable = VK_FALSE,
 			.rasterizerDiscardEnable = VK_FALSE,
 			.polygonMode = VK_POLYGON_MODE_FILL,
-			.cullMode = VK_CULL_MODE_BACK_BIT,
-			.frontFace = VK_FRONT_FACE_CLOCKWISE,
+			.cullMode = VK_CULL_MODE_NONE,
+			.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE,
 			.depthBiasEnable = VK_FALSE,
 			.depthBiasConstantFactor = 0.0f,
 			.depthBiasClamp = 0.0f,
@@ -122,11 +123,8 @@ namespace apex::vk {
 			.blendConstants = { 0.0f, 0.0f, 0.0f, 0.0f },
 		};
 
-		// Create descriptor set layout
-		createDescriptorSetLayouts(device, pAllocator);
-
 		// Create pipeline layout of uniform values
-		createPipelineLayout(device, pAllocator);
+		createPipelineLayout(device, descriptor_set_layouts, pAllocator);
 
 		// Create the pipeline
 		VkGraphicsPipelineCreateInfo pipelineCreateInfo{
@@ -156,52 +154,18 @@ namespace apex::vk {
 		shaderStages.destroy(device, pAllocator);
 	}
 
-	void BasicPipeline::createPipelineLayout(VkDevice device, VkAllocationCallbacks const* pAllocator)
+	void BasicPipeline::createPipelineLayout(VkDevice device, AxArrayRef<VkDescriptorSetLayout> const& descriptor_set_layouts,  VkAllocationCallbacks const* pAllocator)
 	{
 		VkPipelineLayoutCreateInfo layoutCreateInfo {
 			.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-			.setLayoutCount = static_cast<uint32>(descriptorSetLayouts.size()),
-			.pSetLayouts = descriptorSetLayouts.data(),
+			.setLayoutCount = static_cast<uint32>(descriptor_set_layouts.count),
+			.pSetLayouts = descriptor_set_layouts.data,
 			.pushConstantRangeCount = 0,
 			.pPushConstantRanges = nullptr
 		};
 
 		axVerifyMsg(VK_SUCCESS == vkCreatePipelineLayout(device, &layoutCreateInfo, pAllocator, &pipelineLayout),
 			"Failed to create pipeline layout!"
-		);
-	}
-
-	void BasicPipeline::createDescriptorSetLayouts(VkDevice device, VkAllocationCallbacks const* pAllocator)
-	{
-		descriptorSetLayouts.resize(1);
-
-		VkDescriptorSetLayoutBinding layoutBindings[] = {
-			// UBO binding
-			{
-				.binding = 0,
-				.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-				.descriptorCount = 1,
-				.stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
-				.pImmutableSamplers = nullptr
-			},
-			// Sampler binding
-			{
-				.binding = 1,
-				.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-				.descriptorCount = 1,
-				.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
-				.pImmutableSamplers = nullptr
-			}
-		};
-
-		VkDescriptorSetLayoutCreateInfo layoutCreateInfo {
-			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
-			.bindingCount = static_cast<uint32>(std::size(layoutBindings)),
-			.pBindings = layoutBindings
-		};
-
-		axVerifyMsg(VK_SUCCESS == vkCreateDescriptorSetLayout(device, &layoutCreateInfo, pAllocator, &descriptorSetLayouts[0]),
-			"Failed to create descriptor set layout!"
 		);
 	}
 
