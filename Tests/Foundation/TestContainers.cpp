@@ -4,6 +4,7 @@
 
 #include "Containers/AxArray.h"
 #include "Containers/AxRange.h"
+#include "Containers/AxSparseSet.h"
 #include "Containers/AxStringRef.h"
 #include "Math/Vector3.h"
 #include "Memory/MemoryManager.h"
@@ -46,8 +47,14 @@ namespace apex {
 	public:
 		void SetUp() override
 		{
-			apex::memory::MemoryManager::initialize({ .frameArenaSize = 0, .numFramesInFlight = 0 });
+			memory::MemoryManager::initialize({ .frameArenaSize = 0, .numFramesInFlight = 0 });
 		}
+
+		void TearDown() override
+		{
+			memory::MemoryManager::shutdown();
+		}
+
 		//void floatArray_constructFromMemory(void* mem, size_t mem_size) { floatArray.constructFromMemory(mem, mem_size); }
 		//void nonTrivialArray_constructFromMemory(void* mem, size_t mem_size) { nonTrivialArray.constructFromMemory(mem, mem_size); }
 
@@ -145,6 +152,19 @@ namespace apex {
 		EXPECT_EQ(arr[3], 3);
 	}
 
+	TEST_F(AxArrayTest, TestExternallyManaged)
+	{
+		AxHandle handle = apex::make_handle<uint32[]>(32);
+		AxArray<uint32, ExternallyManaged> arr(handle);
+		arr.resize(32, 21);
+		EXPECT_EQ(arr.size(), 32);
+
+		for (auto& a : arr)
+		{
+			EXPECT_EQ(a, 21);
+		}
+	}
+
 	TEST(AxStringRefTest, TestAxStringRef)
 	{
 		AxStringRef strRefArr[2];
@@ -157,4 +177,89 @@ namespace apex {
 				printf("%s\n", strRef.c_str());
 		}
 	}
+
+	struct Transform
+	{
+		math::Vector3 position;
+		math::Vector3 rotation;
+		math::Vector3 scale;
+	};
+
+	TEST(AxSparseSetTest, TestSparseSet)
+	{
+		memory::MemoryManager::initialize({ 0, 0 });
+
+		{
+			AxSparseSet<Transform> sparseSet(10);
+			EXPECT_EQ(sparseSet.capacity(), 10);
+			EXPECT_EQ(sparseSet.count(), 0);
+
+			sparseSet.insert(2, { .position = { 1, 2, 3 } });
+			sparseSet.insert(9, { .position = { 11, 22, 33 } });
+			sparseSet.insert(5, { .position = { 15, 25, 35 } });
+
+			// Test IDs
+			size_t i = 0;
+			for (auto& id : sparseSet.ids())
+			{
+				switch (i)
+				{
+				case 0: EXPECT_EQ(id, 2); break;
+				case 1: EXPECT_EQ(id, 9); break;
+				case 2: EXPECT_EQ(id, 5); break;
+				}
+
+				++i;
+			}
+			EXPECT_EQ(i, 3);
+
+			// Test elements
+			i = 0;
+			for (auto& element : sparseSet.elements())
+			{
+				switch (i)
+				{
+				case 0: EXPECT_TRUE(element.position == math::Vector3( 1, 2, 3 )); break;
+				case 1: EXPECT_TRUE(element.position == math::Vector3( 11, 22, 33 )); break;
+				case 2: EXPECT_TRUE(element.position == math::Vector3( 15, 25, 35 )); break;
+				}
+
+				++i;
+			}
+			EXPECT_EQ(i, 3);
+
+			sparseSet.remove(2);
+
+			// Test IDs after removal
+			i = 0;
+			for (auto& id : sparseSet.ids())
+			{
+				switch (i)
+				{
+				case 0: EXPECT_EQ(id, 5); break;
+				case 1: EXPECT_EQ(id, 9); break;
+				}
+
+				++i;
+			}
+			EXPECT_EQ(i, 2);
+
+			// Test elements after removal
+			i = 0;
+			for (auto& element : sparseSet.elements())
+			{
+				switch (i)
+				{
+				case 0: EXPECT_TRUE(element.position == math::Vector3( 15, 25, 35 )); break;
+				case 1: EXPECT_TRUE(element.position == math::Vector3( 11, 22, 33 )); break;
+				}
+
+				++i;
+			}
+			EXPECT_EQ(i, 2);
+		}
+
+		memory::MemoryManager::shutdown();
+	}
+
 }

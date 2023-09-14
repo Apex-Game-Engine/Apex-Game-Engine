@@ -1,5 +1,5 @@
 ﻿#pragma once
-#pragma message("Including Vector4.h")
+//#pragma message("Including Vector4.h")
 
 #include "Core/Types.h"
 

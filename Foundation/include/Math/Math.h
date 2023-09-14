@@ -1,5 +1,5 @@
 ﻿#pragma once
-#pragma message("Including Math.h")
+//#pragma message("Including Math.h")
 
 #include "Core/Types.h"
 

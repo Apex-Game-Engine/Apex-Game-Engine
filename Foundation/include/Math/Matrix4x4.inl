@@ -1,5 +1,5 @@
 ﻿#pragma once
-#pragma message("Including Matrix4x4.inl")
+//#pragma message("Including Matrix4x4.inl")
 
 #include "Matrix4x4.h"
 

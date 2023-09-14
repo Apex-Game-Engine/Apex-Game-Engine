@@ -1,5 +1,5 @@
 #pragma once
-#pragma message("Including Math.inl")
+//#pragma message("Including Math.inl")
 
 #include <cmath>
 

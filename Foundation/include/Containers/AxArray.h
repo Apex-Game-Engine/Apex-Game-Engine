@@ -11,7 +11,7 @@ namespace apex {
 	 * \brief Resizable dynamic array
 	 * \tparam T type of elements stored in the array
 	 */
-	template <typename T>
+	template <typename T, typename = SelfManaged>
 	class AxArray : public AxManagedClass
 	{
 	public:
@@ -31,6 +31,7 @@ namespace apex {
 			Iterator(IterType* ptr) : m_ptr(ptr) {}
 			Iterator& operator++() { ++m_ptr; return *this; } // pre-increment
 			Iterator operator++(int) { Iterator tmp(*this); operator++(); return tmp; } // post-increment
+			Iterator operator+(size_t size) { return { m_ptr + size }; } // TODO: add an assert to check for overflow?
 			bool operator==(const Iterator& rhs) const { return m_ptr == rhs.m_ptr; }
 			bool operator!=(const Iterator& rhs) const { return m_ptr != rhs.m_ptr; }
 			reference operator*() const { return *_ToUnderlyingPointer(); }
@@ -118,7 +119,10 @@ namespace apex {
 
 			if constexpr (sizeof...(args) > 0)
 			{
-				fill(m_data + oldSize, m_data + new_size, std::forward<Args>(args)...);
+				if (new_size > oldSize)
+				{
+					fill(m_data + oldSize, m_data + new_size, std::forward<Args>(args)...);
+				}
 			}
 		}
 
@@ -307,13 +311,46 @@ namespace apex {
 			m_data = handle.getAs<stored_type>();
 		}
 
-	private:
+	protected:
 		size_t m_capacity { 0 };
 		size_t m_size { 0 };
 
 		stored_type* m_data { nullptr };
 		
 		friend class AxArrayTest;
+	};
+
+	template <typename T>
+	class AxArray<T, ExternallyManaged> : public AxArray<T>
+	{
+		using Base = AxArray<T>;
+
+	public:
+		explicit AxArray(AxHandle& handle)
+		{
+			Base::_SetDataHandle(handle, 0);
+		}
+
+		~AxArray() { /* Do nothing as the memory is externally owned and managed */ }
+
+		template <typename... Args>
+		void resize(size_t new_size, Args&&... args)
+		{
+			axAssertMsg(new_size <= Base::m_capacity, "Array size exceeds maximum capacity!");
+
+			size_t oldSize = Base::m_size;
+			Base::m_size = new_size;
+
+			if constexpr (sizeof...(args) > 0)
+			{
+				if (new_size > oldSize)
+				{
+					Base::fill(Base::m_data + oldSize, Base::m_data + new_size, std::forward<Args>(args)...);
+				}
+			}
+		}
+
+		void reserve(size_t capacity) = delete;
 	};
 
 	template <typename T>

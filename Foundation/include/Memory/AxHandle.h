@@ -15,6 +15,17 @@ namespace apex {
 		AxHandle(size_t size);
 		~AxHandle() = default;
 
+		AxHandle(AxHandle&& other) noexcept
+		: m_cachedPtr(other.m_cachedPtr)
+		, m_memoryPoolIdx(other.m_memoryPoolIdx)
+		{}
+
+		AxHandle operator=(AxHandle&& other) noexcept
+		{
+			m_cachedPtr = other.m_cachedPtr;
+			m_memoryPoolIdx = other.m_memoryPoolIdx;
+		}
+
 		bool isValid() { return m_cachedPtr != nullptr; }
 		size_t getBlockSize() const;
 

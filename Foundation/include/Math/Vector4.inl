@@ -1,5 +1,5 @@
 ﻿#pragma once
-#pragma message("Including Vector4.inl")
+//#pragma message("Including Vector4.inl")
 
 #include "Vector4.h"
 
