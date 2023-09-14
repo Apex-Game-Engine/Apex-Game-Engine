@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include "AxArray.h"
 #include "Core/Asserts.h"
 #include "Memory/AxHandle.h"

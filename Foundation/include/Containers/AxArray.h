@@ -375,7 +375,7 @@ namespace apex {
 	 * \tparam T type of elements stored in the array
 	 */
 	template <typename T>
-	struct AxArrayRef
+	struct AxArrayRef : public AxManagedClass
 	{
 		T* data;
 		size_t count;

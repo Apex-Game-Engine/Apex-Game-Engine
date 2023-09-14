@@ -34,7 +34,7 @@ namespace ranges {
 	};
 
 	template <range Range>
-	class AxRange
+	class AxRange : public AxManagedClass
 	{
 	public:
 		using iterator = std::conditional_t<std::is_const_v<Range>, typename Range::const_iterator, typename Range::iterator>;
@@ -58,7 +58,7 @@ namespace ranges {
 	};
 
 	template <range Range, typename ViewFn>
-	class AxView
+	class AxView : public AxManagedClass
 	{
 	public:
 		using base_iterator = typename AxRange<Range>::iterator;
