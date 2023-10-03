@@ -60,3 +60,8 @@ target_include_directories(Graphics
     src
     $<TARGET_PROPERTY:Foundation,INTERFACE_INCLUDE_DIRECTORIES>
 )
+
+if (MSVC)
+    target_compile_options(Graphics PRIVATE /GR-) # Disable RTTI
+    target_compile_options(Graphics PRIVATE /EHs-c- /EHc-) # Disable synchronous exceptions and C++ exceptions
+endif()

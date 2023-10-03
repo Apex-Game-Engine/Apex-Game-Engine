@@ -15,15 +15,28 @@ namespace apex {
 		AxHandle(size_t size);
 		~AxHandle() = default;
 
+		AxHandle(AxHandle const& other) noexcept
+		: m_cachedPtr(other.m_cachedPtr)
+		, m_memoryPoolIdx(other.m_memoryPoolIdx)
+		{}
+
 		AxHandle(AxHandle&& other) noexcept
 		: m_cachedPtr(other.m_cachedPtr)
 		, m_memoryPoolIdx(other.m_memoryPoolIdx)
 		{}
 
+		AxHandle operator=(AxHandle const& other) noexcept
+		{
+			m_cachedPtr = other.m_cachedPtr;
+			m_memoryPoolIdx = other.m_memoryPoolIdx;
+			return *this;
+		}
+
 		AxHandle operator=(AxHandle&& other) noexcept
 		{
 			m_cachedPtr = other.m_cachedPtr;
 			m_memoryPoolIdx = other.m_memoryPoolIdx;
+			return *this;
 		}
 
 		bool isValid() { return m_cachedPtr != nullptr; }
@@ -35,8 +48,8 @@ namespace apex {
 			return static_cast<T*>(m_cachedPtr);
 		}
 
-		AxHandle(AxHandle const&) = delete;
-		AxHandle& operator=(AxHandle const&) = delete;
+		/*AxHandle(AxHandle const&) = delete;
+		AxHandle& operator=(AxHandle const&) = delete;*/
 
 	protected:
 		void free();

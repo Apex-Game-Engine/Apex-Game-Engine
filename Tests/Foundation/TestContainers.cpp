@@ -4,7 +4,7 @@
 
 #include "Containers/AxArray.h"
 #include "Containers/AxRange.h"
-#include "Containers/AxSparseSet.h"
+#include "Containers/AxSparseMap.h"
 #include "Containers/AxStringRef.h"
 #include "Math/Vector3.h"
 #include "Memory/MemoryManager.h"
@@ -165,6 +165,40 @@ namespace apex {
 		}
 	}
 
+	TEST_F(AxArrayTest, TestResize)
+	{
+		AxArray<math::Vector3> positions;
+		positions.resize(25, math::Vector3{ 2, 1, 3 });
+
+		EXPECT_GE(positions.capacity(), 25); // capacity >= 25
+		EXPECT_EQ(positions.size(), 25);
+
+		printf("capacity: %llu\n", positions.capacity());
+
+		for (auto& pos : positions)
+		{
+			EXPECT_TRUE(pos == math::Vector3(2, 1, 3));
+		}
+
+		positions.resize(50, math::Vector3{ 1, 7, 8 });
+
+		EXPECT_GE(positions.capacity(), 50); // capacity >= 25
+		EXPECT_EQ(positions.size(), 50);
+
+		printf("capacity: %llu\n", positions.capacity());
+
+		size_t i = 0;
+		for (auto& pos : positions)
+		{
+			if (i < 25)
+				EXPECT_TRUE(pos == math::Vector3(2, 1, 3));
+			else
+				EXPECT_TRUE(pos == math::Vector3(1, 7, 8));
+
+			i++;
+		}
+	}
+
 	TEST(AxStringRefTest, TestAxStringRef)
 	{
 		AxStringRef strRefArr[2];
@@ -185,22 +219,22 @@ namespace apex {
 		math::Vector3 scale;
 	};
 
-	TEST(AxSparseSetTest, TestSparseSet)
+	TEST(AxSparseMapTest, TestSparseMap)
 	{
 		memory::MemoryManager::initialize({ 0, 0 });
 
 		{
-			AxSparseSet<Transform> sparseSet(10);
-			EXPECT_EQ(sparseSet.capacity(), 10);
-			EXPECT_EQ(sparseSet.count(), 0);
+			AxSparseMap<uint32, Transform> sparseMap(10);
+			EXPECT_EQ(sparseMap.capacity(), 10);
+			EXPECT_EQ(sparseMap.count(), 0);
 
-			sparseSet.insert(2, { .position = { 1, 2, 3 } });
-			sparseSet.insert(9, { .position = { 11, 22, 33 } });
-			sparseSet.insert(5, { .position = { 15, 25, 35 } });
+			sparseMap.insert(2, { .position = { 1, 2, 3 } });
+			sparseMap.insert(9, { .position = { 11, 22, 33 } });
+			sparseMap.insert(5, { .position = { 15, 25, 35 } });
 
 			// Test IDs
 			size_t i = 0;
-			for (auto& id : sparseSet.ids())
+			for (auto& id : sparseMap.keys())
 			{
 				switch (i)
 				{
@@ -215,7 +249,7 @@ namespace apex {
 
 			// Test elements
 			i = 0;
-			for (auto& element : sparseSet.elements())
+			for (auto& element : sparseMap.elements())
 			{
 				switch (i)
 				{
@@ -228,11 +262,11 @@ namespace apex {
 			}
 			EXPECT_EQ(i, 3);
 
-			sparseSet.remove(2);
+			sparseMap.remove(2);
 
 			// Test IDs after removal
 			i = 0;
-			for (auto& id : sparseSet.ids())
+			for (auto& id : sparseMap.keys())
 			{
 				switch (i)
 				{
@@ -246,7 +280,7 @@ namespace apex {
 
 			// Test elements after removal
 			i = 0;
-			for (auto& element : sparseSet.elements())
+			for (auto& element : sparseMap.elements())
 			{
 				switch (i)
 				{
@@ -257,6 +291,10 @@ namespace apex {
 				++i;
 			}
 			EXPECT_EQ(i, 2);
+
+			auto [idx, element] = sparseMap.get(9);
+			EXPECT_EQ(idx, 1);
+			EXPECT_TRUE(element.position == math::Vector3( 11, 22, 33 ));
 		}
 
 		memory::MemoryManager::shutdown();

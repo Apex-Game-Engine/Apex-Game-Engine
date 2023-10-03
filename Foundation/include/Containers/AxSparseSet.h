@@ -1,127 +1,227 @@
-#pragma once
+﻿#pragma once
 #include "AxArray.h"
+#include "AxRange.h"
 #include "Core/Asserts.h"
-#include "Memory/AxHandle.h"
 
 namespace apex {
 
-	template <typename Type>
-	class AxSparseSet
+	/**
+	 * \brief Sparse set implementation.
+	 * Check https://manenko.com/2021/05/23/sparse-sets.html for details on design.
+	 * \tparam Key Type of keys that will be stored in the set.
+	 */
+	template <typename Key>
+	class AxSparseSet : public AxManagedClass
 	{
 	public:
-		using sparse_type = uint32;
-		using dense_type = uint32;
-		using element_type = Type;
+		using key_type = Key;
 
-		using sparse_array = AxArray<sparse_type>;
-		using dense_array = AxArray<dense_type>;
-		using element_array = AxArray<element_type>;
+		using sparse_array = AxArray<key_type>;
+		using dense_array = AxArray<key_type>;
 
+		/**
+		 * \brief Default constructor. Creates empty set with zero capacity.
+		 */
+		AxSparseSet() = default;
 
+		/**
+		 * \brief Creates an empty set with initial capacity.
+		 * \param capacity Initial capacity.
+		 */
 		explicit AxSparseSet(uint32 capacity)
 		: m_capacity(capacity)
-		, m_count(0)
 		, m_sparse(capacity)
 		, m_dense(capacity)
-		, m_elements(capacity)
 		{
 			m_sparse.resize(capacity);
 			m_dense.resize(capacity);
-			m_elements.resize(capacity);
 		}
 
+		/**
+		 * \brief Default destructor.
+		 */
 		~AxSparseSet() = default;
 
-		void insert(uint32 id, Type const& elem)
+		/**
+		 * \brief Resizes set to new capacity.
+		 * \param capacity New capacity to resize to.
+		 */
+		void resize(size_t capacity)
 		{
-			axAssert(id < m_capacity);
-			axAssertMsg(!has(id), "Cannot insert element. ID already exists in the set!");
-
-			_Insert(id, elem);
+			m_capacity = capacity;
+			m_sparse.resize(capacity);
+			m_dense.resize(capacity);
 		}
 
-		bool try_insert(uint32 id, Type const& elem)
+		/**
+		 * \brief Adds a new key to the set. Asserts on failure.
+		 * \param key New key to add.
+		 */
+		void add(key_type key)
 		{
-			axAssert(id < m_capacity);
+			axAssert(key < m_capacity);
+			axAssertMsg(!contains(key), "Cannot add element. ID already exists in the set!");
 
-			if (!has(id))
+			_Insert(key);
+		}
+
+		/**
+		 * \brief Attempts to add a new key to the set.
+		 * \param key New key to add.
+		 * \return true if successful; false otherwise.
+		 */
+		bool try_add(key_type key)
+		{
+			axAssert(key < m_capacity);
+
+			if (!contains(key))
 			{
-				_Insert(id, elem);
+				_Insert(key);
 				return true;
 			}
 
 			return false;
 		}
 
-		void remove(uint32 id)
+		/**
+		 * \brief Removes a key from the set. Asserts on failure.
+		 * \param key Key to remove.
+		 */
+		void remove(key_type key)
 		{
-			axAssert(id < m_capacity);
-			axAssertMsg(has(id), "Cannot delete element. ID does not exist!");
+			axAssert(key < m_capacity);
+			axAssertMsg(contains(key), "Cannot delete element. ID does not exist!");
 
-			_Remove(id);
+			_Remove(key);
 		}
 
-		bool try_remove(uint32 id)
+		/**
+		 * \brief Attempts to remove an existing key from the set.
+		 * \param key Key to remove.
+		 * \return true if successful; false otherwise.
+		 */
+		bool try_remove(key_type key)
 		{
-			axAssert(id < m_capacity);
+			axAssert(key < m_capacity);
 
-			if (has(id))
+			if (contains(key))
 			{
-				_Remove(id);
+				_Remove(key);
 				return true;
 			}
 
 			return false;
 		}
 
-		bool has(uint32 id)
+		/**
+		 * \brief Queries if the set contains the given key.
+		 * \param key Key to query.
+		 * \return true if key exists in the set; false otherwise.
+		 */
+		bool contains(key_type key) const
 		{
-			axAssert(id < m_capacity);
+			axAssert(key < m_capacity);
 
-			uint32 denseIdx = m_sparse[id];
-			return denseIdx < m_count && m_dense[denseIdx] == id;
+			key_type denseIdx = m_sparse[key];
+			return denseIdx < m_count && m_dense[denseIdx] == key;
 		}
 
+		/**
+		 * \brief Queries the set for the given key and returns its index.
+		 * \param key Key to query.
+		 * \return Index of the queried key.
+		 */
+		key_type getIndex(key_type key) const
+		{
+			axAssert(key < m_capacity);
+
+			key_type denseIdx = m_sparse[key];
+			axAssert(denseIdx < m_count && m_dense[denseIdx] == key);
+
+			return denseIdx;
+		}
+
+		/**
+		 * \brief Queries the set for the given key and returns its index if exists.
+		 * \param key Key to query.
+		 * \return Optional index of the queried key. std::nullopt if not found.
+		 */
+		auto try_getIndex(key_type key) const -> std::optional<key_type>
+		{
+			axAssert(key < m_capacity);
+
+			key_type denseIdx = m_sparse[key];
+
+			if (denseIdx < m_count && m_dense[denseIdx] == key)
+			{
+				return denseIdx;
+			}
+
+			return std::nullopt;
+		}
+
+		/**
+		 * \brief Clears all values from the set.
+		 */
 		void clear()
 		{
 			m_count = 0;
 		}
 
-		auto elements() const { return ranges::AxRange<const element_array>(m_elements.begin(), m_elements.begin() + m_count); }
-		auto ids() const { return ranges::AxRange<const dense_array>(m_dense.begin(), m_dense.begin() + m_count); }
+		/**
+		 * \brief Returns an iterable range of mutable keys in the set.
+		 * \return An AxRange of keys.
+		 */
+		auto keys() { return ranges::AxRange<dense_array>(m_dense.begin(), m_dense.begin() + m_count); }
 
+		/**
+		 * \brief Returns an iterable range of immutable keys in the set.
+		 * \return An AxRange of const keys.
+		 */
+		auto keys() const { return ranges::AxRange<const dense_array>(m_dense.begin(), m_dense.begin() + m_count); }
+
+		/**
+		 * \brief Returns the currently allocated max capacity of the set.
+		 * \return Current capacity.
+		 */
 		size_t capacity() const { return m_capacity; }
+
+		/**
+		 * \brief Returns the current count of keys present in the set.
+		 * \return Current key count.
+		 */
 		size_t count() const { return m_count; }
 
 	protected:
-		void _Insert(uint32 id, Type const& elem)
+		void _Insert(key_type key)
 		{
-			m_dense[m_count] = id;
-			m_sparse[id] = m_count;
-
-			m_elements[m_count] = elem;
-
+			m_dense[m_count] = key;
+			m_sparse[key] = m_count;
+			
 			++m_count;
 		}
 
-		void _Remove(uint32 id)
+		void _Remove(key_type key)
 		{
 			--m_count;
 
-			uint32 denseIdx = m_sparse[id];
-			uint32 lastId = m_dense[m_count];
+			key_type denseIdx = m_sparse[key];
+			key_type lastId = m_dense[m_count];
 			m_dense[denseIdx] = lastId;
 			m_sparse[lastId] = denseIdx;
+		}
 
-			m_elements[denseIdx] = m_elements[m_count];
+		key_type _GetIndex(key_type key) // unsafe operation. Only for internal use
+		{
+			key_type denseIdx = m_sparse[key];
+			return denseIdx;
 		}
 
 	private:
-		uint32 m_capacity;
-		uint32 m_count;
-		sparse_array m_sparse;
-		dense_array m_dense;
-		element_array m_elements;
+		uint32 m_capacity{};
+		uint32 m_count{};
+		sparse_array m_sparse{};
+		dense_array m_dense{};
 	};
 
 }

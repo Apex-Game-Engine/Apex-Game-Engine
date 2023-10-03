@@ -16,7 +16,7 @@ namespace apex {
 	template <typename T>
 	const T& max(const T& a, const T& b)
 	{
-		return std::min(a, b);
+		return std::max(a, b);
 	}
 
 	template <typename T>

@@ -1,5 +1,7 @@
 ﻿#pragma once
 
+#include "Memory/AxManagedClass.h"
+
 namespace apex {
 namespace ranges {
 
