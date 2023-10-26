@@ -225,7 +225,7 @@ namespace apex {
 
 		{
 			AxSparseMap<uint32, Transform> sparseMap(10);
-			EXPECT_EQ(sparseMap.capacity(), 10);
+			EXPECT_GE(sparseMap.capacity(), 10);
 			EXPECT_EQ(sparseMap.count(), 0);
 
 			sparseMap.insert(2, { .position = { 1, 2, 3 } });

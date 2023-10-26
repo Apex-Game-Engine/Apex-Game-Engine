@@ -46,15 +46,23 @@ namespace logging {
 
 	void Logger::log(const LogMsg& log_msg) const
 	{
-		for (ISink* sink : m_sinks)
+		for (size_t i = 0; i < m_sinkCount; i++)
 		{
-			sink->log(log_msg);
+			m_sinks[i]->log(log_msg);
 		}
+	}
+
+	void Logger::addSink(ISink* sink)
+	{
+		if (m_sinkCount == std::size(m_sinks))
+			KILL();
+
+		m_sinks[m_sinkCount++] = sink;
 	}
 
 	void Logger::initialize()
 	{
-		detail::s_logger.m_sinks.push_back(&detail::s_stdoutSink);
+		detail::s_logger.addSink(&detail::s_stdoutSink);
 	}
 
 	Logger& Logger::get()

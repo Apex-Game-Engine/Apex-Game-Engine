@@ -33,8 +33,7 @@ namespace ecs {
 		{
 			for (auto entity : m_pool->keys())
 			{
-				// TODO: replace with apex::ecs::invoke
-				func(entity);
+				apex::ecs::invoke<Func, Component>(std::forward<Func>(func), entity, m_pool);
 			}
 		}
 
@@ -68,7 +67,6 @@ namespace ecs {
 
 				if (isEntityInView)
 				{
-					// TODO: replace with apex::ecs::invoke
 					apex::ecs::invoke<Func, Components...>(std::forward<Func>(func), entity, m_pools);
 				}
 			}

@@ -26,7 +26,7 @@ namespace memory {
 		[[nodiscard]] uint32 getBlockSize() const { return m_blockSize; }
 		[[nodiscard]] uint32 getFreeBlocks() const { return m_numFreeBlocks; }
 
-		bool containsPointer(void* mem) const { return mem >= m_pBase && mem <= static_cast<uint8*>(m_pBase) + m_numTotalBlocks; }
+		bool containsPointer(void* mem) const { return mem >= m_pBase && mem < static_cast<uint8*>(m_pBase) + m_numTotalBlocks * m_blockSize; }
 		bool checkManaged(void* mem) const { return containsPointer(mem) && (reinterpret_cast<intptr_t>(mem) - reinterpret_cast<intptr_t>(m_pBase)) % m_blockSize == 0; }
 		
 		[[nodiscard]] size_t getTotalCapacity() const override { return static_cast<size_t>(m_blockSize) * m_numTotalBlocks; }

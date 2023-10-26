@@ -1,4 +1,5 @@
-﻿#include <gtest/gtest.h>
+﻿#include <queue>
+#include <gtest/gtest.h>
 
 #include "Apex/ECS/Registry.h"
 #include "Math/Vector3.h"
@@ -16,6 +17,13 @@ namespace apex
 	struct DamageInflictor
 	{
 		apex::float32 damage;
+	};
+
+	struct SomeTag {};
+
+	struct CollisionEvent
+	{
+		apex::ecs::Entity other;
 	};
 }
 
@@ -161,3 +169,123 @@ TEST_F(TestEcs, TestMultiComponentView)
 	EXPECT_EQ(i, 20);
 }
 
+
+TEST_F(TestEcs, TestEmptyComponentView)
+{
+	apex::ecs::Registry registry { .minPoolSize = 16 };
+	auto view = registry.view<apex::Transform, apex::SomeTag>();
+
+	int i;
+	for (i = 0; i < 20; i++)
+	{
+		apex::ecs::Entity entity = registry.createEntity();
+		auto& transform = registry.add<apex::Transform>(entity);
+		transform.position = { 10.f + i, 20.f + i, 30.f + i };
+
+		if (i % 2 == 0)
+		{
+			auto& damageInflictor = registry.add<apex::DamageInflictor>(entity);
+			damageInflictor.damage = 10.f * i;
+		}
+
+		if (i % 3 == 0)
+		{
+			registry.add<apex::SomeTag>(entity);
+		}
+	}
+
+
+	i = 0;
+	view.each([&i](apex::ecs::Entity entity, auto& transform, auto tag)
+	{
+		printf("entity: %u\n", static_cast<apex::uint32>(entity));
+
+		EXPECT_EQ(static_cast<uint32_t>(entity), i);
+
+		i += 3;
+	});
+}
+
+struct DamageMessage
+{
+	apex::ecs::Entity target;
+	apex::float32 value;
+};
+
+template <typename Message>
+using MessageQueue = std::queue<Message>;
+
+namespace ecs {
+	template <typename Message>
+	struct MessageListener
+	{
+		using message_type = Message;
+	};
+
+	template <typename, typename, typename, typename>
+	struct System;
+
+	template <typename... T>
+	struct get_t {};
+
+	template <typename... T>
+	struct exclude_t {};
+
+	template <typename... T>
+	struct signal_t {};
+
+	template <typename... T>
+	struct listen_t {};
+
+	template <typename... Components, typename... Events>
+	struct System<get_t<Components...>, exclude_t<>, signal_t<>, listen_t<Events...>>
+	{
+		using component_view = decltype(std::declval<apex::ecs::Registry>().view<Components...>());
+		using event_view = decltype(std::declval<apex::ecs::Registry>().view<Events...>());
+
+		component_view m_componentView;
+		event_view m_eventView;
+
+		System(apex::ecs::Registry& registry)
+		: m_componentView(registry.view<Components...>())
+		, m_eventView(registry.view<Events...>())
+		{}
+
+		template <typename Event>
+		bool on(Event const& event);
+
+	};
+}
+
+
+struct DamageSystem : public ecs::System<ecs::get_t<apex::DamageInflictor>, ecs::exclude_t<>, ecs::signal_t<>, ecs::listen_t<apex::CollisionEvent>>
+{
+	using system_t = ecs::System<ecs::get_t<apex::DamageInflictor>, ecs::exclude_t<>, ecs::signal_t<>, ecs::listen_t<apex::CollisionEvent>>;
+
+	DamageSystem(apex::ecs::Registry& registry) : system_t(registry) {}
+
+	template <typename Event>
+	bool on(Event const& event);
+
+	template <>
+	bool on(apex::CollisionEvent const& event)
+	{
+		
+	}
+};
+
+
+TEST_F(TestEcs, TestMessageQueue)
+{
+	apex::ecs::Registry registry;
+
+	DamageSystem damageSystem(registry);
+
+	auto player = registry.createEntity();
+	auto enemy = registry.createEntity();
+
+	registry.add<apex::DamageInflictor>(player);
+
+	damageSystem.on(apex::CollisionEvent{});
+
+}

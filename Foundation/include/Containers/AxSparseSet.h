@@ -29,12 +29,10 @@ namespace apex {
 		 * \param capacity Initial capacity.
 		 */
 		explicit AxSparseSet(uint32 capacity)
-		: m_capacity(capacity)
-		, m_sparse(capacity)
+		: m_sparse(capacity)
 		, m_dense(capacity)
 		{
 			m_sparse.resize(capacity);
-			m_dense.resize(capacity);
 		}
 
 		/**
@@ -46,11 +44,13 @@ namespace apex {
 		 * \brief Resizes set to new capacity.
 		 * \param capacity New capacity to resize to.
 		 */
-		void resize(size_t capacity)
+		void reserve(size_t capacity)
 		{
-			m_capacity = capacity;
-			m_sparse.resize(capacity);
-			m_dense.resize(capacity);
+			// TODO: Do NOT resize dense array if not required
+			m_sparse.reserve(capacity);
+			m_dense.reserve(capacity);
+
+			m_sparse.resize(m_sparse.capacity());
 		}
 
 		/**
@@ -59,7 +59,7 @@ namespace apex {
 		 */
 		void add(key_type key)
 		{
-			axAssert(key < m_capacity);
+			axAssert(key < capacity());
 			axAssertMsg(!contains(key), "Cannot add element. ID already exists in the set!");
 
 			_Insert(key);
@@ -72,7 +72,7 @@ namespace apex {
 		 */
 		bool try_add(key_type key)
 		{
-			axAssert(key < m_capacity);
+			axAssert(key < capacity());
 
 			if (!contains(key))
 			{
@@ -89,7 +89,7 @@ namespace apex {
 		 */
 		void remove(key_type key)
 		{
-			axAssert(key < m_capacity);
+			axAssert(key < capacity());
 			axAssertMsg(contains(key), "Cannot delete element. ID does not exist!");
 
 			_Remove(key);
@@ -102,7 +102,7 @@ namespace apex {
 		 */
 		bool try_remove(key_type key)
 		{
-			axAssert(key < m_capacity);
+			axAssert(key < capacity());
 
 			if (contains(key))
 			{
@@ -120,10 +120,12 @@ namespace apex {
 		 */
 		bool contains(key_type key) const
 		{
-			axAssert(key < m_capacity);
-
-			key_type denseIdx = m_sparse[key];
-			return denseIdx < m_count && m_dense[denseIdx] == key;
+			if (key < capacity())
+			{
+				key_type denseIdx = m_sparse[key];
+				return denseIdx < m_dense.size() && m_dense[denseIdx] == key;
+			}
+			return false;
 		}
 
 		/**
@@ -133,10 +135,10 @@ namespace apex {
 		 */
 		key_type getIndex(key_type key) const
 		{
-			axAssert(key < m_capacity);
+			axAssert(key < capacity());
 
 			key_type denseIdx = m_sparse[key];
-			axAssert(denseIdx < m_count && m_dense[denseIdx] == key);
+			axAssert(denseIdx < m_dense.size() && m_dense[denseIdx] == key);
 
 			return denseIdx;
 		}
@@ -148,11 +150,11 @@ namespace apex {
 		 */
 		auto try_getIndex(key_type key) const -> std::optional<key_type>
 		{
-			axAssert(key < m_capacity);
+			axAssert(key < capacity());
 
 			key_type denseIdx = m_sparse[key];
 
-			if (denseIdx < m_count && m_dense[denseIdx] == key)
+			if (denseIdx < m_dense.size() && m_dense[denseIdx] == key)
 			{
 				return denseIdx;
 			}
@@ -165,50 +167,50 @@ namespace apex {
 		 */
 		void clear()
 		{
-			m_count = 0;
+			m_dense.clear();
 		}
 
 		/**
 		 * \brief Returns an iterable range of mutable keys in the set.
 		 * \return An AxRange of keys.
 		 */
-		auto keys() { return ranges::AxRange<dense_array>(m_dense.begin(), m_dense.begin() + m_count); }
+		auto keys() { return ranges::AxRange<dense_array>(m_dense.begin(), m_dense.end()); }
 
 		/**
 		 * \brief Returns an iterable range of immutable keys in the set.
 		 * \return An AxRange of const keys.
 		 */
-		auto keys() const { return ranges::AxRange<const dense_array>(m_dense.begin(), m_dense.begin() + m_count); }
+		auto keys() const { return ranges::AxRange<const dense_array>(m_dense.begin(), m_dense.end()); }
 
 		/**
 		 * \brief Returns the currently allocated max capacity of the set.
 		 * \return Current capacity.
 		 */
-		size_t capacity() const { return m_capacity; }
+		size_t capacity() const { return m_dense.capacity(); }
 
 		/**
 		 * \brief Returns the current count of keys present in the set.
 		 * \return Current key count.
 		 */
-		size_t count() const { return m_count; }
+		size_t count() const { return m_dense.size(); }
 
 	protected:
 		void _Insert(key_type key)
 		{
-			m_dense[m_count] = key;
-			m_sparse[key] = m_count;
-			
-			++m_count;
+			m_dense.append(key);
+			m_sparse[key] = m_dense.size() - 1;
 		}
 
 		void _Remove(key_type key)
 		{
-			--m_count;
+			auto newCount = m_dense.size() - 1;
 
 			key_type denseIdx = m_sparse[key];
-			key_type lastId = m_dense[m_count];
+			key_type lastId = m_dense[newCount];
 			m_dense[denseIdx] = lastId;
 			m_sparse[lastId] = denseIdx;
+
+			m_dense.pop_back();
 		}
 
 		key_type _GetIndex(key_type key) // unsafe operation. Only for internal use
@@ -218,8 +220,6 @@ namespace apex {
 		}
 
 	private:
-		uint32 m_capacity{};
-		uint32 m_count{};
 		sparse_array m_sparse{};
 		dense_array m_dense{};
 	};

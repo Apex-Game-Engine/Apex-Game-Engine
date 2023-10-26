@@ -30,7 +30,7 @@ namespace ecs {
 		}
 
 		template <typename Component>
-		Component& add(Entity entity)
+		auto add(Entity entity) -> std::conditional_t<empty<Component>, void, Component&>
 		{
 			pool_type<Component>* pool = assurePool<Component>();
 
@@ -44,11 +44,18 @@ namespace ecs {
 				pool->resize(newCapacity);
 			}
 
-			return pool->emplace(entity);
+			if constexpr (empty<Component>)
+			{
+				return pool->insert(entity);
+			}
+			else
+			{
+				return pool->emplace(entity);
+			}
 		}
 
 		template <typename Component>
-		auto get(Entity entity) -> std::optional<std::reference_wrapper<Component>>
+		auto get(Entity entity) -> std::optional<std::conditional_t<empty<Component>, Component, std::reference_wrapper<Component>>>
 		{
 			pool_type<Component>* pool = assurePool<Component>();
 
@@ -57,7 +64,14 @@ namespace ecs {
 				return std::nullopt;
 			}
 
-			return pool->getElement(entity);
+			if constexpr (empty<Component>)
+			{
+				return Component{};
+			}
+			else
+			{
+				return pool->getElement(entity);
+			}
 		}
 
 		template <typename Component>
@@ -71,7 +85,7 @@ namespace ecs {
 		template <typename... Components>
 		auto view() -> View<get_t<Components...>, exclude_t<>>
 		{
-			return { _GetPools<Components...>() };
+			return { _AssurePools<Components...>() };
 		}
 
 	protected:
@@ -85,10 +99,10 @@ namespace ecs {
 			{
 				const size_t newCapacity = max(type_index * 1.5, type_index + 1.0);
 
-				sprintf_s(STRBUF, "Registry resized. New size: %llu", newCapacity);
-				axDebug(STRBUF);
-
 				m_pools.resize(newCapacity);
+
+				sprintf_s(STRBUF, "Registry resized. New size: %llu", m_pools.capacity());
+				axDebug(STRBUF);
 			}
 
 			auto elemPair = m_pools.try_get(type_index);
@@ -103,6 +117,12 @@ namespace ecs {
 				auto& pool = m_pools.emplace(type_index, pPool);
 				return static_cast<pool_type<Component>*>(pool.get());
 			}
+		}
+
+		template <typename... Components>
+		auto _AssurePools() -> std::tuple<pool_type<Components>*...>
+		{
+			return std::make_tuple(_AssurePool<Components>(TypeIndex<Components>::value())...);
 		}
 
 		auto _GetPool(component_id id) -> base_pool_type*

@@ -110,11 +110,9 @@ namespace apex {
 		template <typename... Args>
 		void resize(size_t new_size, Args&&... args)
 		{
+			reserve(new_size);
+
 			size_t oldSize = m_size;
-			if (new_size > m_capacity)
-			{
-				_ReallocateAndMove(new_size);
-			}
 			m_size = new_size;
 
 			if constexpr (sizeof...(args) > 0)
@@ -130,7 +128,7 @@ namespace apex {
 		{
 			if (m_capacity < capacity)
 			{
-				_Reserve(capacity, 0);
+				_ReallocateAndMove(capacity);
 			}
 		}
 
@@ -160,7 +158,7 @@ namespace apex {
 			m_size--;
 		}
 
-		void insert(const value_type& obj, size_t index)
+		void insert(size_t index, const value_type& obj)
 		{
 			axAssert(index < m_size + 1 && index < m_capacity);
 			axAssertMsg(m_size < m_capacity, "Array size exceeds capacity!");
@@ -169,7 +167,7 @@ namespace apex {
 			append(obj);
 		}
 
-		void insert(value_type&& obj, size_t index)
+		void insert(size_t index, value_type&& obj)
 		{
 			axAssert(index < m_size + 1 && index < m_capacity);
 			axAssertMsg(m_size < m_capacity, "Array size exceeds capacity!");
@@ -177,6 +175,8 @@ namespace apex {
 			_ShiftElementsRight(index);
 			append(std::move(obj));
 		}
+
+		// void emplace(size_t index, )
 
 		void remove(size_t index)
 		{
@@ -246,7 +246,7 @@ namespace apex {
 			return std::construct_at(mem, std::forward<Args>(args)...);
 		}
 
-		void _Reserve(size_t capacity, size_t init_size)
+		void _Allocate(size_t capacity, size_t init_size)
 		{
 			AxHandle newHandle (sizeof(value_type) * capacity);
 			_SetDataHandle(newHandle, init_size);
@@ -258,7 +258,7 @@ namespace apex {
 			auto oldSize = m_size;
 			auto oldCapacity = m_capacity;
 
-			_Reserve(new_capacity, oldSize);
+			_Allocate(new_capacity, oldSize);
 
 			if (oldSize > 0)
 				apex::memmove_s<stored_type>(m_data, m_capacity, oldData, oldSize);

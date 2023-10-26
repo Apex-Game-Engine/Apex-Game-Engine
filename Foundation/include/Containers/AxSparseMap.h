@@ -32,8 +32,9 @@ namespace apex {
 
 		void resize(size_t capacity)
 		{
-			base_type::resize(capacity);
-			m_elements.resize(capacity);
+			// TODO: Do NOT resize elements array if not required
+			base_type::reserve(capacity);
+			m_elements.resize(base_type::capacity());
 		}
 
 		void insert(key_type id, Type const& elem)
@@ -186,6 +187,115 @@ namespace apex {
 
 	private:
 		element_array m_elements{};
+	};
+
+
+	template <typename Key, apex::empty Type>
+	class AxSparseMap<Key, Type> : public AxSparseSet<Key>
+	{
+	public:
+		using base_type = AxSparseSet<Key>;
+
+		using base_type::key_type;
+		using base_type::sparse_array;
+		using base_type::dense_array;
+
+		using element_type = Type;
+
+		AxSparseMap() = default;
+
+		explicit AxSparseMap(uint32 capacity)
+		: base_type(capacity)
+		{
+		}
+
+		~AxSparseMap() = default;
+
+
+		void resize(size_t capacity)
+		{
+			// TODO: Do NOT resize elements array if not required
+			base_type::reserve(capacity);
+		}
+
+		void insert(key_type id, Type const& elem = {})
+		{
+			base_type::_Insert(id);
+		}
+
+		bool try_insert(key_type id, Type const& elem = {})
+		{
+			if (!contains(id))
+			{
+				base_type::_Insert(id);
+				return true;
+			}
+
+			return false;
+		}
+
+		void remove(key_type id)
+		{
+			base_type::_Remove(id);
+		}
+
+		bool try_remove(key_type id)
+		{
+			if (contains(id))
+			{
+				base_type::_Remove(id);
+				return true;
+			}
+
+			return false;
+		}
+
+		bool contains(key_type id) const
+		{
+			return base_type::contains(id);
+		}
+
+		key_type getIndex(key_type id) const
+		{
+			return base_type::getIndex(id);
+		}
+
+		auto try_getIndex(key_type id)
+		{
+			return base_type::try_getIndex(id);
+		}
+
+		auto getElement(key_type id) const -> Type
+		{
+			key_type idx = getIndex(id);
+			return {};
+		}
+
+		auto get(key_type id) const -> std::pair<key_type, Type>
+		{
+			key_type idx = getIndex(id);
+			return std::pair<key_type, Type>(idx, {});
+		}
+
+		auto try_get(key_type id) const -> std::optional<std::pair<key_type, Type>>
+		{
+			auto idx = try_getIndex(id);
+			if (idx)
+			{
+				return std::pair<key_type, Type>(idx.value(), {});
+			}
+
+			return std::nullopt;
+		}
+
+		void clear() { base_type::clear(); }
+
+		auto keys() { return base_type::keys(); }
+		auto keys() const { return base_type::keys(); }
+
+		size_t capacity() const { return base_type::capacity(); }
+		size_t count() const { return base_type::count(); }
+
 	};
 
 }

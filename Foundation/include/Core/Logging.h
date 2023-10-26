@@ -49,13 +49,16 @@ namespace logging {
 		void log(LogLevel level, const char *file, const char *funcsig, uint32 lineno, const char *msg) const;
 		void log(const LogMsg& log_msg) const;
 
+		void addSink(ISink* sink);
+
 		static void initialize();
 		static Logger& get();
 
 		static void log(ISink* sink, LogLevel level, const char *file, const char *funcsig, uint32 lineno, const char *msg);
 		static void log(ISink* sink, const LogMsg& log_msg);
 
-		std::vector<ISink*> m_sinks;
+		ISink* m_sinks[8];
+		size_t m_sinkCount {0};
 	};
 
 	struct IConsoleSink : public ISink

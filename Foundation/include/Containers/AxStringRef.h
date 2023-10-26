@@ -24,4 +24,10 @@ namespace apex {
 		char const* m_str;
 	};
 
+	struct AxStringView
+	{
+		const char* m_str;
+		size_t m_size;
+	};
+
 }

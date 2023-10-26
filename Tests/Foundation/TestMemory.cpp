@@ -252,6 +252,26 @@ namespace apex::memory {
 		EXPECT_FALSE(MemoryManager::checkManaged(pSomeClass.get()));
 	}
 
+	TEST_F(MemoryManagerTest, TestGetMemoryPoolFromPointer)
+	{
+		struct Data_128bytes : AxManagedClass
+		{
+			byte bytes[128];
+		};
+
+		UniquePtr<Data_128bytes> pointers[1000];
+
+		for (int i = 0; i < 1000; i++)
+		{
+			pointers[i] = apex::make_unique<Data_128bytes>();
+		}
+
+		for (int i = 0; i < 1000; i++)
+		{
+			EXPECT_EQ(MemoryManager::getImplInstance().getMemoryPoolFromPointer(pointers[i].get()).getBlockSize(), 128);
+		}
+	}
+
 	struct MyManagedClass : AxManagedClass
 	{
 		char name[1000];

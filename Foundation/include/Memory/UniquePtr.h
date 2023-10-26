@@ -38,7 +38,7 @@ namespace apex {
 	}
 
 	template <typename T>
-	class UniquePtr {};
+	class UniquePtr;
 
 	template <apex::managed_class T>
 	class UniquePtr<T>
