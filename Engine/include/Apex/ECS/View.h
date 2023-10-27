@@ -2,7 +2,7 @@
 
 #include "Entity.h"
 #include "Invoke.h"
-#include "TypeTraits.h"
+#include "Core/TypeTraits.h"
 
 namespace apex {
 namespace ecs {

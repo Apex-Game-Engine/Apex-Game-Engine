@@ -132,6 +132,7 @@ namespace memory {
 
 	void MemoryManager::initialize(MemoryManagerDesc desc)
 	{
+		axLog("MemoryManager initializing...");
 		axAssertMsg((desc.frameArenaSize & (desc.frameArenaSize - 1)) == 0, "Frame allocator capacity must be power of 2!");
 
 		const size_t numArenas = static_cast<size_t>(desc.numFramesInFlight) * static_cast<size_t>(MemoryTag::COUNT);
@@ -147,10 +148,12 @@ namespace memory {
 
 		s_memoryManagerImpl.setUpMemoryPools();
 		s_memoryManagerImpl.setUpMemoryArenas(desc.numFramesInFlight, desc.frameArenaSize);
+		axLog("MemoryManager initialized successfully");
 	}
 
 	void MemoryManager::shutdown()
 	{
+		axLog("MemoryManager shutting down...");
 		for (ArenaAllocator& frameAllocator : s_memoryManagerImpl.m_arenaAllocators)
 		{
 			frameAllocator.reset();
@@ -158,6 +161,7 @@ namespace memory {
 
 		s_memoryManagerImpl.m_capacity = 0;
 		::free(s_memoryManagerImpl.m_pBase);
+		axLog("MemoryManager shut down succesfully");
 	}
 
 	AxHandle MemoryManager::allocate(size_t size)

@@ -2,7 +2,7 @@
 
 #include "Entity.h"
 #include "TypeInfo.h"
-#include "TypeTraits.h"
+#include "Core/TypeTraits.h"
 #include "Containers/AxSparseMap.h"
 
 #include "View.h"
