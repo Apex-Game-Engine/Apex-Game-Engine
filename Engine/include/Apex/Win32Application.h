@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include "Application.h"
+#include "Game.h"
 #include "Core/Types.h"
 #include "Graphics/ForwardRenderer.h"
 #include "Graphics/Vulkan/VulkanContext.h"
@@ -38,6 +39,7 @@ namespace apex {
 		gfx::ForwardRenderer m_forwardRenderer;
 
 		//Game
+		UniquePtr<Game> m_game;
 	};
 
 }

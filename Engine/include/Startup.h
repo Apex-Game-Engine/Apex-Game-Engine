@@ -1,4 +1,5 @@
 #pragma once
+#include "CommandLineArguments.h"
 #include "Console.h"
 #include "Apex/Application.h"
 
@@ -17,7 +18,13 @@
 		apex::logging::Logger::initialize();
 		apex::memory::MemoryManager::initialize({ .frameArenaSize = 0, .numFramesInFlight = 3 });
 
-		apex::Application *app = apex::Application::Construct(1366u, 768u, APEX_DEFAULT_APPNAME);
+		apex::CommandLineArguments cmdline({
+			{ .shortName = "h", .longName = "headless" },
+			{ .shortName = "l", .longName = "load", .hasValue = true }
+		});
+		cmdline.parse(pCmdLine);
+
+		apex::Application *app = apex::Application::Construct(1366u, 768u, APEX_DEFAULT_APPNAME, apex::Game::Construct());
 
 	#if defined(APEX_CONFIG_DEBUG) || defined(APEX_CONFIG_DEVELOPMENT)
 		apex::Console console(APEX_DEFAULT_APPNAME);
@@ -29,6 +36,8 @@
 		app->run();
 
 		app->shutdown();
+
+		cmdline = {};
 		apex::memory::MemoryManager::shutdown();
 
 	#if defined(APEX_CONFIG_DEBUG) || defined(APEX_CONFIG_DEVELOPMENT)

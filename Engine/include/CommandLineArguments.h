@@ -13,14 +13,14 @@ namespace apex {
 		bool set = false;
 	};
 
-	class APEX_API CommandLineParser
+	class APEX_API CommandLineArguments
 	{
 	public:
 		using options_array = AxArray<CommandLineOption>;
 
-		CommandLineParser() = default;
+		CommandLineArguments() = default;
 
-		CommandLineParser(options_array&& options)
+		CommandLineArguments(options_array&& options)
 		: m_options(std::move(options))
 		{
 		}
@@ -29,8 +29,9 @@ namespace apex {
 		{
 			m_options = std::move(options);
 		}
-
-		void parse(int argc, const char** argv);
+		
+		void parse(int argc, char const** argv);
+		void parse(const char* cmd_str);
 
 		auto getSelectedOptions()
 		{

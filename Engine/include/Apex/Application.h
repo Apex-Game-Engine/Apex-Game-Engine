@@ -1,6 +1,8 @@
 ﻿#pragma once
 
 #include "Api.h"
+#include "Game.h"
+#include "Memory/UniquePtr.h"
 
 namespace apex {
 	struct Window;
@@ -16,7 +18,7 @@ namespace apex {
 	{
 		virtual ~Application() = default;
 
-		static Application* Construct(uint32 width, uint32 height, const char* name);
+		static Application* Construct(uint32 width, uint32 height, const char* name, UniquePtr<Game>&& pGame);
 
 		static Application* Instance()
 		{

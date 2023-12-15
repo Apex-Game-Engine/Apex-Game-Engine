@@ -1,5 +1,5 @@
 ﻿#include "apex_pch.h"
-#include "CommandLineParser.h"
+#include "CommandLineArguments.h"
 
 #include "Containers/AxRange.h"
 
@@ -10,7 +10,9 @@ namespace apex {
 
 	struct StringBuf
 	{
-		char buf[2048];
+		static constexpr size_t MAX_SIZE = 1024;
+
+		char buf[MAX_SIZE];
 		size_t size { 0 };
 
 		const char* copyFrom(const char* value)
@@ -18,15 +20,25 @@ namespace apex {
 			size_t len = strlen(value);
 			const char* ret = buf + size;
 
-			strcpy_s(buf + size, 2048 - size, value);
+			strcpy_s(buf + size, MAX_SIZE - size, value);
 			size += len + 1;
+
+			return ret;
+		}
+
+		const char* copyFrom(std::string_view value)
+		{
+			const char* ret = buf + size;
+
+			apex::memcpy_s<char>(buf + size, MAX_SIZE - size, value.data(), value.size());
+			size += value.size() + 1;
 
 			return ret;
 		}
 	};
 	static StringBuf s_valueBuf;
 
-	void CommandLineParser::parse(int argc, const char** argv)
+	void CommandLineArguments::parse(int argc, char const** argv)
 	{
 		for (int i = 0; i < argc; i++)
 		{
@@ -57,8 +69,7 @@ namespace apex {
 
 			if (range->hasValue)
 			{
-				i++;
-				range->value = s_valueBuf.copyFrom(argv[i]);
+				range->value = argv[++i];
 				(void)sprintf_s(s_tempBuf, "Found option '%s' with value '%s'", range->longName, range->value);
 				range->set = true;
 			}
@@ -71,5 +82,28 @@ namespace apex {
 
 			axLog(s_tempBuf);
 		}
+	}
+
+	void CommandLineArguments::parse(const char* cmd_str)
+	{
+		std::string_view cmdStr = cmd_str;
+		size_t len = cmdStr.size();
+
+		if (len == 0) return;
+
+		const char* argv[64]; // TODO: consider increasing this size
+		int argc = 0;
+
+		size_t offset = cmdStr.find(' ', 0);
+		while (offset < cmdStr.size())
+		{
+			argv[argc++] = s_valueBuf.copyFrom(cmdStr.substr(0, offset));
+			cmdStr = cmdStr.substr(offset + 1);
+			offset = cmdStr.find(' ', 0);
+		}
+
+		argv[argc++] = s_valueBuf.copyFrom(cmdStr);
+
+		parse(argc, argv);
 	}
 }

@@ -12,9 +12,10 @@ namespace apex {
 
 	Application* Application::s_pInstance = nullptr;
 
-	Application* Application::Construct(uint32 width, uint32 height, const char* name)
+	Application* Application::Construct(uint32 width, uint32 height, const char* name, UniquePtr<Game>&& pGame)
 	{
 		Win32Application* pInstance = new Win32Application(width, height, name);
+		pInstance->m_game = std::forward<UniquePtr<Game>&&>(pGame);
 
 		s_pInstance = pInstance;
 		return s_pInstance;
@@ -132,7 +133,8 @@ namespace apex {
 
 			if (!m_running || m_applicationState != ApplicationState::eRunning)
 				continue;
-				
+
+			m_game->run();
 			m_forwardRenderer.onUpdate(16666.666f);
 		}
 	}
