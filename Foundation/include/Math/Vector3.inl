@@ -1,6 +1,8 @@
 #pragma once
 //#pragma message("Including Vector3.inl")
 
+#include <immintrin.h>
+
 #include "Vector3.h"
 #include "Math.h"
 
@@ -57,7 +59,7 @@ namespace math {
 
 	inline float32 Vector3::length_squared() const
 	{
-		return x*x + y*y + z*z;
+		return apex::math::dot(*this, *this);
 	}
 
 	inline Vector3 Vector3::normalize() const
@@ -83,21 +85,53 @@ namespace math {
 
 	inline Vector3 operator+(Vector3 const& u, Vector3 const& v)
 	{
+		__m128 mU = _mm_loadu_ps(u.m_values);
+		__m128 mV = _mm_loadu_ps(v.m_values);
+		__m128 mRes = _mm_add_ps(mU, mV);
+
+		float res[4];
+		_mm_storeu_ps(res, mRes);
+		return res;
+
 		return { u.x + v.x, u.y + v.y, u.z + v.z };
 	}
 
 	inline Vector3 operator-(Vector3 const& u, Vector3 const& v)
 	{
+		__m128 mU = _mm_loadu_ps(u.m_values);
+		__m128 mV = _mm_loadu_ps(v.m_values);
+		__m128 mRes = _mm_sub_ps(mU, mV);
+
+		float res[4];
+		_mm_storeu_ps(res, mRes);
+		return res;
+
 		return { u.x - v.x, u.y - v.y, u.z - v.z };
 	}
 
 	inline Vector3 operator*(Vector3 const& u, Vector3 const& v)
 	{
+		__m128 mU = _mm_loadu_ps(u.m_values);
+        __m128 mV = _mm_loadu_ps(v.m_values);
+		__m128 mRes = _mm_mul_ps(mU, mV);
+
+		float res[4];
+		_mm_storeu_ps(res, mRes);
+		return res;
+
 		return { u.x * v.x, u.y * v.y, u.z * v.z };
 	}
 
 	inline Vector3 operator*(float32 t, Vector3 const& v)
 	{
+		__m128 mT = _mm_set1_ps(t);
+        __m128 mV = _mm_loadu_ps(v.m_values);
+		__m128 mRes = _mm_mul_ps(mT, mV);
+
+		float res[4];
+		_mm_storeu_ps(res, mRes);
+		return res;
+
 		return { t * v.x, t * v.y, t * v.z };
 	}
 
@@ -157,6 +191,17 @@ namespace math {
 
 	inline float32 dot(Vector3 const& u, Vector3 const& v)
 	{
+		__m128 mU = _mm_loadu_ps(u.m_values);
+		__m128 mV = _mm_loadu_ps(v.m_values);
+		__m128 mRes = _mm_dp_ps(mU, mV, 0x71 /* mask */);
+
+		// mask: 0111 0001 (use the lower 3 positions for dot product & save result in only the first position)
+		// the high bits define the condition for dot product - only positions with 1 in the high bits are used
+		// the low bits define the broadcast - broadcast the result to all positions with 1 in the low bits
+
+		float res = _mm_cvtss_f32(mRes);
+		return res;
+
 		return u.x * v.x
 			 + u.y * v.y
 			 + u.z * v.z;
@@ -164,6 +209,17 @@ namespace math {
 
 	inline Vector3 cross(Vector3 const& u, Vector3 const& v)
 	{
+		__m128 mU = _mm_loadu_ps(u.m_values);
+		__m128 mV = _mm_loadu_ps(v.m_values);
+		__m128 mRes = _mm_sub_ps(
+			_mm_mul_ps(_mm_permute_ps(mU, _MM_SHUFFLE(3, 0, 2, 1)), _mm_permute_ps(mV, _MM_SHUFFLE(3, 1, 0, 2))),
+			_mm_mul_ps(_mm_permute_ps(mU, _MM_SHUFFLE(3, 1, 0, 2)), _mm_permute_ps(mV, _MM_SHUFFLE(3, 0, 2, 1)))
+		);
+
+		float res[4];
+		_mm_storeu_ps(res, mRes);
+		return res;
+
 		return {
 			u[1] * v[2] - u[2] * v[1],
 			u[2] * v[0] - u[0] * v[2],

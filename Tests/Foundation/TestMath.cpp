@@ -5,6 +5,26 @@
 
 namespace apex::math {
 
+	TEST(TestVector3, TestDotProduct)
+	{
+		Vector3 v1 { 1.f, 2.f, 3.f };
+		Vector3 v2 { 4.f, 5.f, 6.f };
+
+		float res = dot(v1, v2);
+		EXPECT_FLOAT_EQ(res, 32.f);
+	}
+
+	TEST(TestVector3, TestCrossProduct)
+	{
+		Vector3 v1 { 1.f, 2.f, 3.f };
+		Vector3 v2 { 4.f, 5.f, 6.f };
+
+		Vector3 res = cross(v1, v2);
+		Vector3 vres { -3.f, 6.f, -3.f };
+
+		EXPECT_TRUE(res == vres);
+	}
+
 	TEST(TestMatrix4x4, TestMatrix)
 	{
 		{
@@ -47,6 +67,21 @@ namespace apex::math {
 		{
 			Vector4 v1 { 1.f, 2.f, 3.f, 4.f };
 			Matrix4x4 m {
+				 0.f, -1.f,  0.f,  1.f,
+	 			 1.f,  0.f, -1.f,  0.f,
+				 0.f,  1.f,  0.f, -1.f,
+				-1.f,  0.f,  1.f,  0.f
+			};
+
+			Vector4 v2 = m * v1;
+			Vector4 vres { -2.f, 2.f, 2.f, -2.f };
+
+			EXPECT_TRUE(v2 == vres);
+		}
+
+		{
+			Vector4 v1 { 1.f, 2.f, 3.f, 4.f };
+			Matrix4x4 m { row_major{},
 				 0.f, -1.f,  0.f,  1.f,
 	 			 1.f,  0.f, -1.f,  0.f,
 				 0.f,  1.f,  0.f, -1.f,
