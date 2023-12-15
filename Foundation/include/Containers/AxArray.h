@@ -1,6 +1,6 @@
 ﻿#pragma once
 #include "Core/Asserts.h"
-#include "Math/Utility.h"
+#include "Core/Utility.h"
 #include "Memory/AxHandle.h"
 #include "Memory/AxManagedClass.h"
 #include "Memory/UniquePtr.h"

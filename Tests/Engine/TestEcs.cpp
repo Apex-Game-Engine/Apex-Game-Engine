@@ -173,7 +173,6 @@ TEST_F(TestEcs, TestMultiComponentView)
 TEST_F(TestEcs, TestEmptyComponentView)
 {
 	apex::ecs::Registry registry { .minPoolSize = 16 };
-	auto view = registry.view<apex::Transform, apex::SomeTag>();
 
 	int i;
 	for (i = 0; i < 20; i++)
@@ -196,6 +195,7 @@ TEST_F(TestEcs, TestEmptyComponentView)
 
 
 	i = 0;
+	auto view = registry.view<apex::Transform, apex::SomeTag>();
 	view.each([&i](apex::ecs::Entity entity, auto& transform, auto tag)
 	{
 		printf("entity: %u\n", static_cast<apex::uint32>(entity));
@@ -270,7 +270,7 @@ struct DamageSystem : public ecs::System<ecs::get_t<apex::DamageInflictor>, ecs:
 	template <>
 	bool on(apex::CollisionEvent const& event)
 	{
-		
+		return false;
 	}
 };
 

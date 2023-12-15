@@ -10,5 +10,9 @@ GTEST_API_ int main(int argc, char **argv) {
 	apex::logging::Logger::initialize();
 	apex::memory::MemoryManager::initialize({ .frameArenaSize = 0, .numFramesInFlight = 3 });
 
-	return RUN_ALL_TESTS();
+	int retval = RUN_ALL_TESTS();
+
+	apex::memory::MemoryManager::shutdown();
+
+	return retval;
 }

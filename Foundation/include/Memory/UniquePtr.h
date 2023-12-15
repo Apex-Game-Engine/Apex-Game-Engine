@@ -329,4 +329,11 @@ namespace apex {
 	    return apex::make_unique<element_type[]>(size);
 	}
 
+
+	template <typename Base, typename T> requires (apex::managed_class<T> && std::is_base_of_v<Base, T>)
+	[[nodiscard]] constexpr auto static_unique_cast(UniquePtr<T>&& ptr) noexcept -> UniquePtr<Base>
+	{
+		return UniquePtr<Base>(static_cast<Base*>(ptr.release()));
+	}
+
 }
