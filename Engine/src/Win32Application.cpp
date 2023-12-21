@@ -123,6 +123,8 @@ namespace apex {
 	{
 		m_vulkanContext.initialize(APEX_DEFAULT_APPNAME, m_window.get(), true);
 		m_forwardRenderer.initialize(m_vulkanContext);
+
+		m_game->initialize();
 	}
 
 	void Win32Application::run()
@@ -147,6 +149,7 @@ namespace apex {
 	void Win32Application::shutdown()
 	{
 		m_forwardRenderer.shutdown();
+		m_game->stop();
 		m_vulkanContext.shutdown();
 	}
 
@@ -158,6 +161,11 @@ namespace apex {
 	ApplicationState Win32Application::getState()
 	{
 		return m_applicationState;
+	}
+
+	gfx::ForwardRenderer* Win32Application::getRenderer()
+	{
+		return &m_forwardRenderer;
 	}
 }
 

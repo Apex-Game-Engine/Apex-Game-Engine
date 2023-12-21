@@ -26,6 +26,7 @@ namespace apex {
 
 		Window* getWindow() override;
 		ApplicationState getState() override;
+		gfx::ForwardRenderer* getRenderer() override;
 
 		// Application
 		HINSTANCE m_hInstance;

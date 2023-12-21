@@ -3,6 +3,7 @@
 #include "Memory/UniquePtr.h"
 
 namespace apex {
+	struct Application;
 
 	class Game : public AxManagedClass
 	{
@@ -10,6 +11,7 @@ namespace apex {
 		Game() = default;
 		virtual ~Game() = default;
 
+		virtual void initialize() = 0;
 		virtual void run() = 0;
 		virtual void stop() = 0;
 

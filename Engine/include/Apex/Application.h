@@ -5,6 +5,11 @@
 #include "Memory/UniquePtr.h"
 
 namespace apex {
+	namespace gfx
+	{
+		class ForwardRenderer;
+	}
+
 	struct Window;
 
 	enum class ApplicationState
@@ -32,6 +37,8 @@ namespace apex {
 
 		virtual Window* getWindow() = 0;
 		virtual ApplicationState getState() = 0;
+
+		virtual gfx::ForwardRenderer* getRenderer() = 0;
 
 		static Application *s_pInstance;
 	};
