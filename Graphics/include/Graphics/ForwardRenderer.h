@@ -1,7 +1,9 @@
 #pragma once
 #include <vulkan/vulkan_core.h>
 
+#include "CommandList.h"
 #include "Core/Types.h"
+#include "Geometry/Mesh.h"
 #include "Vulkan/VulkanContext.h"
 #include "Vulkan/VulkanBuffer.h"
 #include "Vulkan/Effects/BasicPipeline.h"
@@ -26,6 +28,9 @@ namespace gfx {
 		void onUpdate(Timestep dt);
 		void onWindowResize(uint32 width, uint32 height);
 
+		auto getCurrentCommandList() -> CommandList&;
+		auto getContext() -> vk::VulkanContext&;
+
 	protected:
 		void resizeFramebuffers();
 		void createSyncObjects(vk::VulkanDevice const& device, VkAllocationCallbacks const* pAllocator);
@@ -36,9 +41,9 @@ namespace gfx {
 		void createDescriptorSets(vk::VulkanDevice const& device);
 
 		// per frame commands
-		void recordCommandBuffer(VkCommandBuffer command_buffer, uint32 image_index);
+		void recordCommandBuffer(VkCommandBuffer command_buffer, uint32 image_index, gfx::CommandList const& command_list);
 		void updateUniformBuffers();
-		void drawFrame(vk::VulkanDevice const& device, vk::VulkanSwapchain const& swapchain);
+		void drawFrame(vk::VulkanDevice const& device, vk::VulkanSwapchain const& swapchain, CommandList const& command_list);
 
 		static constexpr uint32  kMaxFramesInFlight { 1 };
 
@@ -61,8 +66,7 @@ namespace gfx {
 		VkSemaphore                    m_renderFinishedSemaphores[kMaxFramesInFlight]{};
 		VkFence                        m_inFlightFences[kMaxFramesInFlight]{};
 
-		// TODO: Move to Mesh/ECS/somewhere with the mesh data
-		vk::VulkanBuffer               m_vertexBuffer{}, m_indexBuffer{};
+		CommandList                    m_commandLists[kMaxFramesInFlight]{};
 
 		uint32                         m_currentFrame = 0;
 

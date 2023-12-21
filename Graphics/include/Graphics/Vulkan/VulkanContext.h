@@ -46,7 +46,7 @@ namespace vk {
 		void _createSurface(Window* p_window);
 		void _recreateSwapchain(uint32 width, uint32 height);
 
-	private:
+	public:
 		VkInstance           m_instance{};
 		Window*              m_pWindow{};
 

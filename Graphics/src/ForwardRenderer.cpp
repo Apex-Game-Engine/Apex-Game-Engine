@@ -2,6 +2,7 @@
 
 #include "Core/Asserts.h"
 #include "Graphics/Camera.h"
+#include "Graphics/CommandList.h"
 #include "Graphics/Geometry/IndexBufferCPU.h"
 #include "Graphics/Geometry/VertexBufferCPU.h"
 #include "Graphics/Primitives/Quad.h"
@@ -36,7 +37,7 @@ namespace apex::gfx {
 		m_pipeline.create(
 			m_context->m_device.logicalDevice,
 			shaderStagesDesc,
-		    { descriptorSetLayouts, std::size(descriptorSetLayouts) },
+		    { .data = descriptorSetLayouts, .count = std::size(descriptorSetLayouts) },
 			m_context->m_swapchain.extent,
 			m_renderPass.renderPass,
 			VULKAN_NULL_ALLOCATOR);
@@ -64,9 +65,6 @@ namespace apex::gfx {
 	{
 		vkDeviceWaitIdle(m_context->m_device.logicalDevice);
 
-		m_vertexBuffer.destroy(m_context->m_device.logicalDevice, VULKAN_NULL_ALLOCATOR);
-		m_indexBuffer.destroy(m_context->m_device.logicalDevice, VULKAN_NULL_ALLOCATOR);
-
 		for (uint32 i = 0; i < kMaxFramesInFlight; i++)
 		{
 			vkFreeCommandBuffers(m_context->m_device.logicalDevice, m_context->m_device.commandPool, 1, &m_commandBuffers[i]);
@@ -89,12 +87,23 @@ namespace apex::gfx {
 
 	void ForwardRenderer::onUpdate(Timestep dt)
 	{
-		drawFrame(m_context->m_device, m_context->m_swapchain);
+		auto& commandList = getCurrentCommandList();
+		drawFrame(m_context->m_device, m_context->m_swapchain, commandList);
 	}
 
 	void ForwardRenderer::onWindowResize(uint32 /*width*/, uint32 /*height*/)
 	{
 		resizeFramebuffers();
+	}
+
+	auto ForwardRenderer::getCurrentCommandList() -> CommandList&
+	{
+		return m_commandLists[m_currentFrame];
+	}
+
+	auto ForwardRenderer::getContext() -> vk::VulkanContext&
+	{
+		return *m_context;
 	}
 
 	void ForwardRenderer::resizeFramebuffers()
@@ -145,13 +154,11 @@ namespace apex::gfx {
 	void ForwardRenderer::prepareGeometry(vk::VulkanDevice const& device, VkAllocationCallbacks const* pAllocator)
 	{
 		// TODO: Gather all static meshes and create the vertex buffers
-		// Create buffers in CPU memory
-		VertexBufferCPU vertexBufferCpu = Quad::getVertexBuffer();
-		IndexBufferCPU indexBufferCpu = Quad::getIndexBuffer();
+		// Create mesh in CPU memory
+		//MeshCPU meshCpu = Quad::getMesh();
 
-		// Transfer buffers to GPU memory
-		vk::VulkanBuffer::CreateVertexBufferGPU(m_vertexBuffer, device, vertexBufferCpu, pAllocator);
-		vk::VulkanBuffer::CreateIndexBufferGPU(m_indexBuffer, device, indexBufferCpu, pAllocator);
+		// Create mesh in GPU memory
+		//m_mesh.create(device, &meshCpu, pAllocator);
 	}
 
 	void ForwardRenderer::createUniformBuffers(vk::VulkanDevice const& device, VkAllocationCallbacks const* pAllocator)
@@ -166,7 +173,7 @@ namespace apex::gfx {
 				bufferSize,
 				VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
 				VK_SHARING_MODE_EXCLUSIVE,
-				{ queueFamilyIndices, std::size(queueFamilyIndices) },
+				{ .data = queueFamilyIndices, .count = std::size(queueFamilyIndices) },
 				VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
 				pAllocator);
 
@@ -235,7 +242,7 @@ namespace apex::gfx {
 		}
 	}
 
-	void ForwardRenderer::recordCommandBuffer(VkCommandBuffer command_buffer, uint32 image_index)
+	void ForwardRenderer::recordCommandBuffer(VkCommandBuffer command_buffer, uint32 image_index, gfx::CommandList const& command_list)
 	{
 		// Begin recording command buffer
 		VkCommandBufferBeginInfo commandBufferBeginInfo {
@@ -290,17 +297,31 @@ namespace apex::gfx {
 		// Bind descriptor sets
 		vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline.pipelineLayout, 0, 1, &m_descriptorSets[m_currentFrame], 0, nullptr);
 
-		// Bind vertex buffers
-		VkBuffer vertexBuffers[] = { m_vertexBuffer.buffer };
-		VkDeviceSize offsets[] = { 0 };
-		vkCmdBindVertexBuffers(command_buffer, 0, std::size(vertexBuffers), vertexBuffers, offsets);
+		for (auto& cmd : m_commandLists[m_currentFrame].getCommands())
+		{
+			switch (cmd->type)
+			{
+			case Command::Type::Draw:
+				{
+					auto& drawCmd = static_cast<DrawCommand&>(*cmd);
+					auto& mesh = *drawCmd.pMesh;
 
-		// Bind index buffer
-		vkCmdBindIndexBuffer(command_buffer, m_indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
+					// Bind vertex buffers
+					VkBuffer vertexBuffers[] = {mesh.m_vertexBuffer.m_buffer.buffer};
+					VkDeviceSize offsets[] = {0};
+					vkCmdBindVertexBuffers(command_buffer, 0, std::size(vertexBuffers), vertexBuffers, offsets);
 
-		// Submit draw commands
-		// TODO: Remove hardcoded vertex count; retrieve from the mesh/buffer
-		vkCmdDrawIndexed(command_buffer, 6, 1, 0, 0, 0);
+					// Bind index buffer
+					vkCmdBindIndexBuffer(command_buffer, mesh.m_indexBuffer.m_buffer.buffer, 0, VK_INDEX_TYPE_UINT32);
+
+					// Submit draw commands
+					vkCmdDrawIndexed(command_buffer, mesh.m_indexBuffer.m_count, 1, 0, 0, 0);
+				}
+				break;
+			default:
+				break;
+			}
+		}
 
 		// End render pass
 		vkCmdEndRenderPass(command_buffer);
@@ -320,8 +341,8 @@ namespace apex::gfx {
 		float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
 
 		Camera* camera = (Camera*)m_uniformBuffersMapped[m_currentFrame];
-		camera->model = math::rotateZ(math::Matrix4x4::identity(), time * math::radians(90.f));
-		camera->model = math::rotateX(camera->model, math::radians(-75.f));
+		camera->model = math::rotateY(math::Matrix4x4::identity(), time * math::radians(90.f));
+		camera->model = math::rotateX(camera->model, time * math::radians(-60.f));
 		camera->view = math::lookAt({ 0.f, 0.f, 3.f }, -math::Vector3::unitZ(), math::Vector3::unitY());
 
 		float32 fov = math::radians(60.f);
@@ -330,7 +351,7 @@ namespace apex::gfx {
 		camera->projection[1][1] *= -1;
 	}
 
-	void ForwardRenderer::drawFrame(vk::VulkanDevice const& device, vk::VulkanSwapchain const& swapchain)
+	void ForwardRenderer::drawFrame(vk::VulkanDevice const& device, vk::VulkanSwapchain const& swapchain, CommandList const& command_list)
 	{
 		VkCommandBuffer& commandBuffer = m_commandBuffers[m_currentFrame];
 		VkSemaphore& imageAvailableSemaphore = m_imageAvailableSemaphores[m_currentFrame];
@@ -359,7 +380,7 @@ namespace apex::gfx {
 
 		// Record the command buffer for drawing on acquired image
 		vkResetCommandBuffer(commandBuffer, 0);
-		recordCommandBuffer(commandBuffer, imageIndex);
+		recordCommandBuffer(commandBuffer, imageIndex, command_list);
 
 		// Udpate uniforms
 		updateUniformBuffers();

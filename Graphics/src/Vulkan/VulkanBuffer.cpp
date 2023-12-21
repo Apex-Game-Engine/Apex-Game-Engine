@@ -41,7 +41,7 @@ namespace apex::vk {
 			size,
 			VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
 			VK_SHARING_MODE_EXCLUSIVE,
-			{ queueFamilyIndices, std::size(queueFamilyIndices) },
+			{ .data = queueFamilyIndices, .count = std::size(queueFamilyIndices) },
 			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
 			pAllocator);
 	}
@@ -55,7 +55,7 @@ namespace apex::vk {
 			size,
 			VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
 			VK_SHARING_MODE_CONCURRENT,
-			{ queueFamilyIndices, std::size(queueFamilyIndices) },
+			{ .data = queueFamilyIndices, .count = std::size(queueFamilyIndices) },
 			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
 			pAllocator);
 
@@ -78,7 +78,7 @@ namespace apex::vk {
 			size,
 			VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
 			VK_SHARING_MODE_CONCURRENT,
-			{ queueFamilyIndices, std::size(queueFamilyIndices) },
+			{ .data = queueFamilyIndices, .count = std::size(queueFamilyIndices) },
 			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
 			pAllocator);
 	}
@@ -131,56 +131,6 @@ namespace apex::vk {
 		apex::memcpy_s<uint32>(data, cpu_buffer.count(), cpu_buffer.data().data, cpu_buffer.count());
 
 		vkUnmapMemory(device.logicalDevice, memory);
-	}
-
-	void VulkanBuffer::CreateVertexBufferGPU(
-		VulkanBuffer& vertex_buffer,
-		VulkanDevice const& device,
-		gfx::VertexBufferCPU const& cpu_buffer,
-		VkAllocationCallbacks const* pAllocator)
-	{
-		size_t bufferSize = cpu_buffer.sizeInBytes();
-
-		// Create a temporary staging buffer
-		VulkanBuffer stagingBuffer;
-		stagingBuffer.createStagingBuffer(device, bufferSize, pAllocator);
-
-		// Fill the buffer
-		stagingBuffer.loadVertexBufferData(device, cpu_buffer);
-
-		// Create the vertex buffer
-		vertex_buffer.createVertexBuffer(device, bufferSize, pAllocator);
-
-		// Copy vertex data from staging buffer to vertex buffer
-		CopyBufferData(device, vertex_buffer, stagingBuffer, bufferSize);
-
-		// Cleanup staging buffer
-		stagingBuffer.destroy(device.logicalDevice, pAllocator);
-	}
-
-	void VulkanBuffer::CreateIndexBufferGPU(
-		VulkanBuffer& index_buffer,
-		VulkanDevice const& device,
-		gfx::IndexBufferCPU const& cpu_buffer,
-		VkAllocationCallbacks const* pAllocator)
-	{
-		size_t bufferSize = cpu_buffer.sizeInBytes();
-
-		// Create a temporary staging buffer
-		VulkanBuffer stagingBuffer;
-		stagingBuffer.createStagingBuffer(device, bufferSize, pAllocator);
-
-		// Fill the buffer
-		stagingBuffer.loadIndexBufferData(device, cpu_buffer);
-
-		// Create the index buffer
-		index_buffer.createIndexBuffer(device, bufferSize, pAllocator);
-
-		// Copy index data from staging buffer to index buffer
-		CopyBufferData(device, index_buffer, stagingBuffer, bufferSize);
-
-		// Cleanup staging buffer
-		stagingBuffer.destroy(device.logicalDevice, pAllocator);
 	}
 
 	void VulkanBuffer::CopyBufferData(VulkanDevice const& device, VulkanBuffer const& dst_buffer, VulkanBuffer const& src_buffer, VkDeviceSize size)

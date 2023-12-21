@@ -15,7 +15,8 @@ namespace gfx {
 		{
 			m_vertexInfo = VertexType::template getVertexInfo();
 			m_vertexCount = size;
-			m_data = { reinterpret_cast<float const*>(vertex_data), vertex_data[0].size() * size };
+			m_data.data = reinterpret_cast<float const*>(vertex_data);
+			m_data.count = vertex_data[0].size() * size;
 		}
 
 		template <typename VertexType>
@@ -23,7 +24,8 @@ namespace gfx {
 		{
 			m_vertexInfo = VertexType::template getVertexInfo();
 			m_vertexCount = vertex_data.size();
-			m_data = { reinterpret_cast<float const*>(vertex_data.data()), vertex_data[0].size() * vertex_data.size() };
+			m_data.data = reinterpret_cast<float const*>(vertex_data.data());
+			m_data.count = vertex_data[0].size() * vertex_data.size();
 		}
 
 		size_t size() const { return m_data.count; }

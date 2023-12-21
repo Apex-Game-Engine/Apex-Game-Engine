@@ -8,6 +8,8 @@
 #include "Graphics/Vulkan/VulkanSwapchain.h"
 #include "Graphics/Vulkan/VulkanUtility.h"
 
+char SBUF[1024];
+
 namespace apex::vk {
 
 	namespace detail {
@@ -215,6 +217,10 @@ namespace apex::vk {
 		// Check if required device properties are present
 		VkPhysicalDeviceProperties properties;
 		vkGetPhysicalDeviceProperties(device, &properties);
+
+		sprintf_s(SBUF, "Found GPU: %s", properties.deviceName);
+		axDebug(SBUF);
+
 		if (!detail::check_device_properties_support(properties))
 		{
 			return false;

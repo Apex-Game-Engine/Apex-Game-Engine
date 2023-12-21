@@ -47,19 +47,6 @@ namespace vk {
 		void loadVertexBufferData(VulkanDevice const& device, gfx::VertexBufferCPU const& cpu_buffer);
 		void loadIndexBufferData(VulkanDevice const& device, gfx::IndexBufferCPU const& cpu_buffer);
 
-		static void CreateVertexBufferGPU(
-			VulkanBuffer& vertex_buffer,
-			VulkanDevice const& device,
-			gfx::VertexBufferCPU const& cpu_buffer,
-			VkAllocationCallbacks const* pAllocator);
-
-		static void CreateIndexBufferGPU(
-			VulkanBuffer& index_buffer,
-			VulkanDevice const& device,
-			gfx::IndexBufferCPU const& cpu_buffer,
-			VkAllocationCallbacks const* pAllocator);
-
-
 		static void CopyBufferData(VulkanDevice const& device, VulkanBuffer const& dst_buffer, VulkanBuffer const& src_buffer, VkDeviceSize size);
 	};
 		

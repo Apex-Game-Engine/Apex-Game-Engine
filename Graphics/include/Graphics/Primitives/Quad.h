@@ -1,4 +1,5 @@
 #pragma once
+#include "Graphics/Geometry/Mesh.h"
 
 namespace apex {
 namespace gfx {
@@ -7,10 +8,24 @@ namespace gfx {
 
 	struct Quad
 	{
+		static auto getMesh() -> MeshCPU;
+		static size_t getVertexCount(); // number of vertices
+		static size_t getIndexCount(); // number of indices
+
+	protected:
 		static auto getVertexBuffer() -> VertexBufferCPU;
 		static auto getIndexBuffer() -> IndexBufferCPU;
-		static size_t getNumVertices(); // number of vertices
-		static size_t getNumIndices(); // number of indices
+	};
+
+	struct Pyramid
+	{
+		static auto getMesh() -> MeshCPU;
+		static size_t getVertexCount(); // number of vertices
+		static size_t getIndexCount(); // number of indices
+		
+	protected:
+		static auto getVertexBuffer() -> VertexBufferCPU;
+		static auto getIndexBuffer() -> IndexBufferCPU;
 	};
 
 }
