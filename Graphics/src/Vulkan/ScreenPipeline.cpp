@@ -6,6 +6,7 @@ namespace apex::vk {
 		VkDevice device,
 		VulkanShaderStagesDesc const& shader_stages_desc,
 		AxArrayRef<VkDescriptorSetLayout> const& descriptor_set_layouts,
+		AxArrayRef<VkPushConstantRange> const& push_constant_ranges,
 		VkExtent2D swapchain_extent,
 		VkRenderPass render_pass, VkAllocationCallbacks const* pAllocator)
 	{
@@ -118,7 +119,7 @@ namespace apex::vk {
 		};
 
 		// Create pipeline layout of uniform values
-		createPipelineLayout(device, descriptor_set_layouts, pAllocator);
+		createPipelineLayout(device, descriptor_set_layouts, push_constant_ranges, pAllocator);
 
 		// Create the pipeline
 		VkGraphicsPipelineCreateInfo pipelineCreateInfo{
@@ -146,24 +147,6 @@ namespace apex::vk {
 		);
 
 		shaderStages.destroy(device, pAllocator);
-	}
-
-	void ScreenPipeline::createPipelineLayout(
-		VkDevice device,
-		AxArrayRef<VkDescriptorSetLayout> const& descriptor_set_layouts,
-		VkAllocationCallbacks const* pAllocator)
-	{
-		VkPipelineLayoutCreateInfo layoutCreateInfo {
-			.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-			.setLayoutCount = static_cast<uint32>(descriptor_set_layouts.count),
-			.pSetLayouts = descriptor_set_layouts.data,
-			.pushConstantRangeCount = 0,
-			.pPushConstantRanges = nullptr
-		};
-
-		axVerifyMsg(VK_SUCCESS == vkCreatePipelineLayout(device, &layoutCreateInfo, pAllocator, &pipelineLayout),
-			"Failed to create pipeline layout!"
-		);
 	}
 
 }

@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include "Containers/AxArray.h"
+#include "Math/Matrix4x4.h"
 
 namespace apex {
 namespace gfx {
@@ -22,7 +23,9 @@ namespace gfx {
 	{
 		DrawCommand() : Command(Type::Draw) { }
 
-		Mesh* pMesh;
+		Mesh* pMesh {};
+		math::Matrix4x4 transform;
+		uint32 instanceCount { 1 };
 	};
 
 	struct StateCommand : public Command
@@ -48,6 +51,7 @@ namespace gfx {
 		void clear();
 
 		auto& getCommands() { return m_commands; }
+		void sortCommands();
 
 	private:
 		command_list_t m_commands;

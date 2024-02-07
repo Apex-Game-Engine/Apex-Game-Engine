@@ -18,6 +18,7 @@ namespace apex::vk
 
 namespace apex {
 namespace gfx {
+	struct Camera;
 
 	class ForwardRenderer
 	{
@@ -30,6 +31,9 @@ namespace gfx {
 
 		auto getCurrentCommandList() -> CommandList&;
 		auto getContext() -> vk::VulkanContext&;
+
+		// TODO: Rewrite this API. SOON please.
+		void setActiveCamera(Camera* camera);
 
 	protected:
 		void resizeFramebuffers();
@@ -75,6 +79,9 @@ namespace gfx {
 		bool                           m_isFramebufferResized = false;
 
 		vk::VulkanContext*             m_context{};
+
+		// TODO: Move from here
+		Camera*						   m_activeCamera{};
 	};
 
 }
