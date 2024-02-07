@@ -27,7 +27,7 @@ namespace math {
 
 		constexpr Vector4() = default;
 		constexpr Vector4(float32 v0, float32 v1, float32 v2, float32 v3) : m_values{v0, v1, v2, v3} {}
-		constexpr Vector4(float32 val) : m_values{val, val, val, val} {}
+		constexpr explicit Vector4(float32 val) : m_values{val, val, val, val} {}
 		Vector4(float32 values[4]) : m_values{values[0], values[1], values[2], values[3]} {}
 
 		// Ctors from Vector3
@@ -82,6 +82,8 @@ namespace math {
 	bool operator>(Vector4 const &u, Vector4 const &v); // element-wise comparison
 	bool operator<=(Vector4 const &u, Vector4 const &v); // element-wise comparison
 	bool operator>=(Vector4 const &u, Vector4 const &v); // element-wise comparison
+
+	float32 dot(Vector4 const &u, Vector4 const &v); // dot product
 }
 }
 

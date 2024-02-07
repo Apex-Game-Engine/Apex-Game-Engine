@@ -31,9 +31,15 @@ namespace apex {
 			Iterator(IterType* ptr) : m_ptr(ptr) {}
 			Iterator& operator++() { ++m_ptr; return *this; } // pre-increment
 			Iterator operator++(int) { Iterator tmp(*this); operator++(); return tmp; } // post-increment
-			Iterator operator+(size_t size) { return { m_ptr + size }; } // TODO: add an assert to check for overflow?
+			Iterator& operator--() { --m_ptr; return *this; } // pre-decrement
+			Iterator operator--(int) { Iterator tmp(*this); operator--(); return tmp; } // post-decrement
+			Iterator operator+(difference_type size) { return { m_ptr + size }; } // TODO: add an assert to check for overflow?
+			Iterator operator-(difference_type size) { return { m_ptr - size }; } // TODO: add an assert to check for overflow?
 			bool operator==(const Iterator& rhs) const { return m_ptr == rhs.m_ptr; }
 			bool operator!=(const Iterator& rhs) const { return m_ptr != rhs.m_ptr; }
+			bool operator<(const Iterator& rhs) const { return m_ptr < rhs.m_ptr; }
+			bool operator>(const Iterator& rhs) const { return m_ptr > rhs.m_ptr; }
+			difference_type operator-(const Iterator& rhs) const { return m_ptr - rhs.m_ptr; }
 			reference operator*() const { return *_ToUnderlyingPointer(); }
 			pointer operator->() const { return _ToUnderlyingPointer(); }
 
@@ -377,8 +383,8 @@ namespace apex {
 	template <typename T>
 	struct AxArrayRef : public AxManagedClass
 	{
-		T* data;
-		size_t count;
+		T* data {};
+		size_t count {};
 
 		[[nodiscard]] auto operator[](size_t index) -> T&
 		{

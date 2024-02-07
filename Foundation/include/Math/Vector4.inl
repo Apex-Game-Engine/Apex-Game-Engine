@@ -123,6 +123,20 @@ namespace math {
 		return !(u < v);
 	}
 
+	inline float32 dot(Vector4 const& u, Vector4 const& v)
+	{
+		__m128 mU = _mm_loadu_ps(u.m_values);
+		__m128 mV = _mm_loadu_ps(v.m_values);
+		__m128 mRes = _mm_dp_ps(mU, mV, 0xf1 /* mask */);
+
+		// mask: 1111 0001 (use all 4 positions for dot product & save result in only the first position)
+		// the high bits define the condition for dot product - only positions with 1 in the high bits are used
+		// the low bits define the broadcast - broadcast the result to all positions with 1 in the low bits
+
+		float res = _mm_cvtss_f32(mRes);
+		return res;
+	}
+
 #pragma endregion
 
 }

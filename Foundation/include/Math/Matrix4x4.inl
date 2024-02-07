@@ -16,7 +16,7 @@ namespace math {
 
 	#pragma region Matrix4x4 member functions
 
-	Matrix4x4 Matrix4x4::transpose() const
+	inline Matrix4x4 Matrix4x4::transpose() const
 	{
 		return {
 			m_columns[0].x, m_columns[1].x, m_columns[2].x, m_columns[3].x,
@@ -29,6 +29,16 @@ namespace math {
 #pragma endregion
 
 	#pragma region Matrix4x4 utility functions
+
+	inline Matrix4x4 operator*(Matrix4x4 const& m, float32 t)
+	{
+		return {
+			m[0] * t,
+			m[1] * t,
+			m[2] * t,
+			m[3] * t
+		};
+	}
 
 	inline Vector4 operator*(Matrix4x4 const &m, Vector4 const &v)
 	{
@@ -55,7 +65,51 @@ namespace math {
 		return Matrix4x4{ X, Y, Z, W };
 	}
 
-	Matrix4x4 rotateX(Matrix4x4 const& m, float32 angle)
+	inline Matrix4x4 inverse(Matrix4x4 const& m)
+	{
+		float c00 = m[2][2] * m[3][3] - m[3][2] * m[2][3];
+		float c02 = m[1][2] * m[3][3] - m[3][2] * m[1][3];
+		float c03 = m[1][2] * m[2][3] - m[2][2] * m[1][3];
+		float c04 = m[2][1] * m[3][3] - m[3][1] * m[2][3];
+		float c06 = m[1][1] * m[3][3] - m[3][1] * m[1][3];
+		float c07 = m[1][1] * m[2][3] - m[2][1] * m[1][3];
+		float c08 = m[2][1] * m[3][2] - m[3][1] * m[2][2];
+		float c10 = m[1][1] * m[3][2] - m[3][1] * m[1][2];
+        float c11 = m[1][1] * m[2][2] - m[2][1] * m[1][2];
+		float c12 = m[2][0] * m[3][3] - m[3][0] * m[2][3];
+		float c14 = m[1][0] * m[3][3] - m[3][0] * m[1][3];
+		float c15 = m[1][0] * m[2][3] - m[2][0] * m[1][3];
+		float c16 = m[2][0] * m[3][2] - m[3][0] * m[2][2];
+		float c18 = m[1][0] * m[3][2] - m[3][0] * m[1][2];
+		float c19 = m[1][0] * m[2][2] - m[2][0] * m[1][2];
+		float c20 = m[2][0] * m[3][1] - m[3][0] * m[2][1];
+		float c22 = m[1][0] * m[3][1] - m[3][0] * m[1][1];
+		float c23 = m[1][0] * m[2][1] - m[2][0] * m[1][1];
+		Vector4 fac0 { c00, c00, c02, c03 };
+		Vector4 fac1 { c04, c04, c06, c07 };
+		Vector4 fac2 { c08, c08, c10, c11 };
+		Vector4 fac3 { c12, c12, c14, c15 };
+		Vector4 fac4 { c16, c16, c18, c19 };
+		Vector4 fac5 { c20, c20, c22, c23 };
+		Vector4 vec0 { m[1][0], m[0][0], m[0][0], m[0][0] };
+		Vector4 vec1 { m[1][1], m[0][1], m[0][1], m[0][1] };
+		Vector4 vec2 { m[1][2], m[0][2], m[0][2], m[0][2] };
+        Vector4 vec3 { m[1][3], m[0][3], m[0][3], m[0][3] };
+		Vector4 inv0 { vec1 * fac0 - vec2 * fac1 + vec3 * fac2 };
+		Vector4 inv1 { vec0 * fac0 - vec2 * fac3 + vec3 * fac4 };
+		Vector4 inv2 { vec0 * fac1 - vec1 * fac3 + vec3 * fac5 };
+		Vector4 inv3 { vec0 * fac2 - vec1 * fac4 + vec2 * fac5 };
+		Vector4 signA { +1, -1, +1, -1 };
+		Vector4 signB { -1, +1, -1, +1 };
+		Matrix4x4 inverse { inv0 * signA, inv1 * signB, inv2 * signA, inv3 * signB };
+		Vector4 row0 { inverse[0][0], inverse[1][0], inverse[2][0], inverse[3][0] };
+		Vector4 dot0 { m[0] * row0 };
+		float32 dot1 = (dot0.x + dot0.y) + (dot0.z + dot0.w);
+		float32 one_over_determinant = 1.0f / dot1;
+		return inverse * one_over_determinant;
+	}
+
+	inline Matrix4x4 rotateX(Matrix4x4 const& m, float32 angle)
 	{
 		float32 c = std::cos(angle);
 		float32 s = std::sin(angle);
@@ -116,6 +170,15 @@ namespace math {
 			s*m[0][0] + c*m[0][1], s*m[1][0] + c*m[1][1], s*m[2][0] + c*m[2][1], s*m[3][0] + c*m[3][1],
 			              m[0][2],               m[1][2],               m[2][2],               m[3][2],
 			              m[0][3],               m[1][3],               m[2][3],               m[3][3],
+		};
+
+		return res;
+	}
+
+	inline Matrix4x4 translate(Matrix4x4 const& m, Vector3 const& v)
+	{
+		Matrix4x4 res {
+			m[0], m[1], m[2], m[3] + Vector4{ v, 0.f }
 		};
 
 		return res;
