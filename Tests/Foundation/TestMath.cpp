@@ -134,6 +134,22 @@ namespace apex::math {
 		}
 	}
 
+	TEST(TestMatrix4x4, TestTranslation)
+	{
+		{
+			Matrix4x4 mtrans = translate(Matrix4x4::identity(), Vector3{ 1.f, 2.f, 3.f });
+
+			Vector4 v1 = Vector4::unitW();
+
+			Vector4 vtrans = mtrans * v1;
+			Vector4 vres { 1, 2, 3, 1 };
+
+			EXPECT_TRUE(vtrans == vres);
+
+			printf("vtrans (%0.2f, %0.2f, %0.2f, %0.2f) | vres (%0.2f, %0.2f, %0.2f, %0.2f)\n", vtrans.x, vtrans.y, vtrans.z, vtrans.w, vres.x, vres.y, vres.z, vres.w);
+		}
+	}
+
 	TEST(TestMatrix4x4, TestViewProjection)
 	{
 		{
