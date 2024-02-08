@@ -21,7 +21,6 @@ namespace vk {
 		VkQueue          transferQueue{};
 		VkQueue          computeQueue{};
 
-		VkCommandPool    commandPool{};
 		VkCommandPool    transferCommandPool{};
 
 		VkPhysicalDeviceProperties       physicalDeviceProperties{};

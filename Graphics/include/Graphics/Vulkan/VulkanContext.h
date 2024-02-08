@@ -26,6 +26,8 @@ namespace vk {
 		AxArray<VkExtensionProperties> m_supportedInstanceExtensions{};
 	};
 
+#define VULKAN_NULL_ALLOCATOR (VkAllocationCallbacks*)nullptr
+
 	class VulkanContext
 	{
 	public:
@@ -34,7 +36,7 @@ namespace vk {
 
 		void onWindowResize(uint32 width, uint32 height);
 		bool isInitialized() { return m_isInitialized; }
-
+		
 	private:
 		void handleWindowResize();
 
@@ -55,8 +57,9 @@ namespace vk {
 		VulkanDevice         m_device{};
 		VulkanSwapchain      m_swapchain{};
 
-		bool                 m_isInitialized = false;
 
+	private:
+		bool                 m_isInitialized = false;
 
 		friend class ::apex::gfx::ForwardRenderer;
 	};

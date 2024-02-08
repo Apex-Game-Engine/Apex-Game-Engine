@@ -12,8 +12,6 @@
 
 namespace apex::gfx {
 
-#define VULKAN_NULL_ALLOCATOR (VkAllocationCallbacks*)nullptr
-
 	void ForwardRenderer::initialize(vk::VulkanContext& context)
 	{
 		m_context = &context;
@@ -51,11 +49,8 @@ namespace apex::gfx {
 			m_renderPass.renderPass,
 			VULKAN_NULL_ALLOCATOR);
 
-		// Create sync objects
-		createSyncObjects(m_context->m_device, VULKAN_NULL_ALLOCATOR);
-
-		// Allocate command buffers
-		allocateCommandBuffers(m_context->m_device, m_context->m_device.commandPool);
+		// Initialize per-frame resources
+		initializePerFrameData(m_context->m_device, VULKAN_NULL_ALLOCATOR);
 
 		// Prepare geometry
 		prepareGeometry(m_context->m_device, VULKAN_NULL_ALLOCATOR);
@@ -76,12 +71,7 @@ namespace apex::gfx {
 
 		for (uint32 i = 0; i < kMaxFramesInFlight; i++)
 		{
-			vkFreeCommandBuffers(m_context->m_device.logicalDevice, m_context->m_device.commandPool, 1, &m_commandBuffers[i]);
-
-			vkDestroySemaphore(m_context->m_device.logicalDevice, m_imageAvailableSemaphores[i], VULKAN_NULL_ALLOCATOR);
-			vkDestroySemaphore(m_context->m_device.logicalDevice, m_renderFinishedSemaphores[i], VULKAN_NULL_ALLOCATOR);
-			vkDestroyFence(m_context->m_device.logicalDevice, m_inFlightFences[i], VULKAN_NULL_ALLOCATOR);
-
+			destroyPerFrameData(m_context->m_device, VULKAN_NULL_ALLOCATOR);
 			m_uniformBuffers[i].destroy(m_context->m_device.logicalDevice, VULKAN_NULL_ALLOCATOR);
 		}
 
@@ -107,7 +97,7 @@ namespace apex::gfx {
 
 	auto ForwardRenderer::getCurrentCommandList() -> CommandList&
 	{
-		return m_commandLists[m_currentFrame];
+		return getFrameData(m_currentFrame).commandList;
 	}
 
 	auto ForwardRenderer::getContext() -> vk::VulkanContext&
@@ -124,45 +114,6 @@ namespace apex::gfx {
 	{
 		// Recreate swapchain framebuffers
 		m_context->m_swapchain.createFramebuffers(m_context->m_device.logicalDevice, m_renderPass.renderPass, VULKAN_NULL_ALLOCATOR);
-	}
-
-	void ForwardRenderer::createSyncObjects(vk::VulkanDevice const& device, VkAllocationCallbacks const* pAllocator)
-	{
-		VkSemaphoreCreateInfo semaphoreCreateInfo {
-			.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO
-		};
-
-		VkFenceCreateInfo fenceCreateInfo {
-			.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
-			.flags = VK_FENCE_CREATE_SIGNALED_BIT
-		};
-
-		for (uint32 frame = 0; frame < kMaxFramesInFlight; frame++)
-		{
-			axVerifyMsg(
-				VK_SUCCESS == vkCreateSemaphore(device.logicalDevice, &semaphoreCreateInfo, pAllocator, &m_imageAvailableSemaphores[frame]) &&
-				VK_SUCCESS == vkCreateSemaphore(device.logicalDevice, &semaphoreCreateInfo, pAllocator, &m_renderFinishedSemaphores[frame]),
-				"Failed to create semaphore!"
-			);
-
-			axVerifyMsg(VK_SUCCESS == vkCreateFence(device.logicalDevice, &fenceCreateInfo, pAllocator, &m_inFlightFences[frame]),
-				"Failed to create fence!"
-			);
-		}
-	}
-
-	void ForwardRenderer::allocateCommandBuffers(vk::VulkanDevice const& device, VkCommandPool command_pool)
-	{
-		VkCommandBufferAllocateInfo allocateInfo {
-			.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-			.commandPool = command_pool,
-			.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-			.commandBufferCount = kMaxFramesInFlight
-		};
-
-		axVerifyMsg(VK_SUCCESS == vkAllocateCommandBuffers(device.logicalDevice, &allocateInfo, m_commandBuffers),
-			"Failed to allocate command buffers!"
-		);
 	}
 
 	void ForwardRenderer::prepareGeometry(vk::VulkanDevice const& device, VkAllocationCallbacks const* pAllocator)
@@ -333,7 +284,7 @@ namespace apex::gfx {
 		vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline.pipelineLayout, 0, 1, &m_descriptorSets[m_currentFrame], 0, nullptr);
 
 		uint32 uniformIndex = 0;
-		for (auto& cmd : m_commandLists[m_currentFrame].getCommands())
+		for (auto& cmd : getCurrentCommandList().getCommands())
 		{
 			switch (cmd->type)
 			{
@@ -403,7 +354,7 @@ namespace apex::gfx {
 
 		math::Matrix4x4* transform = (math::Matrix4x4*)((uint8*)m_uniformBuffersMapped[m_currentFrame] + sizeof(Camera));
 
-		for (auto& command : m_commandLists[m_currentFrame].getCommands())
+		for (auto& command : getCurrentCommandList().getCommands())
 		{
 			if (command->type == Command::Type::Draw)
 			{
@@ -416,10 +367,11 @@ namespace apex::gfx {
 
 	void ForwardRenderer::drawFrame(vk::VulkanDevice const& device, vk::VulkanSwapchain const& swapchain, CommandList const& command_list)
 	{
-		VkCommandBuffer& commandBuffer = m_commandBuffers[m_currentFrame];
-		VkSemaphore& imageAvailableSemaphore = m_imageAvailableSemaphores[m_currentFrame];
-		VkSemaphore& renderFinishedSemaphore = m_renderFinishedSemaphores[m_currentFrame];
-		VkFence& inFlightFence = m_inFlightFences[m_currentFrame];
+		FrameData& frameData = getFrameData(m_currentFrame);
+		VkCommandBuffer& commandBuffer = frameData.commandBuffer;
+		VkSemaphore& imageAvailableSemaphore = frameData.imageAvailableSemaphore;
+		VkSemaphore& renderFinishedSemaphore = frameData.renderFinishedSemaphore;
+		VkFence& inFlightFence = frameData.inFlightFence;
 
 		// Check if framebuffer has been resized
 
@@ -447,7 +399,7 @@ namespace apex::gfx {
 		// Combine mesh instances into a single draw call
 		{
 			DrawCommand* pPrevDrawCmd = nullptr;
-			for (auto& command : m_commandLists[m_currentFrame].getCommands())
+			for (auto& command : getCurrentCommandList().getCommands())
 			{
 				if (command->type == Command::Type::Draw)
 				{
