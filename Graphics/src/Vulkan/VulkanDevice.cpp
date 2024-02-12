@@ -199,6 +199,19 @@ namespace apex::vk {
 		return constants::uint32_MAX;
 	}
 
+	void VulkanDevice::createMemoryAllocator(VkInstance instance, VkAllocationCallbacks const* pAllocator)
+	{
+		VmaAllocatorCreateInfo allocatorCreateInfo {
+			.flags = 0,
+			.physicalDevice = physicalDevice,
+			.device = logicalDevice,
+			.instance = instance,
+		};
+		axAssertMsg(VK_SUCCESS == vmaCreateAllocator(&allocatorCreateInfo, &m_allocator),
+			"Failed to create Vulkan Memory Allocator!"
+		);
+	}
+
 	bool VulkanDevice::isPhysicalDeviceSuitable(VkPhysicalDevice device, VkSurfaceKHR surface, VkPhysicalDeviceFeatures required_features)
 	{
 		// Check if required device properties are present

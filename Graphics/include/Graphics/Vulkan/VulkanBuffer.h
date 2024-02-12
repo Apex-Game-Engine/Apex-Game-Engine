@@ -2,6 +2,7 @@
 
 #include <vulkan/vulkan_core.h>
 
+#include <vma.h>
 #include "VulkanDevice.h"
 
 namespace apex::gfx
@@ -15,16 +16,19 @@ namespace vk {
 
 	struct VulkanBuffer
 	{
-		VkBuffer       buffer{};
-		VkDeviceMemory memory{};
+		VkBuffer          buffer{};
+		VmaAllocation     allocation{};
+		VmaAllocationInfo allocation_info{};
 
 		void create(
 			VulkanDevice const& device,
 			VkDeviceSize size,
 			VkBufferUsageFlags usage,
 			VkSharingMode sharing_mode,
-			AxArrayRef<uint32> const& queue_family_indices, VkMemoryPropertyFlags properties, VkAllocationCallbacks const*
-			pAllocator);
+			AxArrayRef<uint32> const& queue_family_indices,
+			VmaMemoryUsage memory_usage,
+			VmaAllocationCreateFlags vma_flags,
+			VkAllocationCallbacks const* pAllocator);
 
 		void createStagingBuffer(
 			VulkanDevice const& device,
@@ -41,9 +45,8 @@ namespace vk {
 			VkDeviceSize size,
 			VkAllocationCallbacks const* pAllocator);
 
-		void destroy(VkDevice device, VkAllocationCallbacks const* pAllocator);
+		void destroy(VulkanDevice const& device, VkAllocationCallbacks const* pAllocator);
 
-		void allocateMemory(VulkanDevice const& device, VkMemoryPropertyFlags properties, VkAllocationCallbacks const* pAllocator);
 		void loadVertexBufferData(VulkanDevice const& device, gfx::VertexBufferCPU const& cpu_buffer);
 		void loadIndexBufferData(VulkanDevice const& device, gfx::IndexBufferCPU const& cpu_buffer);
 

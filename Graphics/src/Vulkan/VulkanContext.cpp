@@ -53,7 +53,7 @@ namespace apex::vk {
 		_createInstance(app_name);
 
 		// Add debug messenger for handling debug callbacks
-		m_debugMessenger.create(m_instance, nullptr);
+		m_debugMessenger.create(m_instance, VULKAN_NULL_ALLOCATOR);
 
 		// Create a window surface for presenting on screen
 		_createSurface(p_window);
@@ -62,7 +62,10 @@ namespace apex::vk {
 		m_device.selectPhysicalDevice(m_instance, m_surface, { .geometryShader = true });
 
 		// Create a logical device
-		m_device.createLogicalDevice(nullptr);
+		m_device.createLogicalDevice(VULKAN_NULL_ALLOCATOR);
+
+		// Create Vulkan Memory Allocator
+		m_device.createMemoryAllocator(m_instance, VULKAN_NULL_ALLOCATOR);
 
 		// Get window width and height
 		int width, height;

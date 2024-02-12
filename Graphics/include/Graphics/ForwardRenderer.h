@@ -36,6 +36,8 @@ namespace gfx {
 		// TODO: Rewrite this API. SOON please.
 		void setActiveCamera(Camera* camera);
 
+		void stop();
+
 	protected:
 		void resizeFramebuffers();
 		void prepareGeometry(vk::VulkanDevice const& device, VkAllocationCallbacks const* pAllocator);

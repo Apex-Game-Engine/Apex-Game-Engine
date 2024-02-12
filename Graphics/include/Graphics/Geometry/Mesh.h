@@ -31,7 +31,7 @@ namespace gfx {
 			m_indexBuffer.create(device, m_meshCPU->m_indexBufferCPU, pAllocator);
 		}
 
-		void destroy(VkDevice device, VkAllocationCallbacks const* pAllocator)
+		void destroy(vk::VulkanDevice const& device, VkAllocationCallbacks const* pAllocator)
 		{
 			m_meshCPU = nullptr;
 

@@ -1,5 +1,6 @@
 ﻿#pragma once
 
+#include <vma.h>
 #include <vulkan/vulkan_core.h>
 
 #include "VulkanCommon.h"
@@ -22,6 +23,8 @@ namespace vk {
 		VkQueue          computeQueue{};
 
 		VkCommandPool    transferCommandPool{};
+		
+		VmaAllocator		 m_allocator{};
 
 		VkPhysicalDeviceProperties       physicalDeviceProperties{};
 		VkPhysicalDeviceFeatures         physicalDeviceFeatures{};
@@ -37,6 +40,7 @@ namespace vk {
 
 		auto beginOneShotCommandBuffer(VkCommandPool command_pool) const -> VkCommandBuffer;
 		auto findSuitableMemoryType(uint32 type_filter, VkMemoryPropertyFlags properties) const -> uint32;
+		void createMemoryAllocator(VkInstance instance, VkAllocationCallbacks const* pAllocator);
 
 	protected:
 		bool isPhysicalDeviceSuitable(VkPhysicalDevice device, VkSurfaceKHR surface, VkPhysicalDeviceFeatures required_features);

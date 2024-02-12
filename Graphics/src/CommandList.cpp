@@ -26,6 +26,9 @@ namespace apex::gfx {
 
 				return lhsDraw.pMesh < rhsDraw.pMesh;
 			}
+			axAssertMsg(false, "Not implemented!");
+			// TODO: Implement sorting for other command types
+			return &lhs < &rhs;
 		});
 	}
 }

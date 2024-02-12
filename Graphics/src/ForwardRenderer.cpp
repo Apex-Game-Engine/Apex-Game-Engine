@@ -72,7 +72,9 @@ namespace apex::gfx {
 		for (uint32 i = 0; i < kMaxFramesInFlight; i++)
 		{
 			destroyPerFrameData(m_context->m_device, VULKAN_NULL_ALLOCATOR);
-			m_uniformBuffers[i].destroy(m_context->m_device.logicalDevice, VULKAN_NULL_ALLOCATOR);
+
+			vmaUnmapMemory(m_context->m_device.m_allocator, m_uniformBuffers[i].allocation);
+			m_uniformBuffers[i].destroy(m_context->m_device, VULKAN_NULL_ALLOCATOR);
 		}
 
 		m_cameraDescriptorSetLayout.destroy(m_context->m_device.logicalDevice, VULKAN_NULL_ALLOCATOR);
@@ -110,6 +112,11 @@ namespace apex::gfx {
 		m_activeCamera = camera;
 	}
 
+	void ForwardRenderer::stop()
+	{
+		vkDeviceWaitIdle(m_context->m_device.logicalDevice);
+	}
+
 	void ForwardRenderer::resizeFramebuffers()
 	{
 		// Recreate swapchain framebuffers
@@ -139,10 +146,11 @@ namespace apex::gfx {
 				VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
 				VK_SHARING_MODE_EXCLUSIVE,
 				{ .data = queueFamilyIndices, .count = std::size(queueFamilyIndices) },
-				VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+				VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
+				VMA_ALLOCATION_CREATE_MAPPED_BIT | VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT,
 				pAllocator);
 
-			axVerifyMsg(VK_SUCCESS == vkMapMemory(device.logicalDevice, m_uniformBuffers[i].memory, 0, bufferSize, 0, &m_uniformBuffersMapped[i]),
+			axVerifyMsg(VK_SUCCESS == vmaMapMemory(device.m_allocator, m_uniformBuffers[i].allocation, &m_uniformBuffersMapped[i]),
 				"Failed to map uniform buffer memory!"
 			);
 		}
@@ -368,6 +376,7 @@ namespace apex::gfx {
 	void ForwardRenderer::drawFrame(vk::VulkanDevice const& device, vk::VulkanSwapchain const& swapchain, CommandList const& command_list)
 	{
 		FrameData& frameData = getFrameData(m_currentFrame);
+		VkCommandPool& commandPool = frameData.commandPool;
 		VkCommandBuffer& commandBuffer = frameData.commandBuffer;
 		VkSemaphore& imageAvailableSemaphore = frameData.imageAvailableSemaphore;
 		VkSemaphore& renderFinishedSemaphore = frameData.renderFinishedSemaphore;
@@ -419,7 +428,7 @@ namespace apex::gfx {
 		}
 		
 		// Record the command buffer for drawing on acquired image
-		vkResetCommandBuffer(commandBuffer, 0);
+		vkResetCommandPool(m_context->m_device.logicalDevice, commandPool, 0);
 		recordCommandBuffer(commandBuffer, imageIndex, command_list);
 
 		// Submit the command buffer

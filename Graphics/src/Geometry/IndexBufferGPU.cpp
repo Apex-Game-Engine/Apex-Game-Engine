@@ -22,10 +22,10 @@ namespace apex::gfx {
 		vk::VulkanBuffer::CopyBufferData(device, m_buffer, stagingBuffer, bufferSize);
 
 		// Cleanup staging buffer
-		stagingBuffer.destroy(device.logicalDevice, pAllocator);
+		stagingBuffer.destroy(device, pAllocator);
 	}
 
-	void IndexBufferGPU::destroy(VkDevice device, VkAllocationCallbacks const* pAllocator)
+	void IndexBufferGPU::destroy(vk::VulkanDevice const& device, VkAllocationCallbacks const* pAllocator)
 	{
 		m_buffer.destroy(device, pAllocator);
 	}

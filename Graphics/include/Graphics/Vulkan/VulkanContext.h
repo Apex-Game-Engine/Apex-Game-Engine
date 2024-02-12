@@ -1,8 +1,8 @@
 #pragma once
 
-#include "Containers/AxArray.h"
-
 #include <vulkan/vulkan_core.h>
+
+#include "Containers/AxArray.h"
 
 #include "VulkanDebugMessenger.h"
 #include "VulkanDevice.h"
@@ -56,7 +56,6 @@ namespace vk {
 		VkSurfaceKHR         m_surface{};
 		VulkanDevice         m_device{};
 		VulkanSwapchain      m_swapchain{};
-
 
 	private:
 		bool                 m_isInitialized = false;
