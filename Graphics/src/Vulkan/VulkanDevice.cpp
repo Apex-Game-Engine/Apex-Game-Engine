@@ -131,33 +131,20 @@ namespace apex::vk {
 
 	void VulkanDevice::createCommandPools(VkAllocationCallbacks const* pAllocator)
 	{
-		VkCommandPoolCreateInfo graphicsPoolCreateInfo {
+		// Create a command pool for transfer operations
+		VkCommandPoolCreateInfo transferCommandPoolCreateInfo {
 			.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
-			.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
-			.queueFamilyIndex = queueFamilyIndices.graphicsFamily.value()
+			.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT,
+			.queueFamilyIndex = queueFamilyIndices.transferFamily.value(),
 		};
 
-		axVerifyMsg(VK_SUCCESS == vkCreateCommandPool(logicalDevice, &graphicsPoolCreateInfo, pAllocator, &commandPool),
-			"Failed to create graphics command pool!"
+		axVerifyMsg(VK_SUCCESS == vkCreateCommandPool(logicalDevice, &transferCommandPoolCreateInfo, pAllocator, &transferCommandPool),
+			"Failed to create transfer command pool!"
 		);
-
-		if (queueFamilyIndices.transferFamily.has_value())
-		{
-			VkCommandPoolCreateInfo transferPoolCreateInfo {
-				.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
-				.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
-				.queueFamilyIndex = queueFamilyIndices.transferFamily.value()
-			};
-
-			axVerifyMsg(VK_SUCCESS == vkCreateCommandPool(logicalDevice, &transferPoolCreateInfo, pAllocator, &transferCommandPool),
-				"Failed to create transfer command pool!"
-			);
-		}
 	}
 
 	void VulkanDevice::destroy(VkAllocationCallbacks const* pAllocator)
 	{
-		vkDestroyCommandPool(logicalDevice, commandPool, pAllocator);
 		vkDestroyCommandPool(logicalDevice, transferCommandPool, pAllocator);
 		vkDestroyDevice(logicalDevice, pAllocator);
 	}
@@ -210,6 +197,19 @@ namespace apex::vk {
 		axAssertMsg(false, "Failed to find suitable memory type!");
 
 		return constants::uint32_MAX;
+	}
+
+	void VulkanDevice::createMemoryAllocator(VkInstance instance, VkAllocationCallbacks const* pAllocator)
+	{
+		VmaAllocatorCreateInfo allocatorCreateInfo {
+			.flags = 0,
+			.physicalDevice = physicalDevice,
+			.device = logicalDevice,
+			.instance = instance,
+		};
+		axAssertMsg(VK_SUCCESS == vmaCreateAllocator(&allocatorCreateInfo, &m_allocator),
+			"Failed to create Vulkan Memory Allocator!"
+		);
 	}
 
 	bool VulkanDevice::isPhysicalDeviceSuitable(VkPhysicalDevice device, VkSurfaceKHR surface, VkPhysicalDeviceFeatures required_features)

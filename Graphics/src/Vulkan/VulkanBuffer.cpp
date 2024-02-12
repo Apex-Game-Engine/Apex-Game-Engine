@@ -13,7 +13,8 @@ namespace apex::vk {
 		VkBufferUsageFlags usage,
 		VkSharingMode sharing_mode,
 		AxArrayRef<uint32> const& queue_family_indices,
-		VkMemoryPropertyFlags properties,
+		VmaMemoryUsage memory_usage,
+		VmaAllocationCreateFlags vma_flags,
 		VkAllocationCallbacks const* pAllocator)
 	{
 		VkBufferCreateInfo bufferCreateInfo {
@@ -25,11 +26,15 @@ namespace apex::vk {
 			.pQueueFamilyIndices = queue_family_indices.data
 		};
 
-		axVerifyMsg(VK_SUCCESS == vkCreateBuffer(device.logicalDevice, &bufferCreateInfo, pAllocator, &buffer), 
+		// allocateMemory(device, properties, pAllocator);
+		VmaAllocationCreateInfo allocInfo {
+			.flags = vma_flags,
+			.usage = memory_usage,
+		};
+
+		axVerifyMsg(VK_SUCCESS == vmaCreateBuffer(device.m_allocator, &bufferCreateInfo, &allocInfo, &buffer, &allocation, &allocation_info),
 			"Failed to create buffer!"
 		);
-
-		allocateMemory(device, properties, pAllocator);
 	}
 
 	void VulkanBuffer::createStagingBuffer(VulkanDevice const& device, VkDeviceSize size, VkAllocationCallbacks const* pAllocator)
@@ -42,7 +47,8 @@ namespace apex::vk {
 			VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
 			VK_SHARING_MODE_EXCLUSIVE,
 			{ .data = queueFamilyIndices, .count = std::size(queueFamilyIndices) },
-			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+			VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
+			VMA_ALLOCATION_CREATE_MAPPED_BIT | VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT,
 			pAllocator);
 	}
  
@@ -56,7 +62,8 @@ namespace apex::vk {
 			VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
 			VK_SHARING_MODE_CONCURRENT,
 			{ .data = queueFamilyIndices, .count = std::size(queueFamilyIndices) },
-			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+			VMA_MEMORY_USAGE_GPU_ONLY,
+			0,
 			pAllocator);
 
 		VkDebugUtilsObjectNameInfoEXT objectNameInfo {
@@ -79,58 +86,37 @@ namespace apex::vk {
 			VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
 			VK_SHARING_MODE_CONCURRENT,
 			{ .data = queueFamilyIndices, .count = std::size(queueFamilyIndices) },
-			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-			pAllocator);
+			VMA_MEMORY_USAGE_GPU_ONLY,
+			0, pAllocator);
 	}
 
-	void VulkanBuffer::destroy(VkDevice device, VkAllocationCallbacks const* pAllocator)
+	void VulkanBuffer::destroy(VulkanDevice const& device, VkAllocationCallbacks const* pAllocator)
 	{
-		vkDestroyBuffer(device, buffer, pAllocator);
-		vkFreeMemory(device, memory, pAllocator);
-	}
-
-	void VulkanBuffer::allocateMemory(VulkanDevice const& device, VkMemoryPropertyFlags properties, VkAllocationCallbacks const* pAllocator)
-	{
-		VkMemoryRequirements memoryRequirements;
-		vkGetBufferMemoryRequirements(device.logicalDevice, buffer, &memoryRequirements);
-
-		auto deviceMemoryType = device.findSuitableMemoryType(memoryRequirements.memoryTypeBits, properties);
-
-		VkMemoryAllocateInfo allocateInfo {
-			.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-			.allocationSize = memoryRequirements.size,
-			.memoryTypeIndex = deviceMemoryType
-		};
-
-		axVerifyMsg(VK_SUCCESS == vkAllocateMemory(device.logicalDevice, &allocateInfo, pAllocator, &memory),
-			"Failed to allocate vertex buffer memory!"
-		);
-
-		vkBindBufferMemory(device.logicalDevice, buffer, memory, 0);
+		vmaDestroyBuffer(device.m_allocator, buffer, allocation);
 	}
 
 	void VulkanBuffer::loadVertexBufferData(VulkanDevice const& device, gfx::VertexBufferCPU const& cpu_buffer)
 	{
 		void* data;
-		axVerifyMsg(VK_SUCCESS == vkMapMemory(device.logicalDevice, memory, 0, cpu_buffer.sizeInBytes(), 0, &data),
+		axVerifyMsg(VK_SUCCESS == vmaMapMemory(device.m_allocator, allocation, &data),
 			"Failed to map buffer memory!"
 		);
 
 		apex::memcpy_s<float>(data, cpu_buffer.size(), cpu_buffer.data().data, cpu_buffer.size());
 
-		vkUnmapMemory(device.logicalDevice, memory);
+		vmaUnmapMemory(device.m_allocator, allocation);
 	}
 
 	void VulkanBuffer::loadIndexBufferData(VulkanDevice const& device, gfx::IndexBufferCPU const& cpu_buffer)
 	{
 		void* data;
-		axVerifyMsg(VK_SUCCESS == vkMapMemory(device.logicalDevice, memory, 0, cpu_buffer.sizeInBytes(), 0, &data),
+		axVerifyMsg(VK_SUCCESS == vmaMapMemory(device.m_allocator, allocation, &data),
 			"Failed to map buffer memory!"
 		);
 
 		apex::memcpy_s<uint32>(data, cpu_buffer.count(), cpu_buffer.data().data, cpu_buffer.count());
 
-		vkUnmapMemory(device.logicalDevice, memory);
+		vmaUnmapMemory(device.m_allocator, allocation);
 	}
 
 	void VulkanBuffer::CopyBufferData(VulkanDevice const& device, VulkanBuffer const& dst_buffer, VulkanBuffer const& src_buffer, VkDeviceSize size)

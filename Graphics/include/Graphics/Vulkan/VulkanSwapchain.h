@@ -25,7 +25,9 @@ namespace vk {
 			VkSurfaceKHR surface,
 			VulkanSwapchainSupportDetails const& swapchain_support_details,
 			uint32 width,
-			uint32 height, VulkanQueueFamilyIndices const& queue_indices, VkAllocationCallbacks const* pAllocator);
+			uint32 height,
+			VulkanQueueFamilyIndices const& queue_indices,
+			VkAllocationCallbacks const* pAllocator);
 		void createImageViews(VkDevice device, VkAllocationCallbacks const* pAllocator);
 		void createFramebuffers(VkDevice device, VkRenderPass render_pass, VkAllocationCallbacks const* pAllocator);
 		void destroy(VkDevice device, VkAllocationCallbacks const* pAllocator);

@@ -12,7 +12,7 @@ namespace gfx {
 		size_t           m_count;
 
 		void create(vk::VulkanDevice const& device, IndexBufferCPU const& index_buffer_cpu, VkAllocationCallbacks const* pAllocator);
-		void destroy(VkDevice device, VkAllocationCallbacks const* pAllocator);
+		void destroy(vk::VulkanDevice const& device, VkAllocationCallbacks const* pAllocator);
 	};
 
 }
