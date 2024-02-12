@@ -89,9 +89,14 @@ namespace apex {
 				m_window->draw();
 				break;
 			}*/
-		case WM_DRAWITEM:
+		/*case WM_DRAWITEM:
 			{
 				m_window->draw(reinterpret_cast<LPDRAWITEMSTRUCT>(lParam));
+				break;
+			}*/
+			case WM_KEYDOWN:
+			{
+				// eventQueue.push(Event(EventType::eKeyPressed, wParam));
 				break;
 			}
 		default:
@@ -136,7 +141,7 @@ namespace apex {
 			if (!m_running || m_applicationState != ApplicationState::eRunning)
 				continue;
 
-			m_game->run();
+			m_game->update(16666.666f);
 			m_forwardRenderer.onUpdate(16666.666f);
 		}
 	}
@@ -148,8 +153,9 @@ namespace apex {
 
 	void Win32Application::shutdown()
 	{
-		m_forwardRenderer.shutdown();
+		m_forwardRenderer.stop();
 		m_game->stop();
+		m_forwardRenderer.shutdown();
 		m_vulkanContext.shutdown();
 	}
 

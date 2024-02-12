@@ -12,7 +12,7 @@ namespace apex {
 		virtual ~Game() = default;
 
 		virtual void initialize() = 0;
-		virtual void run() = 0;
+		virtual void update(float deltaTimeMs) = 0;
 		virtual void stop() = 0;
 
 		static UniquePtr<Game> Construct(/*CommandLineArguments args*/);
