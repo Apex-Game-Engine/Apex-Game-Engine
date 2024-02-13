@@ -170,7 +170,9 @@ namespace apex {
 			axAssertMsg(m_size < m_capacity, "Array size exceeds capacity!");
 			// shift elements to the right from index upto size
 			_ShiftElementsRight(index);
-			append(obj);
+			// append(obj);
+			m_data[index] = obj;
+			m_size++;
 		}
 
 		void insert(size_t index, value_type&& obj)
@@ -179,7 +181,9 @@ namespace apex {
 			axAssertMsg(m_size < m_capacity, "Array size exceeds capacity!");
 			// shift elements to the right from index upto size
 			_ShiftElementsRight(index);
-			append(std::move(obj));
+			// append(std::move(obj));
+			m_data[index] = std::move(obj);
+			m_size++;
 		}
 
 		// void emplace(size_t index, )
