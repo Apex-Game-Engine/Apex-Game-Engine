@@ -199,6 +199,74 @@ namespace apex {
 		}
 	}
 
+	TEST_F(AxArrayTest, TestInsert)
+	{
+		AxArray<int> arr;
+		arr.reserve(10);
+
+		arr.insert(0, 5);
+		EXPECT_EQ(arr.size(), 1);
+		EXPECT_EQ(arr[0], 5);
+
+		arr.insert(0, 3);
+		EXPECT_EQ(arr.size(), 2);
+		EXPECT_EQ(arr[0], 3);
+		EXPECT_EQ(arr[1], 5);
+
+		arr.insert(1, 4);
+		EXPECT_EQ(arr.size(), 3);
+		EXPECT_EQ(arr[0], 3);
+		EXPECT_EQ(arr[1], 4);
+		EXPECT_EQ(arr[2], 5);
+
+		arr.insert(3, 6);
+		EXPECT_EQ(arr.size(), 4);
+		EXPECT_EQ(arr[0], 3);
+		EXPECT_EQ(arr[1], 4);
+		EXPECT_EQ(arr[2], 5);
+		EXPECT_EQ(arr[3], 6);
+
+		arr.insert(0, 2);
+		EXPECT_EQ(arr.size(), 5);
+		EXPECT_EQ(arr[0], 2);
+		EXPECT_EQ(arr[1], 3);
+		EXPECT_EQ(arr[2], 4);
+		EXPECT_EQ(arr[3], 5);
+		EXPECT_EQ(arr[4], 6);
+
+		arr.insert(5, 8);
+		EXPECT_EQ(arr.size(), 6);
+		EXPECT_EQ(arr[0], 2);
+		EXPECT_EQ(arr[1], 3);
+		EXPECT_EQ(arr[2], 4);
+		EXPECT_EQ(arr[3], 5);
+		EXPECT_EQ(arr[4], 6);
+		EXPECT_EQ(arr[5], 8);
+
+		arr.insert(6, 9);
+		EXPECT_EQ(arr.size(), 7);
+		EXPECT_EQ(arr[0], 2);
+		EXPECT_EQ(arr[1], 3);
+		EXPECT_EQ(arr[2], 4);
+		EXPECT_EQ(arr[3], 5);
+		EXPECT_EQ(arr[4], 6);
+		EXPECT_EQ(arr[5], 8);
+		EXPECT_EQ(arr[6], 9);
+
+		arr.insert(5, 7);
+		EXPECT_EQ(arr.size(), 8);
+		EXPECT_EQ(arr[0], 2);
+		EXPECT_EQ(arr[1], 3);
+		EXPECT_EQ(arr[2], 4);
+		EXPECT_EQ(arr[3], 5);
+		EXPECT_EQ(arr[4], 6);
+		EXPECT_EQ(arr[5], 7);
+		EXPECT_EQ(arr[6], 8);
+		EXPECT_EQ(arr[7], 9);
+
+		EXPECT_DEATH(arr.insert(9, 5), "Assertion Failed! : .*"); // out of bounds
+	}
+
 	TEST(AxStringRefTest, TestAxStringRef)
 	{
 		AxStringRef strRefArr[2];
