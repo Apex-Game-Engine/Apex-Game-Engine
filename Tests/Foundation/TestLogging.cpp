@@ -23,12 +23,18 @@ TEST(TestLogging, TestConsoleLogger)
 	ASSERT_TRUE(output == "[C:\\Users\\athan\\source\\repos\\ApexGameEngine-Vulkan\\Tests\\Foundation\\TestLogging.cpp::(testDebug):7] <Debug> :: Debug message\n"
 		|| output == "[TestLogging.cpp::(testDebug):7] <Debug> :: Debug message\n"
 	);
+
+	axLogFmt("Hello {}", "World");
+	axDebugFmt("Hello {}", "World");
+	axWarnFmt("Hello {}", "World");
+	axErrorFmt("Hello {}", "World");
 }
 
 TEST(TestAsserts, TestAssert)
 {
 #ifdef APEX_CONFIG_DEBUG
 	ASSERT_DEATH(axAssert(1 == 0);, ".*");
+	ASSERT_DEATH(axAssertMsg(1 == 0, "Test");, ".*");
 #endif
 }
 

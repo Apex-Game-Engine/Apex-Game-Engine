@@ -27,6 +27,11 @@ target_include_directories(Foundation
     src
 )
 
+target_link_libraries(Foundation
+	PUBLIC
+	fmt::fmt-header-only
+)
+
 if (MSVC)
     target_compile_options(Foundation PRIVATE /GR-) # Disable RTTI
     target_compile_options(Foundation PRIVATE /EHs-c- /EHc-) # Disable synchronous exceptions and C++ exceptions

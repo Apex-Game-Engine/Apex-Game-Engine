@@ -77,6 +77,8 @@ if(WIN32)
 else()
 endif()
 
+set(APEX_CMAKE_EXTERNAL_LIBS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/ExternalLibraries)
+
 add_subdirectory(ExternalLibraries)
 
 add_subdirectory(Foundation)

@@ -106,8 +106,10 @@ namespace logging {
 }
 }
 
+#include "Formatting.h"
 
-#define axLogLevel(level, file, funcsig, lineno, msg) apex::logging::Logger::get().log(level, file, funcsig, lineno, msg)
+#define axLogLevel(level, file, funcsig, lineno, msg)          apex::logging::Logger::get().log(level, file, funcsig, lineno, msg)
+#define axLogLevelFmt(level, file, funcsig, lineno, _fmt, ...) axLogLevel(level, file, funcsig, lineno, apex::format(_fmt, ##__VA_ARGS__).data())
 
 #define axLog(msg)      axLogLevel(apex::logging::LogLevel::Trace, __FILE__, __FUNCTION__, __LINE__, msg)
 #define axDebug(msg)    axLogLevel(apex::logging::LogLevel::Debug, __FILE__, __FUNCTION__, __LINE__, msg)
@@ -115,3 +117,10 @@ namespace logging {
 #define axWarn(msg)     axLogLevel(apex::logging::LogLevel::Warn, __FILE__, __FUNCTION__, __LINE__, msg)
 #define axError(msg)    axLogLevel(apex::logging::LogLevel::Error, __FILE__, __FUNCTION__, __LINE__, msg)
 #define axCritical(msg) axLogLevel(apex::logging::LogLevel::Critical, __FILE__, __FUNCTION__, __LINE__, msg)
+
+#define axLogFmt(_fmt, ...)      axLogLevelFmt(apex::logging::LogLevel::Trace, __FILE__, __FUNCTION__, __LINE__, _fmt, ##__VA_ARGS__)
+#define axDebugFmt(_fmt, ...)    axLogLevelFmt(apex::logging::LogLevel::Debug, __FILE__, __FUNCTION__, __LINE__, _fmt, ##__VA_ARGS__)
+#define axInfoFmt(_fmt, ...)     axLogLevelFmt(apex::logging::LogLevel::Info, __FILE__, __FUNCTION__, __LINE__, _fmt, ##__VA_ARGS__)
+#define axWarnFmt(_fmt, ...)     axLogLevelFmt(apex::logging::LogLevel::Warn, __FILE__, __FUNCTION__, __LINE__, _fmt, ##__VA_ARGS__)
+#define axErrorFmt(_fmt, ...)    axLogLevelFmt(apex::logging::LogLevel::Error, __FILE__, __FUNCTION__, __LINE__, _fmt, ##__VA_ARGS__)
+#define axCriticalFmt(_fmt, ...) axLogLevelFmt(apex::logging::LogLevel::Critical, __FILE__, __FUNCTION__, __LINE__, _fmt, ##__VA_ARGS__)
