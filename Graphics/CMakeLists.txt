@@ -55,6 +55,7 @@ target_include_directories(Graphics
     PUBLIC
     include
     ${Vulkan_INCLUDE_DIRS}
+    "../ExternalLibraries/vma"
 
     PRIVATE
     src
