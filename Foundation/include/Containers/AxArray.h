@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include "Core/Asserts.h"
+#include "Core/TypeTraits.h"
 #include "Core/Utility.h"
 #include "Memory/AxHandle.h"
 #include "Memory/AxManagedClass.h"
@@ -71,7 +72,8 @@ namespace apex {
 		using iterator = Iterator<stored_type>;
 		using const_iterator = Iterator<const stored_type>;
 
-		static_assert(sizeof(stored_type) == sizeof(value_type));
+		// static_assert(sizeof(stored_type) == sizeof(value_type));
+		static constexpr auto _size_check = TAssertEqualSize<stored_type, value_type>::value();
 
 		AxArray() = default;
 
@@ -212,8 +214,16 @@ namespace apex {
 		[[nodiscard]] auto data() -> pointer { return _ConvertToValuePointer(); }
 		[[nodiscard]] auto data() const -> const_pointer { return const_cast<AxArray* const>(this)->_ConvertToValuePointer(); }
 
-		[[nodiscard]] auto at(size_t index) { return this->operator[](index); }
-		[[nodiscard]] auto at(size_t index) const { return this->operator[](index); }
+		[[nodiscard]] auto dataMutable() const -> pointer { return _ConvertToValuePointer(); }
+
+		[[nodiscard]] auto back() -> reference { return m_data[m_size - 1]; }
+		[[nodiscard]] auto back() const -> const_reference { return m_data[m_size - 1]; }
+
+		[[nodiscard]] auto front() -> reference { return m_data[0]; }
+		[[nodiscard]] auto front() const -> const_reference { return m_data[0]; }
+
+		[[nodiscard]] auto at(size_t index) -> reference { return this->operator[](index); }
+		[[nodiscard]] auto at(size_t index) const -> std::conditional_t<std::is_trivial_v<T>, value_type, const_reference> { return this->operator[](index); }
 
 		[[nodiscard]] auto operator[](size_t index) -> reference
 		{

@@ -45,7 +45,7 @@ namespace apex {
 	struct SelfManaged {};
 
 	template <typename T>
-	class alignas(alignof(T)) AxManagedClassAdapter : public AxManagedClass, public T
+	class alignas(alignof(T)) AxManagedClassAdapter : public T, public AxManagedClass
 	{
 	public:
 		template <typename... Args>

@@ -44,4 +44,20 @@ namespace apex {
 	template <typename Type, typename List>
 	inline constexpr size_t type_list_index_v = type_list_index<Type, List>::value;
 
+
+	template <size_t a, size_t b>
+	struct TAssertEquality
+	{
+		static_assert(a == b, "Not equal!");
+		static constexpr bool value() { return a == b; }
+	};
+
+	template <typename T, typename U>
+	struct TAssertEqualSize
+	{
+		static constexpr bool value() { return TAssertEquality<sizeof(T), sizeof(U)>::value(); }
+	};
+
+	template <size_t s> struct TSizeCheck;
+
 }
