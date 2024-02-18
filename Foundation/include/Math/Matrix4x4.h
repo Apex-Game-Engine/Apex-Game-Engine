@@ -103,6 +103,8 @@ namespace math {
 
 	Matrix4x4 translate(Matrix4x4 const &m, Vector3 const &v); // translation by vector v
 
+	Matrix4x4 scale(Matrix4x4 const &m, Vector3 const &v); // scale by vector v
+
 	Matrix4x4 lookAt(Vector3 eye, Vector3 target, Vector3 up); // look-at matrix for camera facing in -Z direction
 
 	Matrix4x4 perspective(float32 fov, float32 aspect_ratio, float32 near_z, float32 far_z); // perspective projection

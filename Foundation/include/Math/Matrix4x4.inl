@@ -184,6 +184,18 @@ namespace math {
 		return res;
 	}
 
+	inline Matrix4x4 scale(Matrix4x4 const& m, Vector3 const& v)
+	{
+		Matrix4x4 res {
+			m[0] * v.x,
+			m[1] * v.y,
+			m[2] * v.z,
+			m[3]
+		};
+
+		return res;
+	}
+
 	inline Matrix4x4 lookAt_slow(Vector3 eye, Vector3 target, Vector3 up)
 	{
 		Vector3 Z = normalize(eye - target);
