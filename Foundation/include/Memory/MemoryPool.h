@@ -4,6 +4,8 @@
 #include "Core/Types.h"
 #include "MemoryManager.h"
 
+#pragma warning(disable: 4267) // size_t to uint32_t conversion
+
 namespace apex {
 namespace memory {
 
@@ -45,3 +47,6 @@ namespace memory {
 
 }
 }
+
+
+#pragma warning(default: 4267) // size_t to uint32_t conversion

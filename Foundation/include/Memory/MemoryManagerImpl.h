@@ -4,6 +4,8 @@
 #include "ArenaAllocator.h"
 #include "PoolAllocator.h"
 
+#pragma warning(disable: 4530) // C++ exception handler used, but unwind semantics are not enabled. Specify /EHsc
+
 #include <vector>
 #include <optional>
 
