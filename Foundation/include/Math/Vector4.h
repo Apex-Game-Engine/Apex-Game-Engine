@@ -1,6 +1,7 @@
 ﻿#pragma once
 //#pragma message("Including Vector4.h")
 
+#include "VectorDefines.h"
 #include "Core/Types.h"
 
 #ifndef APEX_MATH_SKIP_INLINE_IMPL
@@ -63,6 +64,8 @@ namespace math {
 		static constexpr Vector4 unitX_w1() { return { 1.f, 0.f, 0.f, 1.f }; }
 		static constexpr Vector4 unitY_w1() { return { 0.f, 1.f, 0.f, 1.f }; }
 		static constexpr Vector4 unitZ_w1() { return { 0.f, 0.f, 1.f, 1.f }; }
+
+		APEX_MATH_VECTOR3_SWIZZLES(x, y, z)
 	};
 
 	static_assert(sizeof(Vector4) == 4 * sizeof(float));
