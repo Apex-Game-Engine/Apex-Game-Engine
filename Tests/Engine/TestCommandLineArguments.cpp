@@ -1,8 +1,23 @@
 ﻿#include <gtest/gtest.h>
 #include "Api.h"
 #include "CommandLineArguments.h"
+#include "Memory/MemoryManager.h"
 
-TEST(TestCommandLineArguments, TestParser)
+class TestCommandLineArguments : public ::testing::Test
+{
+public:
+	static void SetUpTestSuite()
+	{
+		apex::memory::MemoryManager::initialize({0, 0});
+	}
+
+	static void TearDownTestSuite()
+	{
+		apex::memory::MemoryManager::shutdown();
+	}
+};
+
+TEST_F(TestCommandLineArguments, TestParser)
 {
 	apex::CommandLineArguments cmdLine;
 	cmdLine.defineOptions({
@@ -35,7 +50,7 @@ TEST(TestCommandLineArguments, TestParser)
 	}
 }
 
-TEST(TestCommandLineArguments, TestCmdString)
+TEST_F(TestCommandLineArguments, TestCmdString)
 {
 	apex::CommandLineArguments cmdLine;
 	cmdLine.defineOptions({

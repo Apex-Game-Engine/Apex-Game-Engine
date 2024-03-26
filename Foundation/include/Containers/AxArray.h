@@ -94,14 +94,14 @@ namespace apex {
 		: m_capacity(init_list.size())
 		, m_size(init_list.size())
 		{
-			AxHandle handle(sizeof(value_type) * m_capacity);
-			_SetDataHandle(handle, m_size);
+			_Allocate(m_capacity, m_size);
 			apex::memcpy_s<value_type>(m_data, m_size, init_list.begin(), init_list.size());
 		}
 
 		~AxArray()
 		{
-			delete[] m_data;
+			_DestroyAll();
+			delete m_data;
 		}
 
 		AxArray& operator=(AxArray&& other) noexcept
@@ -143,8 +143,21 @@ namespace apex {
 		template <typename... Args>
 		reference emplace_back(Args&&... args)
 		{
+			axAssertMsg(m_size < m_capacity, "Array size exceeds capacity!");
 			_ConstructInPlace(&m_data[m_size], std::forward<Args>(args)...);
 			return m_data[m_size++];
+		}
+
+		template <typename... Args>
+		reference emplace(size_t index, Args&&... args)
+		{
+			axAssert(index < m_size + 1 && index < m_capacity);
+			axAssertMsg(m_size < m_capacity, "Array size exceeds capacity!");
+			// shift elements to the right from index upto size
+			_ShiftElementsRight(index);
+			_ConstructInPlace(&m_data[index], std::forward<Args>(args)...);
+			m_size++;
+			return m_data[index];
 		}
 
 		void append(const value_type& obj)
@@ -172,7 +185,6 @@ namespace apex {
 			axAssertMsg(m_size < m_capacity, "Array size exceeds capacity!");
 			// shift elements to the right from index upto size
 			_ShiftElementsRight(index);
-			// append(obj);
 			m_data[index] = obj;
 			m_size++;
 		}
@@ -204,17 +216,19 @@ namespace apex {
 		{
 			m_capacity = 0;
 			m_size = 0;
+			_DestroyAll();
 		}
 
 		void clear()
 		{
 			m_size = 0;
+			_DestroyAll();
 		}
 
 		[[nodiscard]] auto data() -> pointer { return _ConvertToValuePointer(); }
-		[[nodiscard]] auto data() const -> const_pointer { return const_cast<AxArray* const>(this)->_ConvertToValuePointer(); }
+		[[nodiscard]] auto data() const -> const_pointer { return const_cast<AxArray * const>(this)->_ConvertToValuePointer(); }
 
-		[[nodiscard]] auto dataMutable() const -> pointer { return _ConvertToValuePointer(); }
+		[[nodiscard]] auto dataMutable() const -> pointer { return const_cast<AxArray * const>(this)->_ConvertToValuePointer(); }
 
 		[[nodiscard]] auto back() -> reference { return m_data[m_size - 1]; }
 		[[nodiscard]] auto back() const -> const_reference { return m_data[m_size - 1]; }
@@ -269,6 +283,7 @@ namespace apex {
 		void _Allocate(size_t capacity, size_t init_size)
 		{
 			AxHandle newHandle (sizeof(value_type) * capacity);
+			//AxHandle newHandle = apex::make_handle<value_type[]>(capacity);
 			_SetDataHandle(newHandle, init_size);
 		}
 
@@ -288,7 +303,17 @@ namespace apex {
 
 		void _DestroyInPlace(stored_type* ptr)
 		{
-			std::destroy_at(ptr);
+			if constexpr (!std::is_trivially_destructible_v<T>)
+				std::destroy_at(ptr);
+		}
+
+		void _DestroyAll()
+		{
+			if constexpr (!std::is_trivially_destructible_v<T>)
+				for (size_t i = 0; i < m_size; ++i)
+				{
+					_DestroyInPlace(&m_data[i]);
+				}
 		}
 
 		void _ShiftElementsRight(size_t index)

@@ -4,8 +4,23 @@
 
 #include "Graphics/Geometry/Vertex.h"
 #include "Graphics/Geometry/VertexBufferCPU.h"
+#include "Memory/MemoryManager.h"
 
-TEST(TestGraphics, TestVertexConvertToFloatPointer)
+class TestGraphics : public ::testing::Test
+{
+public:
+	static void SetUpTestSuite()
+	{
+		apex::memory::MemoryManager::initialize({0, 0});
+	}
+
+	static void TearDownTestSuite()
+	{
+		apex::memory::MemoryManager::shutdown();
+	}
+};
+
+TEST_F(TestGraphics, TestVertexConvertToFloatPointer)
 {
 	apex::gfx::Vertex_P0_C0 vertices[] = {
 		{ .position = { -0.5f, -0.5f, 0.f }, .color = { 1.f, 0.f, 0.f, 1.f } },
@@ -33,7 +48,7 @@ TEST(TestGraphics, TestVertexConvertToFloatPointer)
 	EXPECT_FLOAT_EQ(varr[13],  1.0f);
 }
 
-TEST(TestGraphics, TestVertexManagedClassAdapter)
+TEST_F(TestGraphics, TestVertexManagedClassAdapter)
 {
 	apex::gfx::Vertex_P0_C0 vertex { .position = { -0.5f, -0.5f, 0.f }, .color = { 1.f, 0.f, 0.f, 1.f } };
 
@@ -47,7 +62,7 @@ TEST(TestGraphics, TestVertexManagedClassAdapter)
 	EXPECT_FLOAT_EQ(fv[6],  1.0f);
 }
 
-TEST(TestGraphics, TestVertexAxArrayConvertToFloatAxArray)
+TEST_F(TestGraphics, TestVertexAxArrayConvertToFloatAxArray)
 {
 	apex::AxArray<apex::gfx::Vertex_P0_C0> vertices = {
 		{ .position = { -0.5f, -0.5f, 0.f }, .color = { 1.f, 0.f, 0.f, 1.f } },
@@ -80,7 +95,7 @@ TEST(TestGraphics, TestVertexAxArrayConvertToFloatAxArray)
 	EXPECT_FLOAT_EQ(varr[13],  1.0f);
 }
 
-TEST(TestGraphics, TestVertexBufferCPU)
+TEST_F(TestGraphics, TestVertexBufferCPU)
 {
 	apex::AxArray<apex::gfx::Vertex_P0_C0> vertices = {
 		{ .position = { -0.5f, -0.5f, 0.f }, .color = { 1.f, 0.f, 0.f, 1.f } },

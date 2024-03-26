@@ -28,7 +28,7 @@
 
 // Checks : Level 2 assertions : These are enabled only in Debug builds
 #define axCheck(condition)
-#define axCheck(condition, msg)
+#define axCheckMsg(condition, msg)
 
 // Asserts : Level 1 assertions : These are enabled in Debug and Development builds
 #define axAssert(condition) do { if (!(condition)) { axError("Assertion Failed! : " XSTR(condition)); DEBUG_BREAK(); } else {} } while (false)

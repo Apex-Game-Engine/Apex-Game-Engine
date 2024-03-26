@@ -6,6 +6,7 @@
 #include "Containers/AxRange.h"
 #include "Containers/AxSparseMap.h"
 #include "Containers/AxStringRef.h"
+#include "Memory/UniquePtr.h"
 #include "Math/Vector3.h"
 #include "Memory/MemoryManager.h"
 
@@ -59,10 +60,10 @@ namespace apex {
 		//void nonTrivialArray_constructFromMemory(void* mem, size_t mem_size) { nonTrivialArray.constructFromMemory(mem, mem_size); }
 
 	protected:
-		AxArray<float32> floatArray;
-		AxArray<const char*> stringArray;
-		AxArray<TrivialType> trivialArray;
-		AxArray<NonTrivialType> nonTrivialArray;
+		// AxArray<float32> floatArray;
+		// AxArray<const char*> stringArray;
+		// AxArray<TrivialType> trivialArray;
+		// AxArray<NonTrivialType> nonTrivialArray;
 	};
 
 	TEST_F(AxArrayTest, TestFloatArrayFromStaticMemory)
@@ -73,6 +74,7 @@ namespace apex {
 
 		return;
 
+#if 0
 		//floatArray_constructFromMemory(arenaBuf.data(), BUF_SIZE);
 
 		ASSERT_EQ(floatArray.size(), 0);
@@ -114,6 +116,7 @@ namespace apex {
 			EXPECT_FLOAT_EQ(val, floatArray[i]);
 			val += 1.11f;
 		}
+#endif
 	}
 
 	TEST_F(AxArrayTest, TestNonTrivialArrayFromStaticMemory)
@@ -122,10 +125,12 @@ namespace apex {
 		std::array<apex::uint8, BUF_SIZE> arenaBuf { 0 };
 
 		return;
-		// nonTrivialArray_constructFromMemory(arenaBuf.data(), BUF_SIZE);
+#if 0
+  		// nonTrivialArray_constructFromMemory(arenaBuf.data(), BUF_SIZE);
 		
 		ASSERT_EQ(nonTrivialArray.size(), 0);
 		ASSERT_EQ(nonTrivialArray.capacity(), 8);
+#endif
 	}
 
 	TEST_F(AxArrayTest, TestKeepOnlyUniquesSlow)
@@ -267,6 +272,35 @@ namespace apex {
 		EXPECT_DEATH(arr.insert(9, 5), "Assertion Failed! : .*"); // out of bounds
 	}
 
+	TEST_F(AxArrayTest, TestGrow)
+	{
+		size_t initialSize = memory::MemoryManager::getAllocatedSize();
+
+		using T = std::tuple<float, float, int>;
+		AxArray<T> arr;
+		arr.reserve(10);
+
+		for (int i = 0; i < 10; i++)
+		{
+			arr.emplace_back(sinf(i * 10), cosf(i + 3) * i, i);
+		}
+
+		EXPECT_EQ(arr.size(), 10);
+		EXPECT_GE(arr.capacity(), 10);
+
+		arr.reserve(2000);
+
+		for (int i = 20; i < 30; i++)
+		{
+			arr.emplace_back(sinf(i * 10), cosf(i + 3) * i, i);
+		}
+		EXPECT_EQ(arr.size(), 20);
+		EXPECT_GE(arr.capacity(), 20);
+
+		EXPECT_GE(memory::MemoryManager::getAllocatedSize() - initialSize, arr.capacity() * sizeof(int));
+		printf("Allocated size: %llu\n", memory::MemoryManager::getAllocatedSize());
+	}
+
 	TEST(AxStringRefTest, TestAxStringRef)
 	{
 		AxStringRef strRefArr[2];
@@ -276,7 +310,7 @@ namespace apex {
 		for (auto strRef : strRefArr)
 		{
 			if (strRef)
-				printf("%s\n", strRef.c_str());
+				printf(">> %s\n", strRef.c_str());
 		}
 	}
 

@@ -18,6 +18,7 @@ namespace apex::memory {
 
 	void PoolAllocator::initialize(void* p_begin, size_t size, uint32 block_size)
 	{
+		axAssertMsg(p_begin != nullptr, "Invalid memory address!");
 		axAssert(size > block_size);
 
 		m_pBase = p_begin;
@@ -80,4 +81,12 @@ namespace apex::memory {
 		m_numFreeBlocks = m_numTotalBlocks;
 	}
 
+	void PoolAllocator::shutdown()
+	{
+		m_pBase = nullptr;
+		m_allocPtr = nullptr;
+		m_blockSize = 0;
+		m_numTotalBlocks = 0;
+		m_numFreeBlocks = 0;
+	}
 }

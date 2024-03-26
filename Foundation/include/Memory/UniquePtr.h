@@ -41,7 +41,7 @@ namespace apex {
 	class UniquePtr;
 
 	template <apex::managed_class T>
-	class UniquePtr<T>
+	class UniquePtr<T> : public AxManagedClass
 	{
 		static_assert(!std::is_reference_v<T>);
 
@@ -145,7 +145,7 @@ namespace apex {
 	};
 
 	template <apex::managed_class T>
-	class UniquePtr<T[]>
+	class UniquePtr<T[]> : public AxManagedClass
 	{
 		static_assert(!std::is_reference_v<T>);
 

@@ -159,8 +159,14 @@ namespace memory {
 			frameAllocator.reset();
 		}
 
+		for (PoolAllocator& poolAllocator : s_memoryManagerImpl.m_poolAllocators)
+		{
+			poolAllocator.shutdown();
+		}
+
 		s_memoryManagerImpl.m_capacity = 0;
 		::free(s_memoryManagerImpl.m_pBase);
+		s_memoryManagerImpl.m_pBase = nullptr;
 		axLog("MemoryManager shut down succesfully");
 	}
 
@@ -221,11 +227,6 @@ namespace memory {
 	}
 
 }
-	
-	AxHandle::AxHandle(size_t size)
-	{
-		allocate(size);
-	}
 
 	void AxHandle::free()
 	{

@@ -470,6 +470,56 @@ namespace apex::memory {
 		}
 	}
 
+	TEST_F(MemoryManagerTest, TestDynamicallyAllocatedUniquePtr)
+	{
+		EXPECT_EQ(MemoryManager::getAllocatedSize(), 0);
+		{
+			UniquePtr<StructWithDestructor> * ppStruct;
+			AxHandle handle(sizeof(UniquePtr<StructWithDestructor>));
+			ppStruct = handle.getAs<UniquePtr<StructWithDestructor>>();
+			EXPECT_EQ(MemoryManager::getAllocatedSize(), 32); // sizeof UniquePtr (8) but the closest available size is 32
+
+			*ppStruct = apex::make_unique<StructWithDestructor>();
+
+			EXPECT_EQ(MemoryManager::getAllocatedSize(), 32 + 64); // 64 bytes for the StructWithDestructor
+
+			delete ppStruct;
+		}
+		EXPECT_EQ(MemoryManager::getAllocatedSize(), 0);
+
+		using Int = AxManagedClassAdapter<int>;
+		{
+			AxHandle handle(sizeof(Int) * 16);
+			auto pInts = handle.getAs<Int>();
+			EXPECT_EQ(MemoryManager::getAllocatedSize(), 64); // 16 * 4 = 64
+
+			delete[] pInts;
+		}
+		EXPECT_EQ(MemoryManager::getAllocatedSize(), 0);
+
+		{
+			AxHandle handle = apex::make_handle<StructWithDestructor[]>(15);
+			StructWithDestructor* pStructArr = handle.getAs<StructWithDestructor>();
+			EXPECT_EQ(MemoryManager::getAllocatedSize(), 1024); // 16 * 64 = 1024 (extra 8 bytes for the size of the array)
+
+			pStructArr = new (handle) StructWithDestructor[15];
+
+			delete[] pStructArr;
+		}
+		EXPECT_EQ(MemoryManager::getAllocatedSize(), 0);
+
+		{
+			UniquePtr<StructWithDestructor> * pStructArr;
+			AxHandle handle = apex::make_handle<UniquePtr<StructWithDestructor>[]>(15);
+			EXPECT_EQ(MemoryManager::getAllocatedSize(), 128); // 16 * 8 = 128
+
+			pStructArr = new (handle) UniquePtr<StructWithDestructor>[15];
+
+			delete[] pStructArr;
+		}
+		EXPECT_EQ(MemoryManager::getAllocatedSize(), 0);
+	}
+
 	TEST_F(MemoryManagerTest, TestUniquePtrCallElementDestructor)
 	{
 		StructWithDestructor::s_numDestroyed = 0;
@@ -598,7 +648,7 @@ namespace apex::memory {
 		{
 			AxArray<AxStringRef> strArr;
 			strArr.reserve(32);
-			EXPECT_EQ(MemoryManager::getAllocatedSize(), 256);
+			EXPECT_EQ(MemoryManager::getAllocatedSize(), 512); // 32 * 16 (sizeof const char* (8) + sizeof size_t (8))
 
 			strArr.append("Athang");
 			strArr.emplace_back("Oishi");
@@ -633,7 +683,7 @@ namespace apex::memory {
 
 		{
 			AxArray<AxStringRef> strArr = { "Athang", "Oishi", "Saumitra" };
-			EXPECT_EQ(MemoryManager::getAllocatedSize(), 32);
+			EXPECT_EQ(MemoryManager::getAllocatedSize(), 48); // 3 * 16 (sizeof const char* (8) + sizeof size_t (8))
 
 			EXPECT_EQ(strArr.size(), 3);
 			EXPECT_STREQ(strArr[0].c_str(), "Athang");
@@ -644,7 +694,7 @@ namespace apex::memory {
 
 		{
 			AxArray<const char*> strArr = { "Athang", "Oishi", "Saumitra" };
-			EXPECT_EQ(MemoryManager::getAllocatedSize(), 32);
+			EXPECT_EQ(MemoryManager::getAllocatedSize(), 32); // 3 * 8 (but the closest available size is 32)
 
 			EXPECT_EQ(strArr.size(), 3);
 			EXPECT_STREQ(strArr[0], "Athang");
@@ -652,6 +702,34 @@ namespace apex::memory {
 			EXPECT_STREQ(strArr[2], "Saumitra");
 		}
 		EXPECT_EQ(MemoryManager::getAllocatedSize(), 0);
+	}
+
+	TEST_F(MemoryManagerTest, TestUniquePtrArray)
+	{
+		EXPECT_EQ(MemoryManager::getAllocatedSize(), 0);
+		using Int = AxManagedClassAdapter<int>;
+		{
+			AxArray<UniquePtr<Int>> arr;
+			arr.reserve(1000);
+
+			EXPECT_GE(memory::MemoryManager::getAllocatedSize(), arr.capacity() * sizeof(UniquePtr<Int>));
+		}
+		EXPECT_EQ(memory::MemoryManager::getAllocatedSize(), 0);
+
+		{
+			AxArray<UniquePtr<StructWithDestructor>> arr;
+			arr.reserve(1000);
+
+			EXPECT_GE(memory::MemoryManager::getAllocatedSize(), arr.capacity() * sizeof(UniquePtr<StructWithDestructor>));
+
+			for (int i = 0; i < 1000; i++)
+			{
+				arr.emplace_back(apex::make_unique<StructWithDestructor>());
+			}
+			EXPECT_EQ(StructWithDestructor::s_count, 1000);
+		}
+		EXPECT_EQ(StructWithDestructor::s_count, 0);
+		EXPECT_EQ(memory::MemoryManager::getAllocatedSize(), 0);
 	}
 
 	static_assert(std::ranges::viewable_range<AxArray<int>>);

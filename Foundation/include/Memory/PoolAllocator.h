@@ -17,6 +17,7 @@ namespace memory {
 
 		void initialize(void* p_begin, size_t size, uint32 block_size);
 		void reset(); // Potentially EXPENSIVE operation !
+		void shutdown();
 
 		[[nodiscard]] void* allocate(size_t size);
 		[[nodiscard]] void* allocate(size_t size, size_t align);

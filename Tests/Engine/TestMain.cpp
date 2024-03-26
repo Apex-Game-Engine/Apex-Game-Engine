@@ -8,11 +8,11 @@ GTEST_API_ int main(int argc, char **argv) {
 	testing::InitGoogleTest(&argc, argv);
 
 	apex::logging::Logger::initialize();
-	apex::memory::MemoryManager::initialize({ .frameArenaSize = 0, .numFramesInFlight = 3 });
+	//apex::memory::MemoryManager::initialize({ .frameArenaSize = 0, .numFramesInFlight = 3 });
 
 	int retval = RUN_ALL_TESTS();
 
-	apex::memory::MemoryManager::shutdown();
+	// apex::memory::MemoryManager::shutdown();
 
 	return retval;
 }

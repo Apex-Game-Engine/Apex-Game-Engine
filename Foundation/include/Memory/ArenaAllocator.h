@@ -4,19 +4,23 @@
 namespace apex {
 namespace memory {
 
-	class ArenaAllocator : public IMemoryTracker
+	class ArenaAllocator
+#ifdef APEX_ENABLE_MEMORY_TRACKING
+	: public IMemoryTracker
 	{
 	public:
+		[[nodiscard]] size_t getTotalCapacity() const override { return m_capacity; }
+		[[nodiscard]] size_t getCurrentUsage() const override { return m_offset; }
+#else
+	{
+	public:
+#endif
 		void initialize(void* p_begin, size_t size);
 		[[nodiscard]] void* allocate(size_t size);
 		[[nodiscard]] void* allocate(size_t size, size_t align);
 		// void free(void *p_ptr);
 		void reset();
 
-#ifdef APEX_ENABLE_MEMORY_TRACKING
-		[[nodiscard]] size_t getTotalCapacity() const override { return m_capacity; }
-		[[nodiscard]] size_t getCurrentUsage() const override { return m_offset; }
-#endif
 
 	private:
 		void *m_pBase { nullptr };

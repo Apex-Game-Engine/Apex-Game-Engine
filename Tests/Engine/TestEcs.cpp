@@ -30,14 +30,26 @@ namespace apex
 class TestEcs : public testing::Test
 {
 public:
-	void SetUp() override
+	static void SetUpTestSuite()
 	{
 		apex::memory::MemoryManager::initialize({ 0, 0 });
 	}
 
-	void TearDown() override
+	static void TearDownTestSuite()
 	{
 		apex::memory::MemoryManager::shutdown();
+	}
+
+	void SetUp() override
+	{
+		auto allocated = apex::memory::MemoryManager::getAllocatedSize();
+		printf("<PRE> Memory allocated: %llu\n", allocated);
+	}
+
+	void TearDown() override
+	{
+		auto allocated = apex::memory::MemoryManager::getAllocatedSize();
+		printf("<POST> Memory allocated: %llu\n", allocated);
 	}
 };
 

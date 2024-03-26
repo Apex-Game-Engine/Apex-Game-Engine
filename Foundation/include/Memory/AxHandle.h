@@ -12,7 +12,12 @@ namespace apex {
 	{
 	public:
 		AxHandle() = default;
-		AxHandle(size_t size);
+
+		AxHandle(size_t size)
+		{
+			allocate(size);
+		}
+
 		~AxHandle() = default;
 
 		AxHandle(AxHandle const& other) noexcept
@@ -25,21 +30,21 @@ namespace apex {
 		, m_memoryPoolIdx(other.m_memoryPoolIdx)
 		{}
 
-		AxHandle operator=(AxHandle const& other) noexcept
+		AxHandle& operator=(AxHandle const& other) noexcept
 		{
 			m_cachedPtr = other.m_cachedPtr;
 			m_memoryPoolIdx = other.m_memoryPoolIdx;
 			return *this;
 		}
 
-		AxHandle operator=(AxHandle&& other) noexcept
+		AxHandle& operator=(AxHandle&& other) noexcept
 		{
 			m_cachedPtr = other.m_cachedPtr;
 			m_memoryPoolIdx = other.m_memoryPoolIdx;
 			return *this;
 		}
 
-		bool isValid() { return m_cachedPtr != nullptr; }
+		bool isValid() const { return m_cachedPtr != nullptr; }
 		size_t getBlockSize() const;
 
 		template <typename T>
