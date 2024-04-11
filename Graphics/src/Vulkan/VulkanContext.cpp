@@ -59,7 +59,14 @@ namespace apex::vk {
 		_createSurface(p_window);
 
 		// Select a physical device
-		m_device.selectPhysicalDevice(m_instance, m_surface, { .geometryShader = true });
+		VulkanPhysicalDeviceFeatures deviceFeatures;
+		deviceFeatures.features12.bufferDeviceAddress = true;
+		deviceFeatures.features12.descriptorIndexing = true;
+		deviceFeatures.features13.synchronization2 = true;
+		deviceFeatures.features13.dynamicRendering = true;
+		deviceFeatures.features13.maintenance4 = true;
+
+		m_device.selectPhysicalDevice(m_instance, m_surface, deviceFeatures);
 
 		// Create a logical device
 		m_device.createLogicalDevice(VULKAN_NULL_ALLOCATOR);

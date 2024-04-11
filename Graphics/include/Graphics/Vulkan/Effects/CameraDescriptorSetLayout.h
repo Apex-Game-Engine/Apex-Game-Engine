@@ -4,9 +4,10 @@
 namespace apex {
 namespace vk {
 
-	struct CameraDescriptorSetLayout : VulkanDescriptorSetLayout
+	class CameraDescriptorSetLayoutRecipe : public VulkanDescriptorSetLayoutRecipe
 	{
-		void create(VkDevice device, VkAllocationCallbacks const* pAllocator) override;
+	public:
+		void build(VulkanDescriptorSetLayoutBuilder& layout) override;
 	};
 
 }

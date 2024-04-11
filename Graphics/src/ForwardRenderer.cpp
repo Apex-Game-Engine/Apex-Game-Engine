@@ -23,7 +23,12 @@ namespace apex::gfx {
 		m_context->m_swapchain.createFramebuffers(m_context->m_device.logicalDevice, m_renderPass.renderPass, VULKAN_NULL_ALLOCATOR);
 
 		// Create descriptor set layouts
-		m_cameraDescriptorSetLayout.create(m_context->m_device.logicalDevice, VULKAN_NULL_ALLOCATOR);
+		{
+			vk::VulkanDescriptorSetLayoutBuilder cameraDescriptorSetLayoutBuilder;
+			vk::CameraDescriptorSetLayoutRecipe cameraDescriptorSetLayoutRecipe;
+			cameraDescriptorSetLayoutRecipe.build(cameraDescriptorSetLayoutBuilder);
+			m_cameraDescriptorSetLayout = cameraDescriptorSetLayoutBuilder.build(m_context->m_device.logicalDevice, VULKAN_NULL_ALLOCATOR);
+		}
 
 		VkDescriptorSetLayout descriptorSetLayouts[] = { m_cameraDescriptorSetLayout.layout };
 
@@ -37,8 +42,8 @@ namespace apex::gfx {
 
 		// Create pipeline
 		vk::VulkanShaderStagesDesc shaderStagesDesc {
-			.vertShaderFile = "D:\\Repos\\ApexGameEngine-Vulkan\\build-msvc\\Graphics\\spv\\basic.vert.spv",
-			.fragShaderFile = "D:\\Repos\\ApexGameEngine-Vulkan\\build-msvc\\Graphics\\spv\\basic.frag.spv"
+			.vertShaderFile = "X:\\ApexGameEngine-Vulkan\\build-msvc\\Graphics\\spv\\basic.vert.spv",
+			.fragShaderFile = "X:\\ApexGameEngine-Vulkan\\build-msvc\\Graphics\\spv\\basic.frag.spv"
 		};
 		m_pipeline.create(
 			m_context->m_device.logicalDevice,
@@ -73,7 +78,7 @@ namespace apex::gfx {
 		{
 			destroyPerFrameData(m_context->m_device, VULKAN_NULL_ALLOCATOR);
 
-			vmaUnmapMemory(m_context->m_device.m_allocator, m_uniformBuffers[i].allocation);
+			//vmaUnmapMemory(m_context->m_device.m_allocator, m_uniformBuffers[i].allocation);
 			m_uniformBuffers[i].destroy(m_context->m_device, VULKAN_NULL_ALLOCATOR);
 		}
 
@@ -135,7 +140,7 @@ namespace apex::gfx {
 
 	void ForwardRenderer::createUniformBuffers(vk::VulkanDevice const& device, VkAllocationCallbacks const* pAllocator)
 	{
-		const auto bufferSize = sizeof(Camera) + sizeof(apex::math::Matrix4x4) * 100;
+		const auto bufferSize = sizeof(Camera) + sizeof(apex::math::Matrix4x4) * 110;
 		uint32 queueFamilyIndices[] = { device.queueFamilyIndices.graphicsFamily.value() };
 
 		for (uint32 i = 0; i < kMaxFramesInFlight; i++)
@@ -150,9 +155,10 @@ namespace apex::gfx {
 				VMA_ALLOCATION_CREATE_MAPPED_BIT | VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT,
 				pAllocator);
 
-			axVerifyMsg(VK_SUCCESS == vmaMapMemory(device.m_allocator, m_uniformBuffers[i].allocation, &m_uniformBuffersMapped[i]),
+			/*axVerifyMsg(VK_SUCCESS == vmaMapMemory(device.m_allocator, m_uniformBuffers[i].allocation, &m_uniformBuffersMapped[i]),
 				"Failed to map uniform buffer memory!"
-			);
+			);*/
+			m_uniformBuffersMapped[i] = m_uniformBuffers[i].getMappedMemory();
 		}
 	}
 
@@ -191,15 +197,18 @@ namespace apex::gfx {
 			"Failed to allocate descriptor sets!"
 		);
 
+		AxArray<VkDescriptorBufferInfo> descriptorBufferInfos(kMaxFramesInFlight * 2);
+		AxArray<VkWriteDescriptorSet> descriptorWrites(kMaxFramesInFlight * 2);
+
 		for (uint32 i = 0; i < kMaxFramesInFlight; i++)
 		{
-			VkDescriptorBufferInfo bufferInfo {
+			descriptorBufferInfos.append({
 				.buffer = m_uniformBuffers[i].buffer,
 				.offset = 0,
 				.range = sizeof(Camera)
-			};
+			});
 
-			VkWriteDescriptorSet descriptorWrite {
+			descriptorWrites.append({
 				.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
 				.dstSet = m_descriptorSets[i],
 				.dstBinding = 0,
@@ -207,19 +216,19 @@ namespace apex::gfx {
 				.descriptorCount = 1,
 				.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
 				.pImageInfo = nullptr,
-				.pBufferInfo = &bufferInfo,
+				.pBufferInfo = &descriptorBufferInfos.back(),
 				.pTexelBufferView = nullptr
-			};
+			});
 
-			vkUpdateDescriptorSets(device.logicalDevice, 1, &descriptorWrite, 0, nullptr);
+			// vkUpdateDescriptorSets(device.logicalDevice, 1, &descriptorWrite, 0, nullptr);
 
-			VkDescriptorBufferInfo bufferInfo_model {
+			descriptorBufferInfos.append({
 				.buffer = m_uniformBuffers[i].buffer,
 				.offset = sizeof(Camera),
 				.range = VK_WHOLE_SIZE
-			};
+			});
 
-			VkWriteDescriptorSet descriptorWrite_model {
+			descriptorWrites.append({
 				.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
 				.dstSet = m_descriptorSets[i],
 				.dstBinding = 1,
@@ -227,12 +236,14 @@ namespace apex::gfx {
 				.descriptorCount = 1,
 				.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
 				.pImageInfo = nullptr,
-				.pBufferInfo = &bufferInfo_model,
+				.pBufferInfo = &descriptorBufferInfos.back(),
 				.pTexelBufferView = nullptr
-			};
+			});
 
-			vkUpdateDescriptorSets(device.logicalDevice, 1, &descriptorWrite_model, 0, nullptr);
+			// vkUpdateDescriptorSets(device.logicalDevice, 1, &descriptorWrite_model, 0, nullptr);
 		}
+
+		vkUpdateDescriptorSets(device.logicalDevice, static_cast<uint32>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
 	}
 
 	void ForwardRenderer::recordCommandBuffer(VkCommandBuffer command_buffer, uint32 image_index, gfx::CommandList const& command_list)
@@ -305,18 +316,18 @@ namespace apex::gfx {
 					auto& mesh = *drawCmd.pMesh;
 
 					// Bind vertex buffers
-					VkBuffer vertexBuffers[] = {mesh.m_vertexBuffer.m_buffer.buffer};
+					VkBuffer vertexBuffers[] = {mesh.getVertexBuffer().m_buffer.buffer};
 					VkDeviceSize offsets[] = {0};
 					vkCmdBindVertexBuffers(command_buffer, 0, std::size(vertexBuffers), vertexBuffers, offsets);
 
 					// Bind index buffer
-					vkCmdBindIndexBuffer(command_buffer, mesh.m_indexBuffer.m_buffer.buffer, 0, VK_INDEX_TYPE_UINT32);
+					vkCmdBindIndexBuffer(command_buffer, mesh.getIndexBuffer().m_buffer.buffer, 0, VK_INDEX_TYPE_UINT32);
 
 					// Push constants
 					vkCmdPushConstants(command_buffer, m_pipeline.pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(int), &uniformIndex);
 
 					// Submit draw commands
-					vkCmdDrawIndexed(command_buffer, mesh.m_indexBuffer.m_count, drawCmd.instanceCount, 0, 0, 0);
+					vkCmdDrawIndexed(command_buffer, mesh.getIndexBuffer().m_count, drawCmd.instanceCount, 0, 0, 0);
 
 					uniformIndex += drawCmd.instanceCount;
 				}
@@ -360,6 +371,7 @@ namespace apex::gfx {
 			camera->projection[1][1] *= -1;
 		}
 
+		// TODO: THIS IS FUCKING WRONG! IT WILL OVERFLOW!!!!
 		math::Matrix4x4* transform = (math::Matrix4x4*)((uint8*)m_uniformBuffersMapped[m_currentFrame] + sizeof(Camera));
 
 		for (auto& command : getCurrentCommandList().getCommands())
@@ -380,16 +392,17 @@ namespace apex::gfx {
 		VkCommandBuffer& commandBuffer = frameData.commandBuffer;
 		VkSemaphore& imageAvailableSemaphore = frameData.imageAvailableSemaphore;
 		VkSemaphore& renderFinishedSemaphore = frameData.renderFinishedSemaphore;
-		VkFence& inFlightFence = frameData.inFlightFence;
+		VkFence& renderFence = frameData.renderFence;
 
 		// Check if framebuffer has been resized
 
 		// Wait for the previous frame to finish
-		vkWaitForFences(device.logicalDevice, 1, &inFlightFence, VK_TRUE, constants::uint64_MAX);
+		VkResult result = vkWaitForFences(device.logicalDevice, 1, &renderFence, VK_TRUE, 1'000'000'000 /* ns */);
+		axAssertMsg(VK_SUCCESS == result, "Timed out waiting for previous frame to finish!");
 
 		// Acquire an image from the swapchain
 		uint32 imageIndex;
-		VkResult result = vkAcquireNextImageKHR(device.logicalDevice, swapchain.swapchain, constants::uint64_MAX, imageAvailableSemaphore, VK_NULL_HANDLE, &imageIndex);
+		result = vkAcquireNextImageKHR(device.logicalDevice, swapchain.swapchain, 100'000'000'000 /* ns */, imageAvailableSemaphore, VK_NULL_HANDLE, &imageIndex);
 
 		if (VK_ERROR_OUT_OF_DATE_KHR == result)
 		{
@@ -400,7 +413,7 @@ namespace apex::gfx {
 		axAssertMsg(VK_SUCCESS == result || VK_SUBOPTIMAL_KHR == result, "Failed to acquire swapchain image!");
 
 		// Reset fence to unsignalled state to begin rendering next frame
-		vkResetFences(device.logicalDevice, 1, &inFlightFence);
+		vkResetFences(device.logicalDevice, 1, &renderFence);
 
 		// Udpate uniforms
 		updateUniformBuffers();
@@ -432,7 +445,8 @@ namespace apex::gfx {
 		recordCommandBuffer(commandBuffer, imageIndex, command_list);
 
 		// Submit the command buffer
-		VkSemaphore waitSemaphores[] = { imageAvailableSemaphore }; // semaphores to wait on before execution
+#if USE_OLD_SUBMIT_INFO
+  VkSemaphore waitSemaphores[] = { imageAvailableSemaphore }; // semaphores to wait on before execution
 		VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT }; // stage to wait in (corresponds in index to waitSemaphores)
 
 		VkSemaphore signalSemaphores[] = { renderFinishedSemaphore }; // semaphores to signal after execution complete
@@ -448,15 +462,57 @@ namespace apex::gfx {
 			.pSignalSemaphores = signalSemaphores
 		};
 
-		axAssertMsg(VK_SUCCESS == vkQueueSubmit(m_context->m_device.graphicsQueue, 1, &submitInfo, inFlightFence),
+		axVerifyMsg(VK_SUCCESS == vkQueueSubmit(m_context->m_device.graphicsQueue, 1, &submitInfo, renderFence),
 			"Failed to submit draw command buffer!"
 		);
+#else
+
+		VkSemaphoreSubmitInfo waitSemaphoreInfo {
+			.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
+			.pNext = nullptr,
+			.semaphore = imageAvailableSemaphore,
+			.value = 1,
+			.stageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
+			.deviceIndex = 0,
+		};
+
+		VkSemaphoreSubmitInfo signalSemaphoreInfo {
+			.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
+			.pNext = nullptr,
+			.semaphore = renderFinishedSemaphore,
+			.value = 1,
+			.stageMask = VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT,
+			.deviceIndex = 0,
+		};
+
+		VkCommandBufferSubmitInfo commandBufferInfo {
+			.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
+			.pNext = nullptr,
+			.commandBuffer = commandBuffer,
+			.deviceMask = 0,
+		};
+
+		VkSubmitInfo2 submitInfo {
+			.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2,
+			.pNext = nullptr,
+			.waitSemaphoreInfoCount = 1,
+			.pWaitSemaphoreInfos = &waitSemaphoreInfo,
+			.commandBufferInfoCount = 1,
+			.pCommandBufferInfos = &commandBufferInfo,
+			.signalSemaphoreInfoCount = 1,
+			.pSignalSemaphoreInfos = &signalSemaphoreInfo,
+		};
+
+		axVerifyMsg(VK_SUCCESS == vkQueueSubmit2(m_context->m_device.graphicsQueue, 1, &submitInfo, renderFence),
+			"Failed to submit draw command buffer!"
+		);
+#endif
 
 		// Present the swapchain image to the window surface
 		VkPresentInfoKHR presentInfo {
 			.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
-			.waitSemaphoreCount = static_cast<uint32>(std::size(signalSemaphores)),
-			.pWaitSemaphores = signalSemaphores,
+			.waitSemaphoreCount = 1,
+			.pWaitSemaphores = &renderFinishedSemaphore,
 			.swapchainCount = 1,
 			.pSwapchains = &swapchain.swapchain,
 			.pImageIndices = &imageIndex,

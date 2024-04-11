@@ -11,10 +11,14 @@ namespace vk {
 		inline static bool kEnableDebugLayers = true;
 		inline static const char* kValidationLayerNames[] = {
 			"VK_LAYER_KHRONOS_validation",
+			//"VK_LAYER_LUNARG_monitor",
 		};
 	#else
 		inline static const bool kEnableDebugLayers = false;
-		inline static const char* kValidationLayerNames = nullptr;
+		inline static const char* kValidationLayerNames[] = {
+			""
+			//"VK_LAYER_LUNARG_monitor"
+		};
 	#endif
 
 		inline static const char* kRequiredInstanceExtensions[] = {
@@ -31,7 +35,8 @@ namespace vk {
 		};
 
 		inline static const char* kRequiredDeviceExtensions[] = {
-			VK_KHR_SWAPCHAIN_EXTENSION_NAME
+			VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+			VK_EXT_SHADER_ATOMIC_FLOAT_EXTENSION_NAME,
 		};
 	};
 

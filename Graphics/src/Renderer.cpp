@@ -27,7 +27,7 @@ namespace apex::gfx
 				"Failed to create semaphore!"
 			);
 
-			axVerifyMsg(VK_SUCCESS == vkCreateFence(device.logicalDevice, &fenceCreateInfo, pAllocator, &frameData.inFlightFence),
+			axVerifyMsg(VK_SUCCESS == vkCreateFence(device.logicalDevice, &fenceCreateInfo, pAllocator, &frameData.renderFence),
 			            "Failed to create fence!"
 			);
 
@@ -50,7 +50,7 @@ namespace apex::gfx
 		{
 			vkDestroySemaphore(device.logicalDevice, frameData.imageAvailableSemaphore, pAllocator);
 			vkDestroySemaphore(device.logicalDevice, frameData.renderFinishedSemaphore, pAllocator);
-			vkDestroyFence(device.logicalDevice, frameData.inFlightFence, pAllocator);
+			vkDestroyFence(device.logicalDevice, frameData.renderFence, pAllocator);
 			vkFreeCommandBuffers(device.logicalDevice, frameData.commandPool, 1, &frameData.commandBuffer);
 			vkDestroyCommandPool(device.logicalDevice, frameData.commandPool, pAllocator);
 		}

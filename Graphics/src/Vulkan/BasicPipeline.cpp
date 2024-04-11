@@ -33,6 +33,8 @@ namespace apex::vk {
 		// Set vertex input definition
 		auto bindingDescrption = gfx::Vertex_P0_C0::getBindingDescription();
 		auto attributeDescriptions = gfx::Vertex_P0_C0::getAttributeDescriptions();
+		//auto bindingDescrption = gfx::Vertex_P0_JI0_C0::getBindingDescription();
+		//auto attributeDescriptions = gfx::Vertex_P0_JI0_C0::getAttributeDescriptions();
 
 		VkPipelineVertexInputStateCreateInfo vertexInputStateCreateInfo {
 			.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,

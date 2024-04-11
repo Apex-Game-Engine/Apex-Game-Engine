@@ -6,7 +6,7 @@
 
 #include "VulkanDebugMessenger.h"
 #include "VulkanDevice.h"
-#include "VulkanPipeline.h"
+#include "VulkanGraphicsPipeline.h"
 #include "VulkanRenderPass.h"
 #include "VulkanSwapchain.h"
 

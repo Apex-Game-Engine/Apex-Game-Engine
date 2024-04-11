@@ -3,7 +3,7 @@
 
 namespace apex {
 namespace gfx {
-	struct Mesh;
+	struct StaticMesh;
 
 	class MeshManager
 	{
@@ -12,7 +12,7 @@ namespace gfx {
 		~MeshManager();
 
 	private:
-		AxArray<Mesh*> m_meshes;
+		AxArray<StaticMesh*> m_meshes;
 	};
 
 

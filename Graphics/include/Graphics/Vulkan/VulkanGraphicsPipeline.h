@@ -7,7 +7,7 @@ namespace apex {
 namespace vk {
 	struct VulkanShaderStagesDesc;
 
-	struct VulkanPipeline
+	struct VulkanGraphicsPipeline
 	{
 		VkPipeline pipeline{};
 		VkPipelineLayout pipelineLayout{};

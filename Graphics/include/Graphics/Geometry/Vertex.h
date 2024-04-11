@@ -17,6 +17,9 @@ namespace gfx {
 		eVec2,
 		eVec3,
 		eVec4,
+
+		eInvalid,
+		eCOUNT = eInvalid,
 	};
 
 	enum class VertexAttribute
@@ -27,7 +30,9 @@ namespace gfx {
 		eTangent,
 		eJointWeight,
 		eJointIndex,
-		eColor
+		eColor,
+
+		eCOUNT
 	};
 
 	constexpr auto getAttributeType(VertexAttribute attr) -> AttributeType
@@ -42,6 +47,7 @@ namespace gfx {
 		case VertexAttribute::eJointIndex:  return AttributeType::eFloat;
 		case VertexAttribute::eColor:       return AttributeType::eVec4;
 		}
+		axAssertMsg(false, "Invalid vertex attribute type!");
 	}
 
 	constexpr auto getAttributeTypeSize(AttributeType type) -> size_t
@@ -122,7 +128,12 @@ namespace gfx {
 		}
 	};
 
-	struct Vertex_P0_C0 : Vertex<VertexAttribute::ePosition,
+	struct Vertex_P0 : Vertex<VertexAttribute::ePosition>
+	{
+		math::Vector3 position;
+	};
+
+	struct Vertex_P0_C0 : Vertex<VertexAttribute::ePosition, 
 									VertexAttribute::eColor>
 	{
 		math::Vector3 position;
@@ -147,6 +158,20 @@ namespace gfx {
 	static_assert(Vertex_P0_TC0::attrs[0] == VertexAttribute::ePosition);
 	static_assert(Vertex_P0_TC0::attrs[1] == VertexAttribute::eTexCoord);
 	static_assert(Vertex_P0_TC0::size() == sizeof(Vertex_P0_TC0));
+
+	struct Vertex_P0_JI0_C0 : Vertex<VertexAttribute::ePosition, 
+									 VertexAttribute::eJointIndex, 
+									 VertexAttribute::eColor>
+	{
+		math::Vector3 position;
+		float32 jointIndex{};
+		math::Vector4 color;
+	};
+
+	static_assert(Vertex_P0_JI0_C0::attrs[0] == VertexAttribute::ePosition);
+	static_assert(Vertex_P0_JI0_C0::attrs[1] == VertexAttribute::eJointIndex);
+	static_assert(Vertex_P0_JI0_C0::attrs[2] == VertexAttribute::eColor);
+	static_assert(Vertex_P0_JI0_C0::size() == sizeof(Vertex_P0_JI0_C0));
 
 }
 }

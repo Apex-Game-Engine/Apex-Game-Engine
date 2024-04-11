@@ -1,11 +1,11 @@
 #pragma once
 
-#include "Graphics/Vulkan/VulkanPipeline.h"
+#include "Graphics/Vulkan/VulkanGraphicsPipeline.h"
 
 namespace apex {
 namespace vk {
 
-	struct BasicPipeline : public VulkanPipeline
+	struct BasicPipeline : public VulkanGraphicsPipeline
 	{
 		void create(
 			VkDevice device,

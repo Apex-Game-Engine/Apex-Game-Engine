@@ -58,7 +58,7 @@ namespace gfx {
 		vk::BasicPipeline              m_pipeline{}; // TODO: Add more pipelines as required
 
 		VkDescriptorPool               m_descriptorPool{};
-		vk::CameraDescriptorSetLayout  m_cameraDescriptorSetLayout{}; // TODO: Add more descriptor set layouts as required
+		vk::VulkanDescriptorSetLayout  m_cameraDescriptorSetLayout{}; // TODO: Add more descriptor set layouts as required
 
 		VkDescriptorSet                m_descriptorSets[kMaxFramesInFlight]{}; // TODO: Add more as required
 

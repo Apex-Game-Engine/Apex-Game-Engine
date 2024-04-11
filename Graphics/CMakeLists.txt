@@ -55,7 +55,8 @@ target_include_directories(Graphics
     PUBLIC
     include
     ${Vulkan_INCLUDE_DIRS}
-    "../ExternalLibraries/vma"
+    ${APEX_CMAKE_EXTERNAL_LIBS_DIR}/vma
+    $<TARGET_PROPERTY:Engine,INTERFACE_INCLUDE_DIRECTORIES>
 
     PRIVATE
     src
