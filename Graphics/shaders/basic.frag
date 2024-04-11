@@ -16,5 +16,5 @@ void main()
 	vec3 normal = -normalize(cross(dFdx(v_position), dFdy(v_position)));
 	float diffuseFactor = max(dot(fragToLight, normal), 0.0);
 
-	outColor = vec4(vec3(diffuseFactor) + ambientColor, 1);
+	outColor = v_color * vec4(vec3(diffuseFactor) + ambientColor, 1);
 }

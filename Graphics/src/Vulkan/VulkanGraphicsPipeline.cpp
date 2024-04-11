@@ -1,16 +1,16 @@
-﻿#include "Graphics/Vulkan/VulkanPipeline.h"
+﻿#include "Graphics/Vulkan/VulkanGraphicsPipeline.h"
 
 #include "Graphics/Vulkan/VulkanShader.h"
 
 namespace apex::vk {
 	
-	void VulkanPipeline::destroy(VkDevice device, VkAllocationCallbacks const* pAllocator)
+	void VulkanGraphicsPipeline::destroy(VkDevice device, VkAllocationCallbacks const* pAllocator)
 	{
 		vkDestroyPipeline(device, pipeline, pAllocator);
 		vkDestroyPipelineLayout(device, pipelineLayout, pAllocator);
 	}
 
-	void VulkanPipeline::createPipelineLayout(
+	void VulkanGraphicsPipeline::createPipelineLayout(
 		VkDevice device,
 		AxArrayRef<VkDescriptorSetLayout> const& descriptor_set_layouts,
 		AxArrayRef<VkPushConstantRange> const& push_constant_ranges,

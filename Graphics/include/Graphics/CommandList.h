@@ -2,15 +2,23 @@
 #include "Containers/AxArray.h"
 #include "Math/Matrix4x4.h"
 
+namespace apex::vk
+{
+	struct VulkanComputePipeline;
+}
+
+
 namespace apex {
 namespace gfx {
 	struct Mesh;
+	struct StaticMesh;
 
 	struct Command : public AxManagedClass
 	{
 		enum Type
 		{
 			Draw,
+			Compute,
 			State
 		};
 
@@ -26,6 +34,14 @@ namespace gfx {
 		Mesh* pMesh {};
 		math::Matrix4x4 transform;
 		uint32 instanceCount { 1 };
+	};
+
+	struct ComputeCommand : public Command
+	{
+		ComputeCommand() : Command(Type::Compute) { }
+
+		vk::VulkanComputePipeline* pPipeline {};
+
 	};
 
 	struct StateCommand : public Command

@@ -28,8 +28,15 @@ namespace vk {
 		void create(VkDevice device, VulkanShaderStagesDesc const& shader_stages_desc, VkAllocationCallbacks const* pAllocator);
 		void destroy(VkDevice device, VkAllocationCallbacks const* pAllocator);
 		auto getShaderStagesCreateInfos(VkDevice device) -> AxArray<VkPipelineShaderStageCreateInfo>;
+	};
 
-		static auto createShaderModule(VkDevice device, AxArray<char> const& code, VkAllocationCallbacks const* pAllocator) -> VkShaderModule;
+	struct VulkanComputeShader
+	{
+		VkShaderModule computeShader{};
+
+		void create(VkDevice device, const char* computeShaderFile, VkAllocationCallbacks const* pAllocator);
+		void destroy(VkDevice device, VkAllocationCallbacks const* pAllocator);
+		auto getShaderStageCreateInfo() -> VkPipelineShaderStageCreateInfo;
 	};
 
 }

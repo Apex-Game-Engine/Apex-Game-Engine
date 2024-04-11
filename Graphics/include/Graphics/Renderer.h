@@ -18,7 +18,7 @@ namespace gfx {
 	{
 		VkSemaphore     imageAvailableSemaphore{};
 		VkSemaphore     renderFinishedSemaphore{};
-		VkFence         inFlightFence{};
+		VkFence         renderFence{};
 
 		VkCommandPool   commandPool{};
 		VkCommandBuffer commandBuffer{};

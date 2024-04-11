@@ -15,7 +15,7 @@ namespace gfx {
 		{
 			m_vertexInfo = VertexType::template getVertexInfo();
 			m_vertexCount = size;
-			m_data.data = reinterpret_cast<float const*>(vertex_data);
+			m_data.data = reinterpret_cast<float*>(const_cast<VertexType*>(vertex_data));
 			m_data.count = vertex_data[0].size() * size;
 		}
 
@@ -24,7 +24,7 @@ namespace gfx {
 		{
 			m_vertexInfo = VertexType::template getVertexInfo();
 			m_vertexCount = vertex_data.size();
-			m_data.data = reinterpret_cast<float const*>(vertex_data.data());
+			m_data.data = reinterpret_cast<float*>(vertex_data.dataMutable());
 			m_data.count = vertex_data[0].size() * vertex_data.size();
 		}
 
@@ -35,13 +35,16 @@ namespace gfx {
 		size_t vertexSize() const { return m_vertexInfo.stride; }
 		auto vertexInfo() const { return m_vertexInfo; }
 
-		auto data() const { return m_data; }
+		auto data() const -> const float* { return m_data.data; }
+		auto dataMutable() const -> float* { return m_data.data; }
 
 	private:
-		AxArrayRef<const float> m_data;
+		AxArrayRef<float> m_data;
 		VertexInfo m_vertexInfo;
 		size_t m_vertexCount;
 	};
+
+
 
 }
 }

@@ -38,7 +38,7 @@ namespace vk {
 		void createVertexBuffer(
 			VulkanDevice const& device,
 			VkDeviceSize size,
-			VkAllocationCallbacks const* pAllocator);
+			bool mapped, VkAllocationCallbacks const* pAllocator);
 
 		void createIndexBuffer(
 			VulkanDevice const& device,
@@ -49,8 +49,14 @@ namespace vk {
 
 		void loadVertexBufferData(VulkanDevice const& device, gfx::VertexBufferCPU const& cpu_buffer);
 		void loadIndexBufferData(VulkanDevice const& device, gfx::IndexBufferCPU const& cpu_buffer);
+		void* getMappedMemory() const;
+		
+		void map(VulkanDevice const& device, void** ppData) const;
+		void unmap(VulkanDevice const& device) const;
 
 		static void CopyBufferData(VulkanDevice const& device, VulkanBuffer const& dst_buffer, VulkanBuffer const& src_buffer, VkDeviceSize size);
+
+		[[nodiscard]] auto size() const -> size_t;
 	};
 		
 }

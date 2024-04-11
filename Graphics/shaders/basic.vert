@@ -13,11 +13,11 @@ layout (binding = 0) uniform CameraUniforms
 
 layout (binding = 1) uniform ModelUniforms
 {
-	mat4 model[100];
+	mat4 model[110];
 } mbo;
 
 // Push Constants
-layout (push_constant) uniform constants
+layout (push_constant) uniform PushConstants
 {
 	//vec4 Position;
 	//mat4 model;
@@ -25,8 +25,14 @@ layout (push_constant) uniform constants
 } pc;
 
 // Inputs
+//#if VERTEX_TYPE == Vertex_P0_C0
+//layout (location = 0) in vec3 in_position;
+//layout (location = 1) in vec4 in_color;
+//#elif VERTEX_TYPE == Vertex_P0_JI0_C0
 layout (location = 0) in vec3 in_position;
+//layout (location = 1) in float in_jointIndex;
 layout (location = 1) in vec4 in_color;
+//#endif
 
 // Outputs
 layout (location = 0) out vec4 v_color;
