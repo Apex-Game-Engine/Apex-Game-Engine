@@ -56,6 +56,7 @@ function(target_vulkan_shaders Target)
             DEPENDS ${source}
             COMMAND
                 ${GLSLC}
+                --target-env=vulkan1.3
                 -o ${output_path}
                 ${source}
             COMMENT "Compiling shader file : ${source}"
