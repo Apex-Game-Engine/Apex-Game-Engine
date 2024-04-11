@@ -44,16 +44,4 @@ namespace apex::memory {
 	{
 		m_offset = 0;
 	}
-
-	size_t StackAllocator::getTotalCapacity() const
-	{
-		// TODO
-		return 0;
-	}
-
-	size_t StackAllocator::getCurrentUsage() const
-	{
-		// TODO
-		return 0;
-	}
 }

@@ -4,9 +4,17 @@
 namespace apex {
 namespace memory {
 
-	class StackAllocator : public IMemoryTracker
+	class StackAllocator
+#ifdef APEX_ENABLE_MEMORY_TRACKING
+	: public IMemoryTracker
 	{
 	public:
+		[[nodiscard]] size_t getTotalCapacity() const override { return m_capacity; }
+		[[nodiscard]] size_t getCurrentUsage() const override { return m_offset; }
+#else
+	{
+	public:
+#endif
 		StackAllocator(void* p_begin, size_t size);
 		~StackAllocator() = default;
 
@@ -16,10 +24,6 @@ namespace memory {
 		void free(void *p_ptr);
 		void reset();
 
-#ifdef APEX_ENABLE_MEMORY_TRACKING
-		[[nodiscard]] size_t getTotalCapacity() const override;
-		[[nodiscard]] size_t getCurrentUsage() const override;
-#endif
 
 	private:
 		void *m_pBase { nullptr };
