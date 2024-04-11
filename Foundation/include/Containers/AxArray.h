@@ -437,4 +437,27 @@ namespace apex {
 		}
 	};
 
+	template <typename T>
+	auto make_array_ref(T* data, size_t count) -> AxArrayRef<T>
+	{
+		return { data, count };
+	}
+
+	template <typename T, size_t Size>
+	auto make_array_ref(T const(&arr)[Size]) -> AxArrayRef<const T>
+	{
+		AxArrayRef<const T> ref;
+		ref.data = arr;
+		ref.count = Size;
+		return ref;
+	}
+
+	template <typename T, size_t Size>
+	auto make_array_ref(T (&arr)[Size]) -> AxArrayRef<T>
+	{
+		AxArrayRef<T> ref;
+		ref.data = arr;
+		ref.count = Size;
+		return ref;
+	}
 }

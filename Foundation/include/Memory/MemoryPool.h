@@ -43,6 +43,7 @@ namespace memory {
 			{ 8_MiB,  64 },    // 8 MiB   x  64   = 512 MiB
 			{ 16_MiB, 32 },    // 16 MiB  x  32   = 512 MiB
 			{ 32_MiB, 32 },    // 32 MiB  x  32   = 1024 MiB
+			{ 128_MiB, 2 }	  // 128 MiB x  2    = 256 MiB
 		};
 
 }

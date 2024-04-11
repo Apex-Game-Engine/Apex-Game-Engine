@@ -14,6 +14,27 @@ namespace math {
 	float32 radians(float32 degrees);
 	float32 degrees(float32 radians);
 
+	template <typename T> requires std::is_integral_v<T>
+	constexpr bool is_pow_2(T val)
+	{
+		return val != 0 && (val & (val - 1)) == 0;
+	}
+
+	template <typename T> requires std::is_arithmetic_v<T>
+	T ceil(T val, T radix)
+	{
+		if constexpr (std::is_floating_point_v<T>)
+			return std::ceil(val / radix);
+		else // if constexpr (std::is_integral_v<T>)
+			return (val + radix - 1) / radix;
+	}
+
+	template <typename T> requires std::is_integral_v<T>
+	T round_to(T val, T radix)
+	{
+		//static_assert(math::is_pow_2(radix), "Radix must be a power of 2");
+		return (val + radix - 1) & ~(radix - 1);
+	}
 }
 }
 
