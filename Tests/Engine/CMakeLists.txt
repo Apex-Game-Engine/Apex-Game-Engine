@@ -22,7 +22,5 @@ add_custom_command(TARGET Engine_test
     COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE_DIR:Engine>/Engine.dll $<TARGET_FILE_DIR:Engine_test>/Engine.dll
 )
 
-set_target_properties(Engine_test PROPERTIES FOLDER "Tests")
-
 include(GoogleTest)
 gtest_discover_tests(Engine_test)

@@ -12,7 +12,6 @@ else()
         GIT_REPOSITORY https://github.com/google/googletest.git
         GIT_TAG        03597a01ee50ed33e9dfd640b249b4be3799d395
     )
-
 endif()
 
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
@@ -29,3 +28,8 @@ set(test_common_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/Common")
 add_subdirectory(Foundation)
 add_subdirectory(Engine)
 add_subdirectory(Startup)
+
+# Set the tests to be in the "Tests" folder in Visual Studio
+set_target_properties(Foundation_test PROPERTIES FOLDER "Tests")
+set_target_properties(Engine_test PROPERTIES FOLDER "Tests")
+set_target_properties(Startup_test PROPERTIES FOLDER "Tests")
