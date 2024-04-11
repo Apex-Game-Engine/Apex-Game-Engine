@@ -1,4 +1,5 @@
 ﻿#pragma once
+#include "Api.h"
 #include "Containers/AxArray.h"
 #include "Containers/AxRange.h"
 

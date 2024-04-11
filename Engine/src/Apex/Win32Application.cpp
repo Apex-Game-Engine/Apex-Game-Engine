@@ -1,6 +1,6 @@
 ﻿#include "apex_pch.h"
 #include "Apex/Win32Application.h"
-#include "Graphics/Window/Win32Window.h"
+#include "Apex/Win32Window.h"
 
 #include <cassert>
 

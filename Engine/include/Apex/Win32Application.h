@@ -7,7 +7,7 @@
 #include "Memory/UniquePtr.h"
 
 #ifdef APEX_PLATFORM_WIN32
-#include "Graphics/Window/Win32Window.h"
+#include "Apex/Win32Window.h"
 
 namespace apex {
 

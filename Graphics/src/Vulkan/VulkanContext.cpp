@@ -9,7 +9,7 @@
 #include "Graphics/Vulkan/VulkanConfig.h"
 #include "Graphics/Vulkan/VulkanDebugMessenger.h"
 #include "Graphics/Vulkan/VulkanUtility.h"
-#include "Graphics/Window/Window.h"
+#include <Apex/Window.h>
 
 namespace apex::vk {
 

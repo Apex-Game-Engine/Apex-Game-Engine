@@ -18,26 +18,30 @@
 		apex::logging::Logger::initialize();
 		apex::memory::MemoryManager::initialize({ .frameArenaSize = 0, .numFramesInFlight = 3 });
 
-		apex::CommandLineArguments cmdline({
-			{ .shortName = "h", .longName = "headless" },
-			{ .shortName = "l", .longName = "load", .hasValue = true }
-		});
-		cmdline.parse(pCmdLine);
+		{
+			apex::CommandLineArguments cmdline({
+				{ .shortName = "h", .longName = "headless" },
+				{ .shortName = "l", .longName = "load", .hasValue = true }
+			});
+			cmdline.parse(pCmdLine);
 
-		apex::Application *app = apex::Application::Construct(1366u, 768u, APEX_DEFAULT_APPNAME, apex::Game::Construct());
+			apex::Application *app = apex::Application::Construct(1366u, 768u, APEX_DEFAULT_APPNAME, apex::Game::Construct());
 
-	#if defined(APEX_CONFIG_DEBUG) || defined(APEX_CONFIG_DEVELOPMENT)
-		apex::Console console(APEX_DEFAULT_APPNAME);
-		console.connect();
-	#endif
+			OutputDebugStringA("--- WinMain :: Application constructed");
 
-		app->getWindow()->show(nCmdShow);
-		app->initialize();
-		app->run();
+		#if defined(APEX_CONFIG_DEBUG) || defined(APEX_CONFIG_DEVELOPMENT)
+			apex::Console console(APEX_DEFAULT_APPNAME);
+			console.connect();
+		#endif
 
-		app->shutdown();
+			app->getWindow()->show(nCmdShow);
+			app->initialize();
+			app->run();
 
-		cmdline = {};
+			app->shutdown();
+
+			cmdline = {};
+		}
 		apex::memory::MemoryManager::shutdown();
 
 	#if defined(APEX_CONFIG_DEBUG) || defined(APEX_CONFIG_DEVELOPMENT)
