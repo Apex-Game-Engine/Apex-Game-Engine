@@ -1,0 +1,129 @@
+#version 460
+//#extension GL_KHR_vulkan_glsl : enable
+#extension GL_EXT_shader_atomic_float : enable
+
+struct ClothVertex
+{
+	vec4 position;
+	vec4 color;
+};
+
+struct Spring
+{
+	uint p1;
+	uint p2;
+	float restLength;
+	// float stiffness;
+};
+
+layout (local_size_x = 16, local_size_y = 16) in;
+
+layout (binding = 0) buffer ClothVertices
+{
+	ClothVertex vertices[];
+};
+
+layout (binding = 1) buffer Springs
+{
+	Spring springs[];
+};
+
+layout (binding = 2) buffer Velocities
+{
+	vec4 velocities[];
+};
+
+layout (binding = 3) buffer Accelerations
+{
+	vec4 accelerations[];
+};
+
+layout (push_constant) uniform PushConstants
+{
+	uvec2 dim;
+	uint  numSprings;
+	float time;
+	float deltaTime;
+	float kElastic;
+	float kDamping;
+} pc;
+
+void euler(in float dt);
+void rk4(in float dt);
+void applyForce(in float dt);
+vec3 computeSpringForce(in Spring s, in vec3 rel_v);
+vec3 heatmapColor(in float level);
+
+uvec3 GlobalDim;
+uint GlobalInvocationIndex;
+
+void main()
+{
+	uint x = gl_GlobalInvocationID.x;
+	uint y = gl_GlobalInvocationID.y;
+	GlobalDim = gl_NumWorkGroups * gl_WorkGroupSize;
+	GlobalInvocationIndex = (gl_GlobalInvocationID.z * GlobalDim.y * GlobalDim.x) + (gl_GlobalInvocationID.y * GlobalDim.x) + gl_GlobalInvocationID.x;
+	
+	uint springIndex = GlobalInvocationIndex;
+	uint vertexIndex = GlobalInvocationIndex;
+
+	if (springIndex < pc.numSprings)
+	{
+		float dt = 0.0005;
+		//euler(dt);
+		rk4(dt);
+	}
+}
+
+void euler(in float dt)
+{
+	uint springIndex = GlobalInvocationIndex;
+
+	Spring s = springs[springIndex];
+	vec3 rel_v = velocities[s.p2].xyz - velocities[s.p1].xyz;
+	
+	vec3 f = computeSpringForce(s, rel_v);
+	//vec3 f = vec3(0, 0, 0);
+	
+	atomicAdd(accelerations[s.p1].x, f.x);
+	atomicAdd(accelerations[s.p1].y, f.y);
+	atomicAdd(accelerations[s.p1].z, f.z);
+
+	atomicAdd(accelerations[s.p2].x, -f.x);
+	atomicAdd(accelerations[s.p2].y, -f.y);
+	atomicAdd(accelerations[s.p2].z, -f.z);
+}
+
+void rk4(in float dt)
+{
+	uint springIndex = GlobalInvocationIndex;
+
+	Spring s = springs[springIndex];
+	vec3 rel_v = velocities[s.p2].xyz - velocities[s.p1].xyz;
+	
+	vec3 k1 = computeSpringForce(s, rel_v);
+	vec3 k2 = computeSpringForce(s, rel_v + 0.5 * dt * k1);
+	vec3 k3 = computeSpringForce(s, rel_v + 0.5 * dt * k2);
+	vec3 k4 = computeSpringForce(s, rel_v + dt * k3);
+
+	vec3 f = (k1 + 2.0 * k2 + 2.0 * k3 + k4) / 6.0;
+
+	atomicAdd(accelerations[s.p1].x, f.x);
+	atomicAdd(accelerations[s.p1].y, f.y);
+	atomicAdd(accelerations[s.p1].z, f.z);
+
+	atomicAdd(accelerations[s.p2].x, -f.x);
+	atomicAdd(accelerations[s.p2].y, -f.y);
+	atomicAdd(accelerations[s.p2].z, -f.z);
+}
+
+vec3 computeSpringForce(in Spring s, in vec3 rel_v)
+{
+	vec3 ab = vertices[s.p2].position.xyz - vertices[s.p1].position.xyz;
+	float len = length(ab);
+	float diff = len - s.restLength;
+	ab /= len;
+
+	vec3 f = ((ab) * diff * pc.kElastic) + (ab * (dot(rel_v, ab) * pc.kDamping));
+	return f;
+}

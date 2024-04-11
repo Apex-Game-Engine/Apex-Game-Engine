@@ -1,0 +1,108 @@
+#version 460
+//#extension GL_KHR_vulkan_glsl : enable
+#extension GL_EXT_shader_atomic_float : enable
+
+struct ClothVertex
+{
+	vec4 position;
+	vec4 color;
+};
+
+struct Spring
+{
+	uint p1;
+	uint p2;
+	float restLength;
+	// float stiffness;
+};
+
+layout (local_size_x = 16, local_size_y = 16) in;
+
+layout (binding = 0) buffer ClothVertices
+{
+	ClothVertex vertices[];
+};
+
+layout (binding = 1) buffer Springs
+{
+	Spring springs[];
+};
+
+layout (binding = 2) buffer Velocities
+{
+	vec4 velocities[];
+};
+
+layout (binding = 3) buffer Accelerations
+{
+	vec4 accelerations[];
+};
+
+layout (push_constant) uniform PushConstants
+{
+	uvec2 dim;
+	uint  numSprings;
+	float time;
+	float deltaTime;
+	float kElastic;
+	float kDamping;
+} pc;
+
+void euler(in float dt);
+void rk4(in float dt);
+void applyForce(in float dt);
+vec3 computeSpringForce(in Spring s, in vec3 rel_v);
+vec3 heatmapColor(in float level);
+
+uvec3 GlobalDim;
+uint GlobalInvocationIndex;
+
+void main()
+{
+	uint x = gl_GlobalInvocationID.x;
+	uint y = gl_GlobalInvocationID.y;
+	GlobalDim = gl_NumWorkGroups * gl_WorkGroupSize;
+	GlobalInvocationIndex = (gl_GlobalInvocationID.z * GlobalDim.y * GlobalDim.x) + (gl_GlobalInvocationID.y * GlobalDim.x) + gl_GlobalInvocationID.x;
+	
+	uint springIndex = GlobalInvocationIndex;
+	uint vertexIndex = GlobalInvocationIndex;
+
+	float dt = 0.0005;
+
+	applyForce(dt);
+}
+
+void applyForce(in float dt)
+{
+	uint vertexIndex = GlobalInvocationIndex;
+	if (vertexIndex >= pc.dim.x * pc.dim.y)
+	{
+		return;
+	}
+	else if (vertexIndex < pc.dim.x)
+	{
+		return;
+	}
+	
+	vec3 p = vertices[vertexIndex].position.xyz;
+	vec3 v = velocities[vertexIndex].xyz;
+	vec3 a = accelerations[vertexIndex].xyz;
+		
+	v += a * dt;// - 0.00005 * v;
+	p += v * dt;
+
+	vertices[vertexIndex].position.xyz = p;
+	velocities[vertexIndex].xyz = v;
+
+	//vertices[vertexIndex].color.xyz = heatmapColor(length(v) * 0.1);
+}
+
+vec3 heatmapColor(in float level)
+{
+	vec3 col;
+    col.r = sin(level);
+    col.g = sin(level*2.);
+    col.b = cos(level);
+
+	return col;
+}
