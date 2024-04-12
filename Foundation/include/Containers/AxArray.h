@@ -88,6 +88,8 @@ namespace apex {
 		, m_data(std::move(other.m_data))
 		{
 			other.m_data = nullptr;
+			other.m_capacity = 0;
+			other.m_size = 0;
 		}
 
 		AxArray(std::initializer_list<value_type> init_list)
@@ -111,6 +113,8 @@ namespace apex {
 			m_data = std::move(other.m_data);
 
 			other.m_data = nullptr;
+			other.m_capacity = 0;
+			other.m_size = 0;
 
 			return *this;
 		}
@@ -435,12 +439,26 @@ namespace apex {
 		{
 			return const_cast<AxArrayRef* const>(this)->operator[](index);
 		}
+
+		[[nodiscard]] auto size() const -> size_t { return count; }
+
+		[[nodiscard]] auto begin() -> T* { return data; }
+		[[nodiscard]] auto end() -> T* { return data + count; }
+
+		[[nodiscard]] auto begin() const -> T const* { return data; }
+		[[nodiscard]] auto end() const -> T const* { return data + count; }
+
+		[[nodiscard]] auto cbegin() const -> T const* { return data; }
+		[[nodiscard]] auto cend() const -> T const* { return data + count; }
 	};
 
 	template <typename T>
 	auto make_array_ref(T* data, size_t count) -> AxArrayRef<T>
 	{
-		return { data, count };
+		AxArrayRef<T> ref;
+		ref.data = data;
+		ref.count = count;
+		return ref;
 	}
 
 	template <typename T, size_t Size>
@@ -460,4 +478,48 @@ namespace apex {
 		ref.count = Size;
 		return ref;
 	}
+
+
+	/**
+	 * \brief Fixed size array
+	 * \tparam T type of elements stored in the array
+	 * \tparam Size number of elements in the array
+	 */
+	template <typename T, size_t Size>
+	struct AxStaticArray
+	{
+		T data[Size];
+
+		[[nodiscard]] auto operator[](size_t index) -> T&
+		{
+			axAssert(index < Size);
+			return data[index];
+		}
+
+		[[nodiscard]] auto operator[](size_t index) const -> T const&
+		{
+			return const_cast<AxStaticArray* const>(this)->operator[](index);
+		}
+
+		[[nodiscard]] auto size() const -> size_t { return Size; }
+
+		[[nodiscard]] auto begin() -> T* { return data; }
+		[[nodiscard]] auto end() -> T* { return data + Size; }
+
+		[[nodiscard]] auto begin() const -> T const* { return data; }
+		[[nodiscard]] auto end() const -> T const* { return data + Size; }
+
+		[[nodiscard]] auto cbegin() const -> T const* { return data; }
+		[[nodiscard]] auto cend() const -> T const* { return data + Size; }
+
+		[[nodiscard]] auto getRef() -> AxArrayRef<T>
+		{
+			return make_array_ref(data, Size);
+		}
+
+		[[nodiscard]] auto getRef() const -> AxArrayRef<const T>
+		{
+			return make_array_ref(data, Size);
+		}
+	};
 }

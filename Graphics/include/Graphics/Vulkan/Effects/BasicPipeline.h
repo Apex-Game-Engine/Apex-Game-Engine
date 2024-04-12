@@ -9,6 +9,7 @@ namespace vk {
 	{
 		void create(
 			VkDevice device,
+			gfx::VertexDescription const& vertex_description,
 			VulkanShaderStagesDesc const& shader_stages_desc,
 			AxArrayRef<VkDescriptorSetLayout> const& descriptor_set_layouts,
 			AxArrayRef<VkPushConstantRange> const& push_constant_ranges,

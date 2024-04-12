@@ -78,6 +78,12 @@ namespace gfx {
 		size_t                 stride;
 	};
 
+	struct VertexDescription
+	{
+		VkVertexInputBindingDescription            bindingDescription;
+		AxArray<VkVertexInputAttributeDescription> attributeDescriptions;
+	};
+
 	template <VertexAttribute... Attrs>
 	struct Vertex : public apex::AxManagedClass
 	{
@@ -100,12 +106,14 @@ namespace gfx {
 			};
 		}
 
-		static constexpr auto getAttributeDescriptions()
+		static constexpr auto getAttributeDescriptions() -> AxArray<VkVertexInputAttributeDescription>
 		{
-			std::array<VkVertexInputAttributeDescription, sizeof...(Attrs)> attributeDescriptions{};
+			constexpr size_t numAttributes = sizeof...(Attrs);
+			AxArray<VkVertexInputAttributeDescription> attributeDescriptions(numAttributes);
+			attributeDescriptions.resize(numAttributes);
 
 			uint32 offset = 0;
-			for (size_t i = 0; i < sizeof...(Attrs); i++)
+			for (size_t i = 0; i < numAttributes; i++)
 			{
 				attributeDescriptions[i] = VkVertexInputAttributeDescription {
 					.location = static_cast<uint32>(i),
@@ -124,6 +132,14 @@ namespace gfx {
 			return VertexInfo {
 				.attributes = { attrs.data(), attrs.size() },
 				.stride = size()
+			};
+		}
+
+		static constexpr auto getVertexDescription() -> VertexDescription
+		{
+			return VertexDescription {
+				.bindingDescription = getBindingDescription(),
+				.attributeDescriptions = std::move(getAttributeDescriptions())
 			};
 		}
 	};

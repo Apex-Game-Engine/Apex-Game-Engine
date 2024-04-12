@@ -25,14 +25,14 @@ layout (push_constant) uniform PushConstants
 } pc;
 
 // Inputs
-//#if VERTEX_TYPE == Vertex_P0_C0
-//layout (location = 0) in vec3 in_position;
-//layout (location = 1) in vec4 in_color;
-//#elif VERTEX_TYPE == Vertex_P0_JI0_C0
+#if 1
+layout (location = 0) in vec3 in_position;
+layout (location = 1) in vec4 in_color;
+#else
 layout (location = 0) in vec3 in_position;
 layout (location = 1) in float in_jointIndex;
 layout (location = 2) in vec4 in_color;
-//#endif
+#endif
 
 // Outputs
 layout (location = 0) out vec4 v_color;

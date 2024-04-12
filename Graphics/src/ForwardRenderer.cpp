@@ -50,8 +50,9 @@ namespace apex::gfx {
 		};
 		m_pipeline.create(
 			m_context->m_device.logicalDevice,
+			gfx::Vertex_P0_C0::getVertexDescription(),
 			shaderStagesDesc,
-		    { .data = descriptorSetLayouts, .count = std::size(descriptorSetLayouts) },
+			{ .data = descriptorSetLayouts, .count = std::size(descriptorSetLayouts) },
 			{ .data = pushConstantRanges, .count = std::size(pushConstantRanges) },
 			m_context->m_swapchain.extent,
 			m_renderPass.renderPass,

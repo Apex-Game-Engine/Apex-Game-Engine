@@ -6,6 +6,7 @@ namespace apex::vk {
 
 	void BasicPipeline::create(
 		VkDevice device,
+		gfx::VertexDescription const& vertex_description,
 		VulkanShaderStagesDesc const& shader_stages_desc,
 		AxArrayRef<VkDescriptorSetLayout> const& descriptor_set_layouts,
 		AxArrayRef<VkPushConstantRange> const& push_constant_ranges,
@@ -31,18 +32,13 @@ namespace apex::vk {
 		};
 
 		// Set vertex input definition
-		#if 0
-		auto bindingDescrption = gfx::Vertex_P0_C0::getBindingDescription();
-		auto attributeDescriptions = gfx::Vertex_P0_C0::getAttributeDescriptions();
-		#else
-		auto bindingDescrption = gfx::Vertex_P0_JI0_C0::getBindingDescription();
-		auto attributeDescriptions = gfx::Vertex_P0_JI0_C0::getAttributeDescriptions();
-		#endif
+		auto& bindingDescription = vertex_description.bindingDescription;
+		auto& attributeDescriptions = vertex_description.attributeDescriptions;
 
 		VkPipelineVertexInputStateCreateInfo vertexInputStateCreateInfo {
 			.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
 			.vertexBindingDescriptionCount = 1,
-			.pVertexBindingDescriptions = &bindingDescrption,
+			.pVertexBindingDescriptions = &bindingDescription,
 			.vertexAttributeDescriptionCount = static_cast<uint32>(attributeDescriptions.size()),
 			.pVertexAttributeDescriptions = attributeDescriptions.data()
 		};
