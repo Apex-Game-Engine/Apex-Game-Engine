@@ -30,8 +30,8 @@ layout (push_constant) uniform PushConstants
 //layout (location = 1) in vec4 in_color;
 //#elif VERTEX_TYPE == Vertex_P0_JI0_C0
 layout (location = 0) in vec3 in_position;
-//layout (location = 1) in float in_jointIndex;
-layout (location = 1) in vec4 in_color;
+layout (location = 1) in float in_jointIndex;
+layout (location = 2) in vec4 in_color;
 //#endif
 
 // Outputs

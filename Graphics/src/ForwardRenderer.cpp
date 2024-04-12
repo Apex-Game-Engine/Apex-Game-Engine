@@ -16,11 +16,14 @@ namespace apex::gfx {
 	{
 		m_context = &context;
 
+		// Create depth buffer
+		createDepthBuffer();
+
 		// Create render pass
-		m_renderPass.create(m_context->m_device.logicalDevice, m_context->m_swapchain.surfaceFormat.format, VULKAN_NULL_ALLOCATOR);
+		m_renderPass.create(m_context->m_device.logicalDevice, m_context->m_swapchain.surfaceFormat.format, &m_depthImage, VULKAN_NULL_ALLOCATOR);
 
 		// Create swapchain framebuffers
-		m_context->m_swapchain.createFramebuffers(m_context->m_device.logicalDevice, m_renderPass.renderPass, VULKAN_NULL_ALLOCATOR);
+		m_context->m_swapchain.createFramebuffers(m_context->m_device.logicalDevice, m_renderPass.renderPass, &m_depthImageView, VULKAN_NULL_ALLOCATOR);
 
 		// Create descriptor set layouts
 		{
@@ -89,6 +92,9 @@ namespace apex::gfx {
 		m_pipeline.destroy(m_context->m_device.logicalDevice, VULKAN_NULL_ALLOCATOR);
 
 		m_renderPass.destroy(m_context->m_device.logicalDevice, VULKAN_NULL_ALLOCATOR);
+
+		vkDestroyImageView(m_context->m_device.logicalDevice, m_depthImageView, VULKAN_NULL_ALLOCATOR);
+		m_depthImage.destroy(m_context->m_device, VULKAN_NULL_ALLOCATOR);
 	}
 
 	void ForwardRenderer::onUpdate(Timestep dt)
@@ -125,7 +131,7 @@ namespace apex::gfx {
 	void ForwardRenderer::resizeFramebuffers()
 	{
 		// Recreate swapchain framebuffers
-		m_context->m_swapchain.createFramebuffers(m_context->m_device.logicalDevice, m_renderPass.renderPass, VULKAN_NULL_ALLOCATOR);
+		m_context->m_swapchain.createFramebuffers(m_context->m_device.logicalDevice, m_renderPass.renderPass, &m_depthImageView, VULKAN_NULL_ALLOCATOR);
 	}
 
 	void ForwardRenderer::prepareGeometry(vk::VulkanDevice const& device, VkAllocationCallbacks const* pAllocator)
@@ -136,6 +142,45 @@ namespace apex::gfx {
 
 		// Create mesh in GPU memory
 		//m_mesh.create(device, &meshCpu, pAllocator);
+	}
+
+	void ForwardRenderer::createDepthBuffer()
+	{
+		vk::VulkanImageBuilder depthImageBuilder;
+		m_depthImage = depthImageBuilder
+			.setExtent(m_context->m_swapchain.extent.width, m_context->m_swapchain.extent.height, 1)
+			.setImageType(VK_IMAGE_TYPE_2D)
+			.setFormat(VK_FORMAT_D32_SFLOAT)
+			.setUsage(VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT)
+			.setTiling(VK_IMAGE_TILING_OPTIMAL)
+			.setInitialLayout(VK_IMAGE_LAYOUT_UNDEFINED)
+			.setMemoryUsage(VMA_MEMORY_USAGE_GPU_ONLY)
+			.setAllocationRequiredFlags(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
+			.build(m_context->m_device, VULKAN_NULL_ALLOCATOR);
+
+		VkImageViewCreateInfo depthImageViewCreateInfo {
+			.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+			.image = m_depthImage.image,
+			.viewType = VK_IMAGE_VIEW_TYPE_2D,
+			.format = m_depthImage.format,
+			.components = {
+				.r = VK_COMPONENT_SWIZZLE_IDENTITY,
+				.g = VK_COMPONENT_SWIZZLE_IDENTITY,
+				.b = VK_COMPONENT_SWIZZLE_IDENTITY,
+				.a = VK_COMPONENT_SWIZZLE_IDENTITY
+			},
+			.subresourceRange = {
+				.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT,
+				.baseMipLevel = 0,
+				.levelCount = 1,
+				.baseArrayLayer = 0,
+				.layerCount = 1
+			}
+		};
+
+		axVerifyMsg(VK_SUCCESS == vkCreateImageView(m_context->m_device.logicalDevice, &depthImageViewCreateInfo, VULKAN_NULL_ALLOCATOR, &m_depthImageView),
+			"Failed to create depth image view!"
+		);
 	}
 
 	void ForwardRenderer::createUniformBuffers(vk::VulkanDevice const& device, VkAllocationCallbacks const* pAllocator)
@@ -269,7 +314,7 @@ namespace apex::gfx {
 				.offset = { 0, 0 },
 				.extent = m_context->m_swapchain.extent
 			},
-			.clearValueCount = 1,
+			.clearValueCount = 2,
 			.pClearValues = &m_clearColor
 		};
 

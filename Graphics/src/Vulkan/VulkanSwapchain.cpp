@@ -97,17 +97,23 @@ namespace apex::vk {
 		}
 	}
 
-	void VulkanSwapchain::createFramebuffers(VkDevice device, VkRenderPass render_pass, VkAllocationCallbacks const* pAllocator)
+	void VulkanSwapchain::createFramebuffers(VkDevice device, VkRenderPass render_pass, VkImageView * depth_image_view, VkAllocationCallbacks const* pAllocator)
 	{
 		framebuffers.resize(imageViews.size());
 
 		for (size_t i = 0; i < imageViews.size(); i++)
 		{
+			AxArray<VkImageView> attachments;
+			attachments.reserve(2);
+			attachments.append(imageViews[i]);
+			if (depth_image_view)
+				attachments.append(*depth_image_view);
+
 			VkFramebufferCreateInfo createInfo {
 				.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
 				.renderPass = render_pass,
-				.attachmentCount = 1,
-				.pAttachments = &imageViews[i],
+				.attachmentCount = static_cast<uint32>(attachments.size()),
+				.pAttachments = attachments.data(),
 				.width = extent.width,
 				.height = extent.height,
 				.layers = 1

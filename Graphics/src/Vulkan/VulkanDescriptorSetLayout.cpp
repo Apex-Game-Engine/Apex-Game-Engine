@@ -11,12 +11,14 @@ namespace apex::vk {
 	}
 
 	VulkanDescriptorSetLayoutBuilder::VulkanDescriptorSetLayoutBuilder()
+		: m_createInfo {
+			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+			.pNext = nullptr,
+			.flags = 0,
+			.bindingCount = 0,
+			.pBindings = nullptr
+		}
 	{
-		m_createInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-		m_createInfo.pNext = nullptr;
-		m_createInfo.flags = 0;
-		m_createInfo.bindingCount = 0;
-		m_createInfo.pBindings = nullptr;
 	}
 
 	VulkanDescriptorSetLayoutBuilder& VulkanDescriptorSetLayoutBuilder::setBindingCount(uint32_t bindingCount)

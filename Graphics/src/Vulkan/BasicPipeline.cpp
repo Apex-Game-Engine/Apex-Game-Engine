@@ -31,10 +31,13 @@ namespace apex::vk {
 		};
 
 		// Set vertex input definition
+		#if 0
 		auto bindingDescrption = gfx::Vertex_P0_C0::getBindingDescription();
 		auto attributeDescriptions = gfx::Vertex_P0_C0::getAttributeDescriptions();
-		//auto bindingDescrption = gfx::Vertex_P0_JI0_C0::getBindingDescription();
-		//auto attributeDescriptions = gfx::Vertex_P0_JI0_C0::getAttributeDescriptions();
+		#else
+		auto bindingDescrption = gfx::Vertex_P0_JI0_C0::getBindingDescription();
+		auto attributeDescriptions = gfx::Vertex_P0_JI0_C0::getAttributeDescriptions();
+		#endif
 
 		VkPipelineVertexInputStateCreateInfo vertexInputStateCreateInfo {
 			.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
@@ -103,6 +106,16 @@ namespace apex::vk {
 		};
 
 		// Set depth and stencil testing state
+		VkPipelineDepthStencilStateCreateInfo depthStencilStateCreateInfo {
+			.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
+			.depthTestEnable = VK_TRUE,
+			.depthWriteEnable = VK_TRUE,
+			.depthCompareOp = VK_COMPARE_OP_LESS,
+			.depthBoundsTestEnable = VK_FALSE,
+			.stencilTestEnable = VK_FALSE,
+			.minDepthBounds = 0.0f,
+			.maxDepthBounds = 1.0f
+		};
 
 		// Create color blending state for framebuffer attachment
 		VkPipelineColorBlendAttachmentState colorBlendAttachment {
@@ -140,7 +153,7 @@ namespace apex::vk {
 			.pViewportState = &viewportStateCreateInfo,
 			.pRasterizationState = &rasterizationStateCreateInfo,
 			.pMultisampleState = &multisampleStateCreateInfo,
-			.pDepthStencilState = nullptr,
+			.pDepthStencilState = &depthStencilStateCreateInfo,
 			.pColorBlendState = &colorBlendStateCreateInfo,
 			.pDynamicState = &dynamicStateCreateInfo,
 			.layout = pipelineLayout,

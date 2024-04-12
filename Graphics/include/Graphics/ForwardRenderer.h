@@ -7,6 +7,7 @@
 #include "Geometry/Mesh.h"
 #include "Vulkan/VulkanContext.h"
 #include "Vulkan/VulkanBuffer.h"
+#include "Vulkan/VulkanImage.h"
 #include "Vulkan/Effects/BasicPipeline.h"
 #include "Vulkan/Effects/BasicRenderPass.h"
 #include "Vulkan/Effects/CameraDescriptorSetLayout.h"
@@ -41,6 +42,7 @@ namespace gfx {
 	protected:
 		void resizeFramebuffers();
 		void prepareGeometry(vk::VulkanDevice const& device, VkAllocationCallbacks const* pAllocator);
+		void createDepthBuffer();
 		void createUniformBuffers(vk::VulkanDevice const& device, VkAllocationCallbacks const* pAllocator);
 		void createDescriptorPool(vk::VulkanDevice const& device, VkAllocationCallbacks const* pAllocator);
 		void createDescriptorSets(vk::VulkanDevice const& device);
@@ -65,9 +67,13 @@ namespace gfx {
 		vk::VulkanBuffer               m_uniformBuffers[kMaxFramesInFlight]{};
 		void*                          m_uniformBuffersMapped[kMaxFramesInFlight]{};
 
+		vk::VulkanImage                m_depthImage{};
+		VkImageView                    m_depthImageView{};
+
 		uint32                         m_currentFrame = 0;
 
-		VkClearValue                   m_clearColor{{ 0.f, 0.f, 0.f, 1.f }};
+		VkClearValue                   m_clearColor{ .color = { 0.f, 0.f, 0.f, 1.f }};
+		VkClearValue                   m_clearDepth{ .depthStencil = { 1.f, 0 }};
 
 		bool                           m_isFramebufferResized = false;
 

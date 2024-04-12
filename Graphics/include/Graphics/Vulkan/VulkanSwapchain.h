@@ -29,7 +29,7 @@ namespace vk {
 			VulkanQueueFamilyIndices const& queue_indices,
 			VkAllocationCallbacks const* pAllocator);
 		void createImageViews(VkDevice device, VkAllocationCallbacks const* pAllocator);
-		void createFramebuffers(VkDevice device, VkRenderPass render_pass, VkAllocationCallbacks const* pAllocator);
+		void createFramebuffers(VkDevice device, VkRenderPass render_pass, VkImageView* depth_image_view, VkAllocationCallbacks const* pAllocator);
 		void destroy(VkDevice device, VkAllocationCallbacks const* pAllocator);
 
 	protected:
