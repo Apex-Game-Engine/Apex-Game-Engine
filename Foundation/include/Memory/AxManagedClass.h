@@ -117,7 +117,7 @@ namespace apex {
 	}
 
 	template <typename T>
-	concept managed_class = std::is_base_of_v<AxManagedClass, T>;
+	concept managed_class = std::derived_from<T, AxManagedClass>;
 
 	template <typename T>
 	struct is_managed_adapted_class : std::false_type {};

@@ -5,7 +5,20 @@
 
 namespace apex {
 namespace concurrency {
-	
+
+	template <typename T>
+    concept lockable = requires(T t)
+    {
+	    { t.lock() } -> std::same_as<void>;
+		{ t.unlock() } -> std::same_as<void>;
+	};
+
+	template <typename T>
+	concept try_lockable = lockable && requires(T t)
+	{
+		{ t.try_lock() } -> std::same_as<bool>;
+	};
+
 	namespace detail
 	{
 		template <typename Lock0_t, typename Lock1_t>
@@ -173,6 +186,7 @@ namespace concurrency {
 	//};
 
 }
+	namespace cncy = concurrency;
 }
 
 #define ReaderOnlyLock_withlineno(var, lineno) apex::concurrency::ReaderWriterLock32 underlyingRWLock ## lineno; \

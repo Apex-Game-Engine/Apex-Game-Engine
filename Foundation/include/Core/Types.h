@@ -161,11 +161,53 @@ namespace apex {
 		return fabsf(v) < constants::float32_EPSILON;
 	}
 
+    /**
+     * @brief checks if T is a numeric type
+     */
     template <typename T>
     concept numeric = std::integral<T> || std::floating_point<T> || std::is_pointer_v<T> || std::is_enum_v<T>;
 
+    /**
+     * @brief checks if T is an empty class
+     */
     template <typename T>
     concept empty = std::is_empty_v<T>;
+
+    /**
+	 * @brief checks if T2 is a non-array type convertible to T
+	 */
+	template <typename T2, typename T> 
+	concept convertible_to = std::negation_v<std::is_array<T2>> && (std::convertible_to<T2, T> || std::derived_from<T2, T>);
+
+	/**
+	 * @brief checks if U is a pointer type convertible to T[]
+	 */
+	template <typename T, typename U> 
+	concept ptr_convertible_to_array = std::same_as<U, T*> || (std::is_pointer_v<U> && std::convertible_to<std::remove_pointer_t<U> (*)[], T (*)[]>);
+
+	/**
+	 * @brief checks if U is an array type convertible to T[]
+	 */
+	template <typename T, typename U> 
+	concept array_convertible_to_array = std::is_array_v<U> && std::is_pointer_v<U> && std::convertible_to<std::remove_pointer_t<U> (*)[], T (*)[]>;
+
+    /**
+     * @brief default delete function for UniquePtr/SharedPtr
+     */
+	template <typename T> requires (!std::is_array_v<T>)
+	void default_delete(T* ptr)
+	{
+		delete ptr;
+	}
+
+	/**
+	 * \brief  default delete function for array types for UniquePtr/SharedPtr
+	 */
+	template <typename T> requires (std::is_array_v<T>)
+	void default_delete(std::remove_extent_t<T>* ptr)
+	{
+		delete[] ptr;
+	}
 
     // TODO: Create a new Timestep class that provides conversion to nanos, micros, millis and seconds
     using Timestep = float32;

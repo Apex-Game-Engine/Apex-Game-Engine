@@ -17,6 +17,7 @@
 #include "Memory/MemoryManager.h"
 #include "Memory/MemoryManagerImpl.h"
 #include "Memory/PoolAllocator.h"
+#include "Memory/SharedPtr.h"
 #include "Memory/UniquePtr.h"
 
 namespace apex::memory {
@@ -745,6 +746,76 @@ namespace apex::memory {
 				
 			}
 		}
+	}
+
+	TEST_F(MemoryManagerTest, TestSharedPtr)
+	{
+		ASSERT_EQ(MemoryManager::getAllocatedSize(), 0);
+		{
+			AxHandle hInt(sizeof(int));
+			auto pInt = apex::shared_from_handle<int, cncy::NullLock>(hInt, 42);
+			{
+				auto pInt2 = pInt;
+				EXPECT_EQ(*pInt, 42);
+				EXPECT_EQ(*pInt2, 42);
+
+				*pInt2 = 213;
+				EXPECT_EQ(*pInt, 213);
+				EXPECT_EQ(*pInt2, 213);
+
+				EXPECT_EQ(pInt.use_count(), 2);
+				EXPECT_EQ(pInt2.use_count(), 2);
+
+			}
+			*pInt = 1024;
+			EXPECT_EQ(pInt.use_count(), 1);
+
+			EXPECT_EQ(*pInt, 1024);
+		}
+		EXPECT_EQ(MemoryManager::getAllocatedSize(), 0);
+
+		{
+			AxHandle hStruct(sizeof(StructWithDestructor));
+			auto pStruct = apex::shared_from_handle<StructWithDestructor, cncy::NullLock>(hStruct);
+			EXPECT_EQ(StructWithDestructor::s_count, 1);
+			{
+				auto pStruct2 = pStruct;
+				EXPECT_EQ(pStruct2.use_count(), 2);
+				EXPECT_EQ(StructWithDestructor::s_count, 1);
+			}
+			EXPECT_EQ(StructWithDestructor::s_count, 1);
+		}
+		EXPECT_EQ(MemoryManager::getAllocatedSize(), 0);
+
+		{
+			AxHandle hArray = apex::make_handle<int[32]>();
+			auto pArray = apex::shared_from_handle<int[], cncy::NullLock>(hArray, 32);
+			EXPECT_EQ(MemoryManager::getAllocatedSize(), 128 + 32);
+
+			auto pArray2 = pArray;
+			EXPECT_EQ(pArray.use_count(), 2);
+			EXPECT_EQ(pArray2.use_count(), 2);
+		}
+		EXPECT_EQ(MemoryManager::getAllocatedSize(), 0);
+
+		{
+			auto pArray = apex::make_shared<StructWithDestructor[], cncy::NullLock>(32);
+			EXPECT_EQ(MemoryManager::getAllocatedSize(), 4096 + 32);
+
+			auto pArray2 = pArray;
+			{
+				auto pArray3 = pArray2;
+				EXPECT_EQ(pArray.use_count(), 3);
+				EXPECT_EQ(pArray2.use_count(), 3);
+				EXPECT_EQ(pArray3.use_count(), 3);
+				EXPECT_EQ(StructWithDestructor::s_count, 32);
+			}
+			EXPECT_EQ(pArray.use_count(), 2);
+			EXPECT_EQ(pArray2.use_count(), 2);
+			EXPECT_EQ(StructWithDestructor::s_count, 32);
+		}
+		EXPECT_EQ(StructWithDestructor::s_count, 0);
+		EXPECT_EQ(MemoryManager::getAllocatedSize(), 0);
 	}
 
 }
