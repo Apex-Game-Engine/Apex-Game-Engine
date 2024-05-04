@@ -1,14 +1,19 @@
 ﻿#include "Math/Random.h"
 
 #include "Core/Asserts.h"
+#include "Math/Vector3.h"
 #include "Math/Vector4.h"
+
+#include <random>
 
 namespace apex::math {
 
+	using mt_engine = std::mt19937;
+
 	namespace detail
 	{
-		static Random::mt_engine s_engine;
-		static std::uniform_int_distribution<Random::mt_engine::result_type> s_distribution;
+		static mt_engine s_engine;
+		static std::uniform_int_distribution<mt_engine::result_type> s_distribution;
 	}
 
 	#pragma region SlowRandom implementation

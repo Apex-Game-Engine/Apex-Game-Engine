@@ -1,17 +1,14 @@
 ﻿#pragma once
+
 #include "Core/Types.h"
-
-#include <random>
-
-#include "Vector3.h"
+// #include "Vector3.h"
+#include "Vector-Fwd.h"
 
 namespace apex {
 namespace math {
 
 	struct Random
 	{
-		using mt_engine = std::mt19937;
-
 		static void init();
 
 		static int32 randomInt32();

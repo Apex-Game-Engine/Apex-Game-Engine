@@ -5,10 +5,6 @@
 
 namespace apex {
 namespace math {
-	struct Vector2;
-	struct Vector3;
-	struct Vector4;
-
 	float32 sqrt(float32 val);
 	float32 clamp(float32 val, float32 min, float32 max);
 	float32 radians(float32 degrees);
