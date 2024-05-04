@@ -5,7 +5,7 @@
 #include "Core/Types.h"
 
 namespace apex {
-namespace ecs {
+namespace core {
 
 	namespace internal
 	{

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Entity.h"
-#include "TypeInfo.h"
+#include "Apex/TypeInfo.h"
 #include "Core/TypeTraits.h"
 #include "Containers/AxSparseMap.h"
 
@@ -10,6 +10,8 @@
 static char STRBUF[512];
 
 namespace apex {
+	using core::TypeInfo, core::TypeIndex;
+
 namespace ecs {
 
 	struct Registry

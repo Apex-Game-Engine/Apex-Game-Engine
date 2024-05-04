@@ -8,10 +8,15 @@ namespace apex {
 	struct type_list
 	{
 		using type = type_list;
+		struct type_list_tag {};
 
 		static constexpr size_t size = sizeof...(Types);
 	};
 
+	template <typename T>
+	static constexpr bool is_type_list_v = requires { typename T::type_list_tag; };
+
+	// type_list_index
 	template <typename, typename>
 	struct type_list_index;
 
@@ -44,7 +49,42 @@ namespace apex {
 	template <typename Type, typename List>
 	inline constexpr size_t type_list_index_v = type_list_index<Type, List>::value;
 
+	// type_list_cat
+	template <typename, typename>
+	struct type_list_cat;
 
+	template <typename... Types1, typename... Types2>
+	struct type_list_cat<type_list<Types1...>, type_list<Types2...>>
+	{
+	    using type = type_list<Types1..., Types2...>;
+	};
+
+	template <typename TypeList1, typename TypeList2>
+	using type_list_cat_t = typename type_list_cat<TypeList1, TypeList2>::type;
+
+	// non_empty_type_list
+	template <typename>
+	struct non_empty_type_list;
+
+	template <typename Type>
+	struct non_empty_type_list<type_list<Type>>
+	{
+	    using type = std::conditional_t<std::is_empty_v<Type>, type_list<>, type_list<Type>>;
+	};
+
+	template <typename Type, typename... Other>
+	struct non_empty_type_list<type_list<Type, Other...>>
+	{
+	    using non_empty_condition_type_list = typename type_list_cat<type_list<Type>, typename non_empty_type_list<type_list<Other...>>::type>::type;
+	    using empty_condition_type_list = typename non_empty_type_list<type_list<Other...>>::type;
+
+	    using type = std::conditional_t<std::is_empty_v<Type>, empty_condition_type_list, non_empty_condition_type_list>;
+	};
+
+	template <typename TypeList>
+	using non_empty_type_list_t = typename non_empty_type_list<TypeList>::type;
+
+	// Compile-time assertions
 	template <size_t a, size_t b>
 	struct TAssertEquality
 	{

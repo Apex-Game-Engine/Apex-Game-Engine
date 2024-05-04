@@ -16,6 +16,17 @@ namespace ecs {
 	template <typename, typename>
 	struct View;
 
+	template <>
+	struct View<get_t<>, exclude_t<>>
+	{
+		using types = type_list<>;
+
+		View(std::tuple<>&&) {}
+
+		template <typename Func>
+		void each(Func&& func) {}
+	};
+
 	template <typename Component>
 	struct View<get_t<Component>, exclude_t<>>
 	{
@@ -37,6 +48,21 @@ namespace ecs {
 			}
 		}
 
+		bool contains(Entity entity) const
+		{
+			return m_pool->contains(entity);
+		}
+
+		auto count() const
+		{
+			return m_pool->count();
+		}
+
+		auto keys() const
+		{
+			return m_pool->keys();
+		}
+
 	private:
 		storage_type* m_pool;
 	};
@@ -47,6 +73,8 @@ namespace ecs {
 		using types = type_list<Components...>;
 		using storage_types = type_list<storage_for_type_t<Components>...>;
 		using base_storage_type = const std::common_type_t<typename storage_for_type_t<Components>::base_type...>;
+
+		constexpr View() = default;
 
 		View(std::tuple<storage_for_type_t<Components>*...>&& pools)
 		: m_pools(std::forward<std::tuple<storage_for_type_t<Components>*...>>(pools))
