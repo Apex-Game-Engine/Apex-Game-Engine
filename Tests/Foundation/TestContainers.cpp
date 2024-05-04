@@ -3,6 +3,7 @@
 #include <gtest/gtest.h>
 
 #include "Containers/AxArray.h"
+#include "Containers/AxList.h"
 #include "Containers/AxRange.h"
 #include "Containers/AxSparseMap.h"
 #include "Containers/AxStringRef.h"
@@ -398,6 +399,87 @@ namespace apex {
 			EXPECT_EQ(idx, 1);
 			EXPECT_TRUE(element.position == math::Vector3( 11, 22, 33 ));
 		}
+
+		memory::MemoryManager::shutdown();
+	}
+
+	TEST(AxListTest, TestAxList)
+	{
+		memory::MemoryManager::initialize({ 0, 0 });
+
+		{
+			AxList<int> list;
+			EXPECT_EQ(list.size(), 0);
+
+			list.append(1);
+			EXPECT_EQ(list.size(), 1);
+
+			list.append(2);
+			EXPECT_EQ(list.size(), 2);
+
+			list.append(3);
+			EXPECT_EQ(list.size(), 3);
+
+			int i = 0;
+			for (auto& e : list)
+			{
+				i++;
+				EXPECT_EQ(e, i);
+			}
+			EXPECT_EQ(i, 3);
+
+			list.remove(list.begin());
+
+			EXPECT_EQ(list.size(), 2);
+		}
+		EXPECT_EQ(memory::MemoryManager::getAllocatedSize(), 0);
+
+		memory::MemoryManager::shutdown();
+
+	}
+
+	TEST(AxListTest, TestAxListRemoveInsideIteration)
+	{
+		memory::MemoryManager::initialize({ 0, 0 });
+
+		{
+			AxList<int> list;
+			EXPECT_EQ(list.size(), 0);
+
+			int i = 0;
+
+			for (i = 0; i < 100; i++)
+			{
+				list.append(i);
+				EXPECT_EQ(list.size(), i+1);
+			}
+
+			i = 0;
+			for (auto& e : list)
+			{
+				EXPECT_EQ(e, i);
+				i++;
+			}
+			EXPECT_EQ(i, 100);
+
+			for (auto it = list.begin(); it != list.end();)
+			{
+				if (*it % 3 == 0)
+					it = list.remove(it);
+				else
+					++it;
+			}
+			EXPECT_EQ(list.size(), 66);
+
+			i = 1;
+			for (auto& e : list)
+			{
+				EXPECT_EQ(e, i);
+				i += i % 3;
+			}
+			EXPECT_EQ(i, 100);
+		}
+		EXPECT_EQ(memory::MemoryManager::getAllocatedSize(), 0);
 
 		memory::MemoryManager::shutdown();
 	}

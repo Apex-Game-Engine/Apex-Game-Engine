@@ -10,7 +10,7 @@ namespace apex {
 
 	/**
 	 * \brief Resizable dynamic array
-	 * \tparam T type of elements stored in the array
+	 * \tparam T Type of elements stored in the array
 	 */
 	template <typename T, typename = SelfManaged>
 	class AxArray : public AxManagedClass
@@ -18,6 +18,7 @@ namespace apex {
 	public:
 		using underlying_type = T;
 
+		// Iterator class for AxArray
 		template <typename IterType>
 		class Iterator
 		{

@@ -3,6 +3,8 @@
 #include "AxRange.h"
 #include "Core/Asserts.h"
 
+#include <optional>
+
 namespace apex {
 
 	/**

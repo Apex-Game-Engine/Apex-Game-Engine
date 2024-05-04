@@ -61,3 +61,5 @@
 #define axVerifyMsg(condition, msg) do { (condition); } while (false)
 
 #endif
+
+#define TODO(...) axErrorFmt("TODO : " ##__VA_ARGS__)
