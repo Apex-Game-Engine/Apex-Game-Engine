@@ -2,6 +2,8 @@
 #include <gtest/gtest.h>
 
 #include "Apex/ECS/Registry.h"
+#include "Containers/AxList.h"
+#include "Core/Delegate.h"
 #include "Math/Vector3.h"
 #include "Memory/MemoryManager.h"
 
@@ -23,6 +25,7 @@ namespace apex
 
 	struct CollisionEvent
 	{
+		apex::ecs::Entity self;
 		apex::ecs::Entity other;
 	};
 }
@@ -55,7 +58,7 @@ public:
 
 TEST_F(TestEcs, TestTypeIndex)
 {
-	auto id = apex::ecs::TypeIndex<apex::uint32>::value();
+	auto id = apex::core::TypeIndex<apex::uint32>::value();
 	printf("%d\n", id);
 }
 
@@ -208,7 +211,7 @@ TEST_F(TestEcs, TestEmptyComponentView)
 
 	i = 0;
 	auto view = registry.view<apex::Transform, apex::SomeTag>();
-	view.each([&i](apex::ecs::Entity entity, auto& transform, auto tag)
+	view.each([&i](apex::ecs::Entity entity, auto& transform)
 	{
 		printf("entity: %u\n", static_cast<apex::uint32>(entity));
 
@@ -224,17 +227,16 @@ struct DamageMessage
 	apex::float32 value;
 };
 
-template <typename Message>
-using MessageQueue = std::queue<Message>;
-
 namespace ecs {
-	template <typename Message>
-	struct MessageListener
+	template <typename Event>
+	struct EventListener
 	{
-		using message_type = Message;
+		using event_type = Event;
+
+		apex::Delegate<bool(Event const&)> eventHandler;
 	};
 
-	template <typename, typename, typename, typename>
+	template <typename, typename = void, typename = void, typename = void, typename = void>
 	struct System;
 
 	template <typename... T>
@@ -249,45 +251,188 @@ namespace ecs {
 	template <typename... T>
 	struct listen_t {};
 
-	template <typename... Components, typename... Events>
-	struct System<get_t<Components...>, exclude_t<>, signal_t<>, listen_t<Events...>>
+	struct NullEventHandler
+	{
+		template <typename Event>
+		bool onEvent(Event const& event) { return false; }
+	};
+
+	template <typename EventHandler, typename... Components, typename... Events>
+	struct System<EventHandler, get_t<Components...>, exclude_t<>, signal_t<>, listen_t<Events...>>
 	{
 		using component_view = decltype(std::declval<apex::ecs::Registry>().view<Components...>());
 		using event_view = decltype(std::declval<apex::ecs::Registry>().view<Events...>());
 
+		apex::ecs::Registry& m_registry;
+		apex::ecs::Entity m_systemEntity;
 		component_view m_componentView;
-		event_view m_eventView;
 
-		System(apex::ecs::Registry& registry)
-		: m_componentView(registry.view<Components...>())
-		, m_eventView(registry.view<Events...>())
-		{}
+		System(apex::ecs::Registry& registry);
 
 		template <typename Event>
-		bool on(Event const& event);
-
+		bool onEvent(Event const& event) { return false; }
 	};
+
+	template <typename EventHandler, typename ... Components, typename ... Events>
+	System<EventHandler, get_t<Components...>, exclude_t<>, signal_t<>, listen_t<Events...>>::System(apex::ecs::Registry& registry)
+		: m_registry(registry)
+		, m_systemEntity(registry.createEntity())
+		, m_componentView(registry.view<Components...>())
+	{
+		([&]() {
+			auto& eventListener = m_registry.add<EventListener<Events>>(m_systemEntity);
+			eventListener.eventHandler.set<&EventHandler::template onEvent<Events>>(static_cast<EventHandler&>(*this));
+		}(), ...);
+	}
+
+	template <typename... Components>
+	struct System<get_t<Components...>>	: public System<NullEventHandler, get_t<Components...>, exclude_t<>, signal_t<>, listen_t<>> {};
+
+	template <typename EventHandler, typename... Components, typename... Events>
+	struct System<EventHandler, get_t<Components...>, listen_t<Events...>> : public System<EventHandler, get_t<Components...>, exclude_t<>, signal_t<>, listen_t<Events...>> {};
+
 }
 
 
-struct DamageSystem : public ecs::System<ecs::get_t<apex::DamageInflictor>, ecs::exclude_t<>, ecs::signal_t<>, ecs::listen_t<apex::CollisionEvent>>
+struct SineWaveMovement
 {
-	using system_t = ecs::System<ecs::get_t<apex::DamageInflictor>, ecs::exclude_t<>, ecs::signal_t<>, ecs::listen_t<apex::CollisionEvent>>;
+	apex::float32 amplitude;
+	apex::float32 frequency;
+};
 
-	DamageSystem(apex::ecs::Registry& registry) : system_t(registry) {}
+struct Time
+{
+	apex::float32 time;
+	apex::float32 deltaTime;
+};
+
+using S = ecs::System<ecs::NullEventHandler, ecs::get_t<apex::Transform, SineWaveMovement>, ecs::exclude_t<>, ecs::signal_t<>, ecs::listen_t<>>;
+using V = S::component_view;
+V v;
+V::base_storage_type* s;
+
+struct SineWaveMovementSystem : public ecs::System<ecs::get_t<apex::Transform, SineWaveMovement>>
+{
+	SineWaveMovementSystem(apex::ecs::Registry& registry) : System(registry) {}
+
+	void run(Time time)
+	{
+		m_componentView.each([&] (auto& transform, const auto& movement) { applyMovement(transform, movement, time); });
+	}
+
+	void applyMovement(apex::Transform& transform, SineWaveMovement const& movement, Time const& time)
+	{
+		transform.position.y = movement.amplitude * sinf(movement.frequency * time.time);
+	}
+};
+
+struct PositionTracker
+{
+	apex::ecs::Entity target;
+	apex::math::Vector3 relativePosition;
+};
+
+struct PositionTrackerSystem : public ecs::System<ecs::get_t<apex::Transform, PositionTracker>>
+{
+	//using system_t = ecs::System<ecs::get_t<apex::Transform, TrackingTarget>, ecs::exclude_t<>, ecs::signal_t<>, ecs::listen_t<>>;
+
+	PositionTrackerSystem(apex::ecs::Registry& registry) : System(registry) {}
+
+	void run(Time time)
+	{
+		m_componentView.each([&](apex::Transform& transform, PositionTracker& tracker)
+		{
+			const auto& targetTransform = m_registry.get<apex::Transform>(tracker.target).value().get();
+			tracker.relativePosition = transform.position - targetTransform.position;
+		});
+	}
+};
+
+TEST_F(TestEcs, TestSystemsInteroperability)
+{
+	apex::ecs::Registry registry;
+
+	auto player = registry.createEntity();
+	auto enemy = registry.createEntity();
+
+	auto& playerTransform = registry.add<apex::Transform>(player);
+	playerTransform.position = { 0, 0, 0 };
+
+	auto& sineWaveMovement = registry.add<SineWaveMovement>(player);
+	sineWaveMovement.amplitude = 10.f;
+	sineWaveMovement.frequency = 1.f;
+
+	auto& enemyTransform = registry.add<apex::Transform>(enemy);
+	enemyTransform.position = { 10, 0, 0 };
+
+	auto& enemyTracker = registry.add<PositionTracker>(enemy);
+	enemyTracker.target = player;
+
+	SineWaveMovementSystem sineWaveMovementSystem(registry);
+	PositionTrackerSystem positionTrackerSystem(registry);
+
+	for (int i = 1; i <= 10; i++)
+	{
+		Time time { .time = 0.016f * i, .deltaTime = 0.016f };
+
+		auto playerTransformCopy = playerTransform;
+
+		sineWaveMovementSystem.run(time);
+		positionTrackerSystem.run(time);
+
+		sineWaveMovementSystem.applyMovement(playerTransformCopy, sineWaveMovement, time);
+		EXPECT_FLOAT_EQ(playerTransform.position.y, playerTransformCopy.position.y);
+
+		axInfoFmt("Player position: {} {} {}\n", playerTransform.position.x, playerTransform.position.y, playerTransform.position.z);
+		axInfoFmt("Enemy relative position: {} {} {}\n", enemyTracker.relativePosition.x, enemyTracker.relativePosition.y, enemyTracker.relativePosition.z);
+	}
+}
+
+// Event system
+// 1. get all entities with event listener component
+// 2. listen for events
+// 3. send events
+
+
+struct DamageSystem : public ecs::System<DamageSystem, ecs::get_t<apex::DamageInflictor>, ecs::exclude_t<>, ecs::signal_t<>, ecs::listen_t<apex::CollisionEvent>>
+{
+	//using system_t = ecs::System<ecs::get_t<apex::DamageInflictor>, ecs::exclude_t<>, ecs::signal_t<>, ecs::listen_t<apex::CollisionEvent>>;
+
+	DamageSystem(apex::ecs::Registry& registry) : System(registry) {}
 
 	template <typename Event>
-	bool on(Event const& event);
+	bool onEvent(Event const& event)
+	{
+		return false;
+	}
 
 	template <>
-	bool on(apex::CollisionEvent const& event)
+	bool onEvent<apex::CollisionEvent>(apex::CollisionEvent const& event)
 	{
+		if (auto damageInflictorOpt = m_registry.get<apex::DamageInflictor>(event.self); damageInflictorOpt.has_value())
+		{
+			apex::DamageInflictor& damageInflictor = damageInflictorOpt.value();
+			damageInflictor.damage = 1e5f;
+		}
+
 		return false;
 	}
 };
 
+template <typename Event>
+struct EventQueue
+{
+	EventQueue(apex::ecs::Registry& registry)
+		: listeners(registry.view<ecs::EventListener<Event>>())
+	{}
 
-TEST_F(TestEcs, TestMessageQueue)
+	std::queue<Event> events;
+
+	using view_t = decltype(std::declval<apex::ecs::Registry>().view<ecs::EventListener<Event>>());
+	view_t listeners;
+};
+
+TEST_F(TestEcs, TestEventHandlerInvoking)
 {
 	apex::ecs::Registry registry;
 
@@ -296,8 +441,116 @@ TEST_F(TestEcs, TestMessageQueue)
 	auto player = registry.createEntity();
 	auto enemy = registry.createEntity();
 
-	registry.add<apex::DamageInflictor>(player);
+	auto& playerTransform = registry.add<apex::Transform>(player);
+	playerTransform.position = { 0, 0, 0 };
 
-	damageSystem.on(apex::CollisionEvent{});
+	auto& damageInflictor = registry.add<apex::DamageInflictor>(player);
+	damageInflictor.damage = 0.f;
 
+	auto& enemyTransform = registry.add<apex::Transform>(enemy);
+	enemyTransform.position = { 10, 0, 0 };
+
+	apex::CollisionEvent collisionEvent { player, enemy };
+
+	auto collisionEventView = registry.view<ecs::EventListener<apex::CollisionEvent>>();
+	for (auto entity : collisionEventView.keys())
+	{
+		auto& eventListener = registry.get<ecs::EventListener<apex::CollisionEvent>>(entity).value().get();
+		if (eventListener.eventHandler(collisionEvent))
+			break;
+	}
+
+	/*collisionEventView.each([&](apex::ecs::Entity entity)
+	{
+		auto& eventListener = registry.get<ecs::EventListener<apex::CollisionEvent>>(entity).value().get();
+		(void)eventListener.eventHandler(collisionEvent);
+	});*/
+
+	EXPECT_FLOAT_EQ(damageInflictor.damage, 1e5f);
 }
+
+
+// collision detection and response
+// 1. Broad phase collision detection
+//     a. compute AABBs
+//     b. build BVH
+//     c. make collision pairs
+// 2. Narrow phase collision detection
+//     a. compute collision
+// 3. Collision response
+
+//struct SphereCollider { apex::float32 radius; };
+struct AABB { apex::math::Vector3 size; };
+
+template <typename T, size_t _Bucket_size>
+class BucketList
+{
+public:
+	constexpr BucketList() = default;
+
+	void insert(const T& value)
+	{
+		if (m_size == m_capacity)
+		{
+			m_capacity += _Bucket_size;
+			m_buckets.emplace_back();
+		}
+		m_buckets.back()[m_size % _Bucket_size] = value;
+	}
+
+	void remove(size_t index)
+	{
+		apex::AxStaticArray<T, _Bucket_size>& bucket = m_buckets.back();
+		bucket[index] = m_size % _Bucket_size;
+	}
+
+	void clear()
+	{
+		m_buckets.clear();
+	}
+
+	T& operator[](size_t index)
+	{
+		axAssertMsg(index < m_size, "Index out of bounds");
+		size_t bucketIndex = index / _Bucket_size;
+		size_t elementIndex = index % _Bucket_size;
+		for (auto& bucket : m_buckets)
+		{
+			if (bucketIndex == 0)
+				return bucket[elementIndex];
+			--bucketIndex;
+		}
+	}
+
+private:
+	apex::AxList<apex::AxStaticArray<T, _Bucket_size>> m_buckets;
+	size_t m_size{};
+	size_t m_capacity{};
+};
+
+struct BoundingVolumeHierarchy
+{
+	struct Node
+	{
+		apex::ecs::Entity entity;
+		apex::uint32 left;
+		apex::uint32 right;
+	};
+
+	apex::AxList<Node> nodes;
+};
+
+
+
+struct CollisionDetectionBroadPhase : public ecs::System<ecs::get_t<apex::Transform, AABB>>
+{
+	CollisionDetectionBroadPhase(apex::ecs::Registry& registry) : System(registry) {}
+
+	void run()
+	{
+		m_componentView.each([&](apex::Transform& transform, AABB& aabb)
+		{
+			
+		});
+	}
+};
