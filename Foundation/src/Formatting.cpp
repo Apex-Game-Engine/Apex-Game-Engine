@@ -3,7 +3,7 @@
 namespace apex {
 
 	namespace detail {
-		static char g_fmtBuffer[2048];
+		thread_local static char g_fmtBuffer[2048];
 	}
 
 	buffer_iterator get_buffer()
