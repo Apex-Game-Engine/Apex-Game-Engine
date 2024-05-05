@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include "Memory/AxManagedClass.h"
 #include "Memory/UniquePtr.h"
+#include "Core/Asserts.h"
 
 namespace apex {
 
