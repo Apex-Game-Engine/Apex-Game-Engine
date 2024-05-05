@@ -23,11 +23,15 @@ target_link_libraries(Engine
     PUBLIC
     Foundation
     Graphics
+    lua_static
 )
 
 target_include_directories(Engine
     PUBLIC
     include
+    ${APEX_CMAKE_EXTERNAL_LIBS_DIR}/tinygltf
+    ${APEX_CMAKE_EXTERNAL_LIBS_DIR}/json
+    ${APEX_CMAKE_EXTERNAL_LIBS_DIR}/stb
 
     PRIVATE
     src
