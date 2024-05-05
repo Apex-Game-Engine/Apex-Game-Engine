@@ -28,8 +28,10 @@ set(test_common_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/Common")
 add_subdirectory(Foundation)
 add_subdirectory(Engine)
 add_subdirectory(Startup)
+add_subdirectory(Scripting)
 
 # Set the tests to be in the "Tests" folder in Visual Studio
 set_target_properties(Foundation_test PROPERTIES FOLDER "Tests")
 set_target_properties(Engine_test PROPERTIES FOLDER "Tests")
 set_target_properties(Startup_test PROPERTIES FOLDER "Tests")
+set_target_properties(Scripting_test PROPERTIES FOLDER "Tests")
