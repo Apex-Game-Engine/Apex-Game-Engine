@@ -58,12 +58,12 @@ namespace math {
 		#pragma endregion
 
 		[[nodiscard]] float32 length() const;
-		[[nodiscard]] float32 length_squared() const;
+		[[nodiscard]] float32 lengthSquared() const;
 
 		Vector3& normalize_();
 		[[nodiscard]] Vector3 normalize() const;
 
-		[[nodiscard]] bool is_near_zero() const;
+		[[nodiscard]] bool isNearZero() const;
 
 		static constexpr Vector3 unitX() { return { 1.f, 0.f, 0.f }; }
 		static constexpr Vector3 unitY() { return { 0.f, 1.f, 0.f }; }
@@ -97,6 +97,7 @@ namespace math {
 	Vector3 reflect(Vector3 const &u, Vector3 const &n);
 	Vector3 refract(Vector3 const &u, Vector3 const &n, float32 refraction_ratio);
 
+	Vector3 lerp(Vector3 const &u, Vector3 const &v, float32 t);
 
 	// Additional typedefs
 	using Point2D = Vector2;

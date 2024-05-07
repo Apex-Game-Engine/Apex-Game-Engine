@@ -85,6 +85,9 @@ namespace math {
 		{
 			return Matrix4x4(1.f);
 		}
+
+		Vector3 getTranslation() const { return m_columns[3].xyz(); }
+		//Matrix3x3 getRotation() const;
 	};
 
 	static_assert(sizeof(Matrix4x4) == 16 * sizeof(float));
@@ -101,6 +104,16 @@ namespace math {
 	Matrix4x4 rotateY(Matrix4x4 const &m, float32 angle); // rotation about the y-axis
 	Matrix4x4 rotateZ(Matrix4x4 const &m, float32 angle); // rotation about the z-axis
 
+	// rotation about the euler angles in Rz*Ry*Rx order
+	// equivalent to rotateZ(rotateY(rotateX(m, angleX), angleY), angleZ)
+	Matrix4x4 rotateZYX(Matrix4x4 const &m, float32 angleX, float32 angleY, float32 angleZ);
+	Matrix4x4 rotateZYX(Matrix4x4 const &m, Vector3 const& angles);
+
+	Matrix4x4 rotateAxisAngle(Matrix4x4 const &m, Vector3 const &axis, float32 angle); // rotation about an arbitrary axis
+	Matrix4x4 rotateAxisAngle(Matrix4x4 const& m, Vector3 const& axis, float32 cosAngle, float32 sinAngle); // rotation about an arbitrary axis
+
+	Vector3 decomposeRotation(Matrix4x4 const &m); // extract euler angles from rotation matrix
+
 	Matrix4x4 translate(Matrix4x4 const &m, Vector3 const &v); // translation by vector v
 
 	Matrix4x4 scale(Matrix4x4 const &m, Vector3 const &v); // scale by vector v
@@ -111,7 +124,7 @@ namespace math {
 
 	// rotation by euler angles (as a compound matrix transformation)
 	// equivalent to rotateZ(rotateY(rotateX(m, angleX), angleY), angleZ)
-	Matrix4x4 generateEulerMatrix(float32 angleX, float32 angleY, float32 angleZ);
+	Matrix4x4 eulerZYX(float32 angleX, float32 angleY, float32 angleZ);
 
 }
 }

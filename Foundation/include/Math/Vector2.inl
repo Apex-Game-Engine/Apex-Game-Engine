@@ -48,10 +48,10 @@ namespace math {
 
 	inline float32 Vector2::length() const
 	{
-		return apex::math::sqrt(length_squared());
+		return apex::math::sqrt(lengthSquared());
 	}
 
-	inline float32 Vector2::length_squared() const
+	inline float32 Vector2::lengthSquared() const
 	{
 		return x*x + y*y;
 	}
@@ -61,7 +61,7 @@ namespace math {
 		return apex::math::normalize(*this);
 	}
 
-	inline bool Vector2::is_near_zero() const
+	inline bool Vector2::isNearZero() const
 	{
 		return floatCompareNearZero(m_values[0])
 			&& floatCompareNearZero(m_values[1]);

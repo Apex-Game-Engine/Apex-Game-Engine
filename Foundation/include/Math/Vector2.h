@@ -39,12 +39,12 @@ namespace math {
 		#pragma endregion
 
 		[[nodiscard]] float32 length() const;
-		[[nodiscard]] float32 length_squared() const;
+		[[nodiscard]] float32 lengthSquared() const;
 
 		Vector2& normalize_();
 		[[nodiscard]] Vector2 normalize() const;
 		
-		[[nodiscard]] bool is_near_zero() const;
+		[[nodiscard]] bool isNearZero() const;
 	};
 
 	static_assert(sizeof(Vector2) == 2 * sizeof(float));

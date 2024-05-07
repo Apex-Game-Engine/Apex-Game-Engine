@@ -5,6 +5,7 @@
 #include "Apex/Window.h"
 #include "Graphics/ForwardRenderer.h"
 #include "Graphics/Camera.h"
+#include "Graphics/Primitives/Pyramid.h"
 #include "Graphics/Primitives/Quad.h"
 #include "Math/Matrix4x4.h"
 

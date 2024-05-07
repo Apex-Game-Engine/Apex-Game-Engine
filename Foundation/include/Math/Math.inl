@@ -32,6 +32,12 @@ namespace math {
 		return radians * 180.f / constants::float32_PI;
 	}
 
+	inline float32 sign(float32 val)
+	{
+		return static_cast<float32>((val > 0.f) - (val < 0.f));
+		//return std::signbit(val) ? -1.f : 1.f;
+	}
+
 #ifdef APEX_RAYTRACING_DEFINITIONS
 
 	inline Point3D Ray::at(float32 t) const

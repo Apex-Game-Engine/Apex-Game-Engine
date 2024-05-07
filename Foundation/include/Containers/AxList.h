@@ -61,7 +61,7 @@ namespace apex {
 		using node_ptr_t = UniquePtr<IListNode>;
 
 		// Iterator class for AxList
-		template <typename IterType>
+		template <typename IterType, bool reverse = false>
 		class Iterator
 		{
 		public:
@@ -73,14 +73,34 @@ namespace apex {
 
 			Iterator() : m_ptr(), m_list() {}
 			Iterator(IterType* node, AxList* list) : m_ptr(node), m_list(list) {}
-			Iterator& operator++() { m_ptr = m_ptr->next().get(); return *this; } // pre-increment
+			Iterator& operator++() { m_ptr = _Next(); return *this; } // pre-increment
 			Iterator operator++(int) { Iterator tmp(*this); operator++(); return tmp; } // post-increment
-			Iterator& operator--() { m_ptr = m_ptr->prev(); return *this; } // pre-decrement
+			Iterator& operator--() { m_ptr = _Prev(); return *this; } // pre-decrement
 			Iterator operator--(int) { Iterator tmp(*this); operator--(); return tmp; } // post-decrement
 			bool operator==(const Iterator& rhs) const { return m_ptr == rhs.m_ptr; }
 			bool operator!=(const Iterator& rhs) const { return m_ptr != rhs.m_ptr; }
 			reference operator*() const { return m_ptr->data(); }
 			pointer operator->() const { return &m_ptr->data(); }
+
+			Iterator next() { return Iterator(_Next(), m_list); }
+			Iterator prev() { return Iterator(_Prev(), m_list); }
+
+		protected:
+			IterType* _Next() const
+			{
+				if constexpr (reverse)
+					return m_ptr->prev();
+				else
+					return m_ptr->next().get();
+			}
+
+			IterType* _Prev() const
+			{
+				if constexpr (reverse)
+					return m_ptr->next().get();
+				else
+					return m_ptr->prev();
+			}
 
 		private:
 			IterType* m_ptr;
@@ -98,6 +118,8 @@ namespace apex {
 		using const_reference = const value_type&;
 		using iterator = Iterator<node_t>;
 		using const_iterator = Iterator<const node_t>;
+		using reverse_iterator = Iterator<node_t, true>;
+		using const_reverse_iterator = Iterator<const node_t, true>;
 
 		AxList() = default;
 
@@ -141,8 +163,8 @@ namespace apex {
 			return next;
 		}
 
-		[[nodiscard]] auto back() -> reference { return *m_tail->data(); }
-		[[nodiscard]] auto back() const -> const_reference { return *m_tail->data(); }
+		[[nodiscard]] auto back() -> reference { return m_tail->data(); }
+		[[nodiscard]] auto back() const -> const_reference { return m_tail->data(); }
 
 		[[nodiscard]] auto front() -> reference { return m_head->data(); }
 		[[nodiscard]] auto front() const -> const_reference { return m_head->data(); }
@@ -155,10 +177,19 @@ namespace apex {
 		[[nodiscard]] iterator end() { return iterator(nullptr, this); }
 
 		[[nodiscard]] const_iterator cbegin() const { return const_iterator(m_head.get(), this); }
-		[[nodiscard]] const_iterator cend() const { return const_iterator(m_tail.get(), this); }
+		[[nodiscard]] const_iterator cend() const { return const_iterator(m_tail, this); }
 
 		[[nodiscard]] const_iterator begin() const { return cbegin(); }
 		[[nodiscard]] const_iterator end() const { return cend(); }
+
+		[[nodiscard]] reverse_iterator rbegin() { return reverse_iterator(m_tail, this); }
+		[[nodiscard]] reverse_iterator rend() { return reverse_iterator(nullptr, this); }
+
+		[[nodiscard]] const_reverse_iterator crbegin() const { return const_reverse_iterator(m_tail, this); }
+		[[nodiscard]] const_reverse_iterator crend() const { return const_reverse_iterator(nullptr, this); }
+
+		[[nodiscard]] const_reverse_iterator rbegin() const { return crbegin(); }
+		[[nodiscard]] const_reverse_iterator rend() const { return crend(); }
 	#pragma endregion
 
 	private:

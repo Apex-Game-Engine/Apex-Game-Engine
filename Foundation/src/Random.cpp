@@ -61,7 +61,7 @@ namespace apex::math {
 		while (true)
 		{
 			Vector3 p = randomVector3(-1, 1);
-			if (p.length_squared() >= 1) continue;
+			if (p.lengthSquared() >= 1) continue;
 			return p;
 		}
 	}
@@ -142,7 +142,7 @@ namespace apex::math {
 		while (true)
 		{
 			Vector3 p = randomVector3(seed, -1, 1);
-			if (p.length_squared() >= 1) continue;
+			if (p.lengthSquared() >= 1) continue;
 			return p;
 		}
 	}

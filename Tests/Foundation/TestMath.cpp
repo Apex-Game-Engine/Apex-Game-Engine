@@ -172,4 +172,18 @@ namespace apex::math {
 		}
 	}
 
+	TEST(TestMatrix4x4, TestDecomposeRotation)
+	{
+		{
+			Matrix4x4 mrot = eulerZYX(radians(105), radians(30), radians(25));
+
+			Vector3 euler = decomposeRotation(mrot);
+			Vector3 eulerres { radians(105), radians(30), radians(25) };
+
+			EXPECT_TRUE(euler == eulerres);
+
+			printf("euler (%0.2f, %0.2f, %0.2f) | eulerres (%0.2f, %0.2f, %0.2f)\n", euler.x, euler.y, euler.z, eulerres.x, eulerres.y, eulerres.z);
+		}
+	}
+
 }

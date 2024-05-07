@@ -6,13 +6,25 @@ namespace apex {
 namespace ranges {
 
 	template <typename T>
-	concept range = requires (T& t)
+	concept iterable = requires (T& t)
 	{
 		typename T::iterator;
 		typename T::const_iterator;
 		{ t.begin() } -> std::same_as<std::conditional_t<std::is_const_v<T>, typename T::const_iterator, typename T::iterator>>;
 		{ t.end() } -> std::same_as<std::conditional_t<std::is_const_v<T>, typename T::const_iterator, typename T::iterator>>;
 	};
+
+	template <typename T>
+	concept reverse_iterable = requires (T& t)
+	{
+		typename T::reverse_iterator;
+		typename T::const_reverse_iterator;
+		{ t.rbegin() } -> std::same_as<std::conditional_t<std::is_const_v<T>, typename T::const_reverse_iterator, typename T::reverse_iterator>>;
+		{ t.rend() } -> std::same_as<std::conditional_t<std::is_const_v<T>, typename T::const_reverse_iterator, typename T::reverse_iterator>>;
+	};
+
+	template <typename T>
+	concept range = iterable<T> || reverse_iterable<T>;
 
 	template <typename Func, typename T>
 	concept view_func = requires (Func f, T const& t)
@@ -35,23 +47,23 @@ namespace ranges {
 		typename T::is_view;
 	};
 
-	template <range Range>
-	class AxRange : public AxManagedClass
+	template <range Range, typename Iterator = typename Range::iterator>
+	class AxRange
 	{
 	public:
-		using iterator = std::conditional_t<std::is_const_v<Range>, typename Range::const_iterator, typename Range::iterator>;
+		using iterator = Iterator;
 
 		AxRange(iterator begin, iterator end) : m_begin(begin), m_end(end) {}
 
-		AxRange(Range& rng) : AxRange(rng.begin(), rng.end()) {}
+		AxRange(Range& range) : m_begin(range.begin()), m_end(range.end()) {}
 
 		[[nodiscard]] iterator begin() const
 		{
-			return { m_begin };
+			return m_begin;
 		}
 		[[nodiscard]] iterator end() const
 		{
-			return { m_end };
+			return m_end;
 		}
 
 	private:
@@ -59,11 +71,17 @@ namespace ranges {
 		iterator m_end;
 	};
 
-	template <range Range, typename ViewFn>
+	template <reverse_iterable T>
+	auto reversed(T& range) -> AxRange<T, typename T::reverse_iterator>
+	{
+		return AxRange<T, typename T::reverse_iterator>(range.rbegin(), range.rend());
+	}
+
+	template <range Range, typename ViewFn, typename RangeIterator = typename AxRange<Range>::iterator>
 	class AxView : public AxManagedClass
 	{
 	public:
-		using base_iterator = typename AxRange<Range>::iterator;
+		using base_iterator = RangeIterator;
 
 		class Iterator : public base_iterator
 		{

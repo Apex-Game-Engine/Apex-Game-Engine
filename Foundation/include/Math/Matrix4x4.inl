@@ -175,6 +175,68 @@ namespace math {
 		return res;
 	}
 
+	inline Matrix4x4 rotateZYX(Matrix4x4 const& m, float32 angleX, float32 angleY, float32 angleZ)
+	{
+		return eulerZYX(angleX, angleY, angleZ) * m;
+	}
+
+	inline Matrix4x4 rotateZYX(Matrix4x4 const& m, Vector3 const& angles)
+	{
+		return rotateZYX(m, angles.x, angles.y, angles.z);
+	}
+
+	inline Matrix4x4 rotateAxisAngle(Matrix4x4 const& m, Vector3 const& axis, float32 angle)
+	{
+		return rotateAxisAngle(m, axis, std::cos(angle), std::sin(angle));
+	}
+
+	inline Matrix4x4 rotateAxisAngle(Matrix4x4 const& m, Vector3 const& axis, float32 cosAngle, float32 sinAngle)
+	{
+		float32 c = cosAngle;
+		float32 s = sinAngle;
+		float32 t = 1.f - c;
+		Vector3 a = normalize(axis);
+		float32 x = a.x;
+		float32 y = a.y;
+		float32 z = a.z;
+		Matrix4x4 res { row_major{},
+			t*x*x + c, t*x*y - s*z, t*x*z + s*y, 0,
+			t*x*y + s*z, t*y*y + c, t*y*z - s*x, 0,
+			t*x*z - s*y, t*y*z + s*x, t*z*z + c, 0,
+			0, 0, 0, 1
+		};
+		return res * m;
+	}
+
+	inline Vector3 decomposeRotation(Matrix4x4 const& m)
+	{
+		float32 x, y, z;
+		if (m[0][2] < 1.f)
+		{
+			if (m[0][2] > -1.f)
+			{
+				y = std::asin(-m[0][2]);
+				z = std::atan2(m[0][1], m[0][0]);
+				x = std::atan2(m[1][2], m[2][2]);
+			}
+			else
+			{
+				// Not a unique solution: x - z = atan2(-m[2][1], m[1][1])
+				y = constants::float32_PI / 2;
+				z = -std::atan2(-m[2][1], m[1][1]);
+				x = 0;
+			}
+		}
+		else
+		{
+			// Not a unique solution: x + z = atan2(-m[2][1], m[1][1])
+			y = -constants::float32_PI;
+			z = std::atan2(-m[2][1], m[1][1]);
+			x = 0;
+		}
+		return {x, y, z};
+	}
+
 	inline Matrix4x4 translate(Matrix4x4 const& m, Vector3 const& v)
 	{
 		Matrix4x4 res {
@@ -255,7 +317,7 @@ namespace math {
 		return Proj;
 	}
 
-	inline Matrix4x4 generateEulerMatrix(float32 angleX, float32 angleY, float32 angleZ)
+	inline Matrix4x4 eulerZYX(float32 angleX, float32 angleY, float32 angleZ)
 	{
 		float32 A = angleX;
 		float32 B = angleY;

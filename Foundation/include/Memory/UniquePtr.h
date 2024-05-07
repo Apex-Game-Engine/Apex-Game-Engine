@@ -1,5 +1,6 @@
 ﻿#pragma once
 
+#include "Core/Asserts.h"
 #include "AxManagedClass.h"
 
 namespace apex {

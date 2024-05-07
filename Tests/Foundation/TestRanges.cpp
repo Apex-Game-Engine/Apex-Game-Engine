@@ -10,22 +10,22 @@ namespace apex {
 	public:
 		void SetUp() override
 		{
-			v = { 1, 2, 4, 6, 3, 4, 5, 7, 8, 9 };
+			vec = { 1, 2, 4, 6, 3, 4, 5, 7, 8, 9 };
 		}
 
 	protected:
-		std::vector<int> v;
+		std::vector<int> vec;
 	};
 
 	TEST_F(AxRangeTest, TestAxRangeIteration)
 	{
-		ranges::AxRange<std::vector<int>> range (v.begin(), v.end());
+		ranges::AxRange<std::vector<int>> r(vec.begin(), vec.end());
 		{
 			int i = 0;
-			for (int &value : range)
+			for (int &value : r)
 			{
 				printf("%d, ", value);
-				EXPECT_EQ(value, v[i]);
+				EXPECT_EQ(value, vec[i]);
 				i++;
 			}
 			printf("\n");
@@ -35,7 +35,7 @@ namespace apex {
 
 	TEST_F(AxRangeTest, TestAxViewFromAxRange)
 	{
-		ranges::AxRange<std::vector<int>> range (v.begin(), v.end());
+		ranges::AxRange<std::vector<int>> range (vec.begin(), vec.end());
 		ranges::AxView view ( range, [](int const& i) { return i % 2 == 0; } );
 
 		int i = 0;
@@ -58,7 +58,7 @@ namespace apex {
 
 	TEST_F(AxRangeTest, TestAxViewFromVector)
 	{
-		const ranges::AxView view ( v, [](int const& i) { return i % 2 == 0; } );
+		const ranges::AxView view ( vec, [](int const& i) { return i % 2 == 0; } );
 
 		int i = 0;
 		for (int value : view)
@@ -83,7 +83,7 @@ namespace apex {
 		auto isEven = [](int const& i) { return i % 2 == 0; };
 
 		int i = 0;
-		for (auto value : ranges::AxView( v, isEven ))
+		for (auto value : ranges::AxView( vec, isEven ))
 		{
 			switch (i)
 			{
@@ -133,7 +133,18 @@ namespace apex {
 			auto isEven = [](int const& i) { return i % 2 == 0; };
 			auto isDivisibleBy3 = [](int const& i) { return i % 3 == 0; };
 
-			for (auto v : ranges::view( ranges::AxView( v, isEven ), isDivisibleBy3 ))
+			for (auto v : ranges::view( ranges::AxView( vec, isEven ), isDivisibleBy3 ))
+			{
+				printf("%d, ", v);
+			}
+			printf("\n");
+		}
+	}
+
+	TEST_F(AxRangeTest, TestReversed)
+	{
+		{
+			for (auto v : ranges::reversed(vec))
 			{
 				printf("%d, ", v);
 			}

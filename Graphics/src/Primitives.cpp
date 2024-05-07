@@ -1,4 +1,6 @@
 ﻿#include "Graphics/Primitives/Quad.h"
+#include "Graphics/Primitives/Cube.h"
+#include "Graphics/Primitives/Pyramid.h"
 
 #include "Graphics/Geometry/VertexBufferCPU.h"
 #include "Graphics/Geometry/IndexBufferCPU.h"
@@ -61,14 +63,14 @@ namespace apex::gfx
 	{
 		static Vertex_P0_C0 vertices[] = {
 			{ .position = { -0.5f, -0.5f, -0.5f }, .color = { 0.0f, 1.0f, 1.0f, 1.0f } }, // 0 (front-bottom-left)
-			{ .position = {  0.5f, -0.5f, -0.5f }, .color = { 1.0f, 0.0f, 1.0f, 1.0f } }, // 1 (front-bottom-right)
+			{ .position = { -0.5f,  0.5f, -0.5f }, .color = { 1.0f, 0.0f, 1.0f, 1.0f } }, // 1 (front-bottom-right)
 			{ .position = {  0.5f,  0.5f, -0.5f }, .color = { 1.0f, 1.0f, 0.0f, 1.0f } }, // 2 (front-top-right)
-			{ .position = { -0.5f,  0.5f, -0.5f }, .color = { 1.0f, 1.0f, 1.0f, 1.0f } }, // 3 (front-top-left)
+			{ .position = {  0.5f, -0.5f, -0.5f }, .color = { 1.0f, 1.0f, 1.0f, 1.0f } }, // 3 (front-top-left)
 
 			{ .position = { -0.5f, -0.5f,  0.5f }, .color = { 0.0f, 1.0f, 1.0f, 1.0f } }, // 4 (back-bottom-left)
-			{ .position = {  0.5f, -0.5f,  0.5f }, .color = { 1.0f, 0.0f, 1.0f, 1.0f } }, // 5 (back-bottom-right)
+			{ .position = { -0.5f,  0.5f,  0.5f }, .color = { 1.0f, 0.0f, 1.0f, 1.0f } }, // 5 (back-bottom-right)
 			{ .position = {  0.5f,  0.5f,  0.5f }, .color = { 1.0f, 1.0f, 0.0f, 1.0f } }, // 6 (back-top-right)
-			{ .position = { -0.5f,  0.5f,  0.5f }, .color = { 1.0f, 1.0f, 1.0f, 1.0f } }, // 7 (back-top-left)
+			{ .position = {  0.5f, -0.5f,  0.5f }, .color = { 1.0f, 1.0f, 1.0f, 1.0f } }, // 7 (back-top-left)
 		};
 
 		static uint32 indices[] = {

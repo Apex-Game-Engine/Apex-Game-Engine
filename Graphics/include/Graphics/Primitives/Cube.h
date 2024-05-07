@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "Graphics/Geometry/Mesh.h"
 
 namespace apex {
@@ -6,7 +6,7 @@ namespace gfx {
 	class IndexBufferCPU;
 	class VertexBufferCPU;
 
-	struct Quad
+	struct Cube
 	{
 		static auto getMesh() -> MeshCPU;
 		static size_t getVertexCount(); // number of vertices

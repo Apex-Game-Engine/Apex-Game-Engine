@@ -54,10 +54,10 @@ namespace math {
 
 	inline float32 Vector3::length() const
 	{
-		return apex::math::sqrt(length_squared());
+		return apex::math::sqrt(lengthSquared());
 	}
 
-	inline float32 Vector3::length_squared() const
+	inline float32 Vector3::lengthSquared() const
 	{
 		return apex::math::dot(*this, *this);
 	}
@@ -72,7 +72,7 @@ namespace math {
 		return apex::math::normalize_inplace(*this);
 	}
 
-	inline bool Vector3::is_near_zero() const
+	inline bool Vector3::isNearZero() const
 	{
 		return floatCompareNearZero(m_values[0])
 			&& floatCompareNearZero(m_values[1])
@@ -246,9 +246,14 @@ namespace math {
 
 		float32 cos_theta = fmin(dot(-u, n), 1.f);
 		Vector3 ray_out_perp = refraction_ratio * (u + cos_theta * n);
-		Vector3 ray_out_par = -math::sqrt(fabs(1.f - ray_out_perp.length_squared())) * n;
+		Vector3 ray_out_par = -math::sqrt(fabs(1.f - ray_out_perp.lengthSquared())) * n;
 
 		return ray_out_perp + ray_out_par;
+	}
+
+	inline Vector3 lerp(Vector3 const& u, Vector3 const& v, float32 t)
+	{
+		return (1 - t) * u + t * v;
 	}
 
 #pragma endregion

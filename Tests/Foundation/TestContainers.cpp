@@ -484,4 +484,41 @@ namespace apex {
 		memory::MemoryManager::shutdown();
 	}
 
+	TEST(AxListTest, TestReverseIteration)
+	{
+		memory::MemoryManager::initialize({ 0, 0 });
+
+		{
+			AxList<int> list;
+			EXPECT_EQ(list.size(), 0);
+
+			int i = 0;
+
+			for (i = 0; i < 100; i++)
+			{
+				list.append(i);
+				EXPECT_EQ(list.size(), i+1);
+			}
+
+			i = 0;
+			for (auto& e : list)
+			{
+				EXPECT_EQ(e, i);
+				i++;
+			}
+			EXPECT_EQ(i, 100);
+
+			i = 99;
+			for (auto& e : ranges::reversed(list))
+			{
+				EXPECT_EQ(e, i);
+				i--;
+			}
+			EXPECT_EQ(i, -1);
+		}
+		EXPECT_EQ(memory::MemoryManager::getAllocatedSize(), 0);
+
+		memory::MemoryManager::shutdown();
+	}
+
 }
