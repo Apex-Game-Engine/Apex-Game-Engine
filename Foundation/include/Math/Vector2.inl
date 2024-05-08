@@ -41,6 +41,11 @@ namespace math {
 		return *this;
 	}
 
+	inline Vector2& Vector2::operator/=(Vector2 const& v)
+	{
+		return (*this) *= { 1/v.x, 1/v.y };
+	}
+
 	inline Vector2& Vector2::operator/=(float32 t)
 	{
 		return (*this) *= 1/t;
@@ -104,6 +109,12 @@ namespace math {
 	inline Vector2 operator/(Vector2 const& v, float32 t)
 	{
 		return (1/t) * v;
+	}
+
+	inline Vector2 operator/(Vector2 const& u, Vector2 const& v)
+	{
+		Vector2 u1(u);
+		return u1 /= v;
 	}
 
 	inline bool operator==(Vector2 const& u, Vector2 const& v)

@@ -26,6 +26,11 @@ namespace math {
 		};
 	}
 
+	inline Matrix4x4 Matrix4x4::inverse() const
+	{
+		return math::inverse(*this);
+	}
+
 #pragma endregion
 
 	#pragma region Matrix4x4 utility functions

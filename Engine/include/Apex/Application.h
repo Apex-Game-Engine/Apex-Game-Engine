@@ -2,11 +2,14 @@
 
 #include "Api.h"
 #include "Game.h"
+#include "InputManager.h"
 #include "Memory/UniquePtr.h"
 
 namespace apex {
-	namespace gfx
-	{
+	enum class InputState : uint8;
+	enum class KeyCode : uint32;
+
+	namespace gfx {
 		class ForwardRenderer;
 	}
 
@@ -37,10 +40,16 @@ namespace apex {
 
 		virtual Window* getWindow() = 0;
 		virtual ApplicationState getState() = 0;
-
+		virtual InputManager* getInputManager() = 0;
 		virtual gfx::ForwardRenderer* getRenderer() = 0;
 
 		static Application *s_pInstance;
+
+	protected:
+		void setKeyState(KeyCode key, InputState state);
+		void setMouseButtonState(MouseButton button, InputState state);
+		void setMousePosition(math::Vector2 const& normalized_mouse_pos);
+		void setMouseWheelDelta(math::Vector2 const& delta);
 	};
 
 }

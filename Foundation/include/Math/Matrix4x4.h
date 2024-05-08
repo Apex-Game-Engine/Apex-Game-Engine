@@ -80,6 +80,7 @@ namespace math {
 		Vector4& operator [](size_t index) { return m_columns[index]; }
 
 		Matrix4x4 transpose() const;
+		Matrix4x4 inverse() const;
 
 		static constexpr Matrix4x4 identity()
 		{

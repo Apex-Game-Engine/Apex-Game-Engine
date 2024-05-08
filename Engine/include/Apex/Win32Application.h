@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include "Application.h"
 #include "Game.h"
+#include "InputManager.h"
 #include "Core/Types.h"
 #include "Graphics/ForwardRenderer.h"
 #include "Graphics/Vulkan/VulkanContext.h"
@@ -26,6 +27,7 @@ namespace apex {
 
 		Window* getWindow() override;
 		ApplicationState getState() override;
+		InputManager* getInputManager() override;
 		gfx::ForwardRenderer* getRenderer() override;
 
 		// Application
@@ -34,6 +36,7 @@ namespace apex {
 		bool m_running;
 		ApplicationState m_applicationState;
 		
+		InputManager m_inputManager;
 
 		// Graphics
 		vk::VulkanContext m_vulkanContext;

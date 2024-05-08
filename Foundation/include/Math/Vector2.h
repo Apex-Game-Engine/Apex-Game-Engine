@@ -34,6 +34,7 @@ namespace math {
 
 		Vector2& operator*=(Vector2 const &v); // element-wise vector multiplication
 		Vector2& operator*=(float32 t);
+		Vector2& operator/=(Vector2 const &v); // element-wise vector division
 		Vector2& operator/=(float32 t);
 
 		#pragma endregion
@@ -57,6 +58,7 @@ namespace math {
 	Vector2 operator*(float32        t, Vector2 const &v); // multiply each element of vector with scalar
 	Vector2 operator*(Vector2 const &v, float32        t); // multiply each element of vector with scalar
 	Vector2 operator/(Vector2 const &v, float32        t); // divide each element of vector by scalar
+	Vector2 operator/(Vector2 const &u, Vector2 const &v); // element-wise division of two vectors
 
 	bool operator==(Vector2 const &u, Vector2 const &v); // element-wise comparison
 	bool operator!=(Vector2 const &u, Vector2 const &v); // element-wise comparison

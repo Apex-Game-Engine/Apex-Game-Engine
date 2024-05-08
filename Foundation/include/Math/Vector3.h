@@ -53,6 +53,7 @@ namespace math {
 
 		Vector3& operator*=(Vector3 const &v);
 		Vector3& operator*=(float32 t);
+		Vector3& operator/=(Vector3 const &v);
 		Vector3& operator/=(float32 t);
 
 		#pragma endregion
@@ -80,6 +81,7 @@ namespace math {
 	Vector3 operator*(float32 t, Vector3 const &v); // multiply each element of vector with scalar
 	Vector3 operator*(Vector3 const &v, float32 t); // multiply each element of vector with scalar
 	Vector3 operator/(Vector3 const &v, float32 t); // divide each element of vector by scalar
+	Vector3 operator/(Vector3 const &u, Vector3 const &v); // element-wise division of two vectors
 
 	bool operator==(Vector3 const &u, Vector3 const &v); // element-wise comparison
 	bool operator!=(Vector3 const &u, Vector3 const &v); // element-wise comparison

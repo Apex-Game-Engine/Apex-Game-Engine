@@ -4,13 +4,15 @@
 
 #include <cassert>
 
+#include "Apex/InputManager.h"
+#include "Apex/PlatformInput.h"
+
 
 #ifdef APEX_PLATFORM_WIN32
 #include <ShellScalingApi.h>
+#include <windowsx.h>
 
 namespace apex {
-
-	Application* Application::s_pInstance = nullptr;
 
 	Application* Application::Construct(uint32 width, uint32 height, const char* name, UniquePtr<Game>&& pGame)
 	{
@@ -94,9 +96,90 @@ namespace apex {
 				m_window->draw(reinterpret_cast<LPDRAWITEMSTRUCT>(lParam));
 				break;
 			}*/
-			case WM_KEYDOWN:
+		case WM_MOUSEMOVE:
+			{
+				POINT pt;
+				pt.x = GET_X_LPARAM(lParam);
+				pt.y = GET_Y_LPARAM(lParam);
+
+				int width, height;
+				m_window->getFramebufferSize(width, height);
+				const math::Vector2 mousePos = { static_cast<float32>(pt.x), static_cast<float32>(pt.y) };
+				const math::Vector2 windowSize = { static_cast<float32>(width), static_cast<float32>(height) };
+				const math::Vector2 normalizedMousePos = (2.f * mousePos - windowSize) / windowSize;
+
+				setMousePosition(normalizedMousePos);
+
+				break;
+			}
+		case WM_LBUTTONDOWN:
+			{
+				setMouseButtonState(MouseButton::MouseBtnLeft, InputState::Pressed);
+				break;
+			}
+		case WM_LBUTTONUP:
+			{
+				setMouseButtonState(MouseButton::MouseBtnLeft, InputState::Released);
+				break;
+			}
+		case WM_RBUTTONDOWN:
+			{
+				setMouseButtonState(MouseButton::MouseBtnRight, InputState::Pressed);
+				break;
+			}
+		case WM_RBUTTONUP:
+			{
+				setMouseButtonState(MouseButton::MouseBtnRight, InputState::Released);
+				break;
+			}
+		case WM_MBUTTONDOWN:
+			{
+				setMouseButtonState(MouseButton::MouseBtnMiddle, InputState::Pressed);
+				break;
+			}
+		case WM_MBUTTONUP:
+			{
+				setMouseButtonState(MouseButton::MouseBtnMiddle, InputState::Released);
+				break;
+			}
+		case WM_MOUSEWHEEL:
+			{
+				WORD delta = GET_WHEEL_DELTA_WPARAM(wParam);
+				setMouseWheelDeltaV(delta);
+				break;
+			}
+		case WM_MOUSEHWHEEL:
+			{
+				WORD delta = GET_WHEEL_DELTA_WPARAM(wParam);
+				setMouseWheelDeltaV(delta);
+				break;
+			}
+		case WM_KEYUP:
+		case WM_KEYDOWN:
 			{
 				// eventQueue.push(Event(EventType::eKeyPressed, wParam));
+				WORD key = LOWORD(wParam);
+				WORD keyFlags = HIWORD(lParam);
+				WORD scanCode = LOBYTE(keyFlags);
+				BOOL isExtended = (keyFlags & KF_EXTENDED) == KF_EXTENDED;
+
+				if (isExtended)
+					scanCode = MAKEWORD(scanCode, 0xE0);
+
+				BOOL wasKeyDown = (keyFlags & KF_REPEAT) == KF_REPEAT;
+				WORD repeatCount = LOWORD(lParam);
+
+				BOOL isKeyReleased = (keyFlags & KF_UP) == KF_UP;
+
+				switch (key)
+				{
+				case VK_SHIFT:
+				case VK_CONTROL:
+				case VK_MENU:
+					key = LOWORD(MapVirtualKeyW(scanCode, MAPVK_VSC_TO_VK_EX));
+				}
+
+				setKeyState(translateKeyCode(key), isKeyReleased ? InputState::Released : InputState::Pressed);
 				break;
 			}
 		default:
@@ -126,6 +209,7 @@ namespace apex {
 
 	void Win32Application::initialize()
 	{
+		m_inputManager.initialize();
 		m_vulkanContext.initialize(APEX_DEFAULT_APPNAME, m_window.get(), true);
 		m_forwardRenderer.initialize(m_vulkanContext);
 
@@ -167,6 +251,11 @@ namespace apex {
 	ApplicationState Win32Application::getState()
 	{
 		return m_applicationState;
+	}
+
+	InputManager* Win32Application::getInputManager()
+	{
+		return &m_inputManager;
 	}
 
 	gfx::ForwardRenderer* Win32Application::getRenderer()
