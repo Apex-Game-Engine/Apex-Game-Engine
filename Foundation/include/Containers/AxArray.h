@@ -93,6 +93,14 @@ namespace apex {
 			other.m_size = 0;
 		}
 
+		AxArray(AxArray const& other) noexcept
+		: m_capacity(other.m_capacity)
+		, m_size(other.m_size)
+		{
+			_Allocate(m_capacity, m_size);
+			apex::memcpy_s<value_type>(m_data, m_size, other.m_data, other.m_size);
+		}
+
 		AxArray(std::initializer_list<value_type> init_list)
 		: m_capacity(init_list.size())
 		, m_size(init_list.size())
@@ -109,14 +117,28 @@ namespace apex {
 
 		AxArray& operator=(AxArray&& other) noexcept
 		{
-			m_capacity = std::move(other.m_capacity);
-			m_size = std::move(other.m_size);
-			m_data = std::move(other.m_data);
+			if (this != &other)
+			{
+				m_capacity = std::move(other.m_capacity);
+				m_size = std::move(other.m_size);
+				m_data = std::move(other.m_data);
 
-			other.m_data = nullptr;
-			other.m_capacity = 0;
-			other.m_size = 0;
+				other.m_data = nullptr;
+				other.m_capacity = 0;
+				other.m_size = 0;
+			}
+			return *this;
+		}
 
+		AxArray& operator=(AxArray const& other) noexcept
+		{
+			if (this != &other)
+			{
+				m_capacity = other.m_capacity;
+				m_size = other.m_size;
+				_Allocate(m_capacity, m_size);
+				apex::memcpy_s<value_type>(m_data, m_size, other.m_data, other.m_size);
+			}
 			return *this;
 		}
 
