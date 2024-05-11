@@ -32,6 +32,57 @@ public:
 		auto quadMeshCpu = apex::gfx::Quad::getMesh();
 		meshes[1].create(renderer.getContext().m_device, &quadMeshCpu, nullptr);
 
+		{
+			apex::gfx::MeshCPU meshCpu;
+			apex::float32 X = 0.525731112119133606f;
+			apex::float32 Z = 0.850650808352039932f;
+			apex::float32 N = 0.f;
+			apex::AxArray<apex::gfx::Vertex_P0_C0> vertices = {
+				{ .position = { -X, N, Z }, .color = { 1, 0, 0, 1 } },
+				{ .position = { X, N, Z }, .color = { 1, 0, 0, 1 } },
+				{ .position = { -X, N, -Z }, .color = { 1, 0, 0, 1 } },
+				{ .position = { X, N, -Z }, .color = { 1, 0, 0, 1 } },
+				{ .position = { N, Z, X }, .color = { 1, 0, 0, 1 } },
+				{ .position = { N, Z, -X }, .color = { 1, 0, 0, 1 } },
+				{ .position = { N, -Z, X }, .color = { 1, 0, 0, 1 } },
+				{ .position = { N, -Z, -X }, .color = { 1, 0, 0, 1 } },
+				{ .position = { Z, X, N }, .color = { 1, 0, 0, 1 } },
+				{ .position = { -Z, X, N }, .color = { 1, 0, 0, 1 } },
+				{ .position = { Z, -X, N }, .color = { 1, 0, 0, 1 } },
+				{ .position = { -Z, -X, N }, .color = { 1, 0, 0, 1 } }
+			};
+			apex::AxArray<apex::uint32> indices = {
+				0, 1, 4,
+				0, 4, 9,
+				9, 4, 5,
+				4, 8, 5,
+				4, 1, 8,
+				8, 1, 10,
+				8, 10, 3,
+				5, 8, 3,
+				5, 3, 2,
+				2, 3, 7,
+
+				7, 3, 10,
+				7, 10, 6,
+				7, 6, 11,
+				11, 6, 0,
+				0, 6, 1,
+				6, 10, 1,
+				9, 11, 0,
+				9, 2, 11,
+				9, 5, 2,
+				7, 11, 2
+			};
+			meshCpu.m_vertexBufferCPU.create(vertices);
+			meshCpu.m_indexBufferCPU.create(indices);
+			meshCpu.m_subMeshes.resize(2);
+			meshCpu.m_subMeshes[0] = { 0, 30 };
+			meshCpu.m_subMeshes[1] = { 30, 30 };
+
+			meshes[2].create(renderer.getContext().m_device, &meshCpu, nullptr);
+		}
+
 		auto& commandList = renderer.getCurrentCommandList();
 		commandList.getCommands().reserve(100);
 	}
@@ -110,6 +161,16 @@ public:
 			drawCommand.transform = math::translate(transform, { 2.f * ((2*i - r + 1)/2.f), 0, -2.f * ((2*j - c + 1)/2.f) });
 			commandList.addCommand<apex::gfx::DrawCommand>(apex::make_unique<apex::gfx::DrawCommand>(drawCommand));
 		}
+
+		transform = math::rotateY(math::Matrix4x4::identity(), std::sin(time * 2.f) * math::radians(90.f));
+
+		drawCommand.pMesh = (apex::gfx::StaticMesh*)&meshes[2];
+		drawCommand.transform = math::translate(transform, { 0, 3, 0 });
+		drawCommand.subMeshIdx = 0;
+		commandList.addCommand<apex::gfx::DrawCommand>(apex::make_unique<apex::gfx::DrawCommand>(drawCommand));
+		drawCommand.transform = math::translate(transform, { 0, 2 + 0.5f * std::sin(time * 3.f), 0 });
+		drawCommand.subMeshIdx = 1;
+		commandList.addCommand<apex::gfx::DrawCommand>(apex::make_unique<apex::gfx::DrawCommand>(drawCommand));
 
 		commandList.sortCommands();
 	}
