@@ -336,9 +336,9 @@ public:
 			}
 			apex::gfx::IndexBufferCPU indexBufferCpu;
 			indexBufferCpu.create(indices);
-			dynamicMesh.create(renderer.getContext().m_device, apex::gfx::Vertex_P0_JI0_C0::getVertexInfo(), cloth.nParticles, indexBufferCpu, nullptr);
+			dynamicMesh.create(renderer.getContext().m_device, apex::gfx::Vertex_P0_M0_C0::getVertexInfo(), cloth.nParticles, indexBufferCpu, nullptr);
 
-			auto vertices = static_cast<apex::gfx::Vertex_P0_JI0_C0*>(dynamicMesh.getVertexBuffer().m_buffer.getMappedMemory());
+			auto vertices = static_cast<apex::gfx::Vertex_P0_M0_C0*>(dynamicMesh.getVertexBuffer().m_buffer.getMappedMemory());
 			auto lerp = [](auto const& a, auto const& b, float t) { return (1-t) * a + t * b; };
 			for (int i = 0; i < Cloth::nParticles; i++)
 			{
