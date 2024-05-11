@@ -49,7 +49,8 @@ namespace apex {
 		void setKeyState(KeyCode key, InputState state);
 		void setMouseButtonState(MouseButton button, InputState state);
 		void setMousePosition(math::Vector2 const& normalized_mouse_pos);
-		void setMouseWheelDelta(math::Vector2 const& delta);
+		void setMouseWheelDeltaV(float32 value);
+		void setMouseWheelDeltaH(float32 value);
 	};
 
 }
