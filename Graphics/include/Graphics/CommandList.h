@@ -33,6 +33,7 @@ namespace gfx {
 
 		Mesh* pMesh {};
 		math::Matrix4x4 transform;
+		uint32 subMeshIdx { 0 };
 		uint32 instanceCount { 1 };
 	};
 

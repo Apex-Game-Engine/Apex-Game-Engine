@@ -24,7 +24,7 @@ namespace apex::gfx {
 				auto const& lhsDraw = static_cast<DrawCommand const&>(*lhs);
 				auto const& rhsDraw = static_cast<DrawCommand const&>(*rhs);
 
-				return lhsDraw.pMesh < rhsDraw.pMesh;
+				return lhsDraw.pMesh < rhsDraw.pMesh || (lhsDraw.pMesh == rhsDraw.pMesh && lhsDraw.subMeshIdx < rhsDraw.subMeshIdx);
 			}
 			axAssertMsg(false, "Not implemented!");
 			// TODO: Implement sorting for other command types

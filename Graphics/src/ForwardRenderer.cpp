@@ -373,7 +373,10 @@ namespace apex::gfx {
 					vkCmdPushConstants(command_buffer, m_pipeline.pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(int), &uniformIndex);
 
 					// Submit draw commands
-					vkCmdDrawIndexed(command_buffer, mesh.getIndexBuffer().m_count, drawCmd.instanceCount, 0, 0, 0);
+					if (drawCmd.pMesh->getSubMeshCount() == 0)
+						vkCmdDrawIndexed(command_buffer, mesh.getIndexBuffer().m_count, drawCmd.instanceCount, 0, 0, 0);
+					else
+						vkCmdDrawIndexed(command_buffer, mesh.getSubMesh(drawCmd.subMeshIdx).m_indexCount, drawCmd.instanceCount, mesh.getSubMesh(drawCmd.subMeshIdx).m_indexOffset, 0, 0);
 
 					uniformIndex += drawCmd.instanceCount;
 				}
@@ -473,7 +476,7 @@ namespace apex::gfx {
 				{
 					auto pCurrentDrawCmd = static_cast<DrawCommand*>(command.get());
 
-					if (pPrevDrawCmd && pCurrentDrawCmd->pMesh == pPrevDrawCmd->pMesh)
+					if (pPrevDrawCmd && pCurrentDrawCmd->pMesh == pPrevDrawCmd->pMesh && pCurrentDrawCmd->subMeshIdx == pPrevDrawCmd->subMeshIdx)
 					{
 						pPrevDrawCmd->instanceCount += pCurrentDrawCmd->instanceCount;
 						pCurrentDrawCmd->instanceCount = 0;
