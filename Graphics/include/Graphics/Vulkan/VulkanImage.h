@@ -11,15 +11,15 @@ namespace vk {
 	struct VulkanImage
 	{
 		VkImage           image;
+		VkImageView       imageView;
 		VmaAllocation     allocation;
 		VmaAllocationInfo allocationInfo;
-		VkExtent3D extent;
-		VkFormat format;
+		VkExtent3D        extent;
+		VkFormat          format;
 
-		void create2DImage(VulkanDevice const& device, VkFormat format, VkImageUsageFlags usage_flags, VkExtent3D extent);
 		void destroy(VulkanDevice const& device, VkAllocationCallbacks const* pAllocator);
 	};
-	
+
 	class VulkanImageBuilder
 	{
 	public:
@@ -41,6 +41,9 @@ namespace vk {
 		VulkanImageBuilder& setAllocationFlags(VmaAllocationCreateFlags flags);
 		VulkanImageBuilder& setMemoryUsage(VmaMemoryUsage memory_usage);
 		VulkanImageBuilder& setAllocationRequiredFlags(VkMemoryPropertyFlags required_flags);
+		VulkanImageBuilder& setAspectFlags(VkImageAspectFlags aspect_flags);
+
+		VulkanImageBuilder& overrideImageViewCreateInfo(VkImageViewCreateInfo const& create_info);
 
 		VulkanImage build(VulkanDevice const& device, VkAllocationCallbacks const* pAllocator);
 
@@ -51,6 +54,7 @@ namespace vk {
 	private:
 		VkImageCreateInfo m_imageCreateInfo;
 		VmaAllocationCreateInfo m_allocationCreateInfo;
+		VkImageViewCreateInfo m_imageViewCreateInfo;
 	};
 
 }	

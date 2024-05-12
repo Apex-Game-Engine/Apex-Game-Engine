@@ -157,7 +157,7 @@ namespace apex::vk {
 
 	void VulkanDevice::destroy(VkAllocationCallbacks const* pAllocator)
 	{
-		vmaDestroyAllocator(m_allocator);
+		vmaDestroyAllocator(vmaAllocator);
 		vkDestroyCommandPool(logicalDevice, transferCommandPool, pAllocator);
 		vkDestroyDevice(logicalDevice, pAllocator);
 	}
@@ -220,7 +220,7 @@ namespace apex::vk {
 			.device = logicalDevice,
 			.instance = instance,
 		};
-		axVerifyMsg(VK_SUCCESS == vmaCreateAllocator(&allocatorCreateInfo, &m_allocator),
+		axVerifyMsg(VK_SUCCESS == vmaCreateAllocator(&allocatorCreateInfo, &vmaAllocator),
 			"Failed to create Vulkan Memory Allocator!"
 		);
 	}

@@ -68,7 +68,6 @@ namespace gfx {
 		void*                          m_uniformBuffersMapped[kMaxFramesInFlight]{};
 
 		vk::VulkanImage                m_depthImage{};
-		VkImageView                    m_depthImageView{};
 
 		uint32                         m_currentFrame = 0;
 

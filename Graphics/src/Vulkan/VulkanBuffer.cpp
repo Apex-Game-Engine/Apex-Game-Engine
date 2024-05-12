@@ -32,7 +32,7 @@ namespace apex::vk {
 			.usage = memory_usage,
 		};
 
-		axVerifyMsg(VK_SUCCESS == vmaCreateBuffer(device.m_allocator, &bufferCreateInfo, &allocInfo, &buffer, &allocation, &allocation_info),
+		axVerifyMsg(VK_SUCCESS == vmaCreateBuffer(device.vmaAllocator, &bufferCreateInfo, &allocInfo, &buffer, &allocation, &allocation_info),
 			"Failed to create buffer!"
 		);
 	}
@@ -92,31 +92,31 @@ namespace apex::vk {
 
 	void VulkanBuffer::destroy(VulkanDevice const& device, VkAllocationCallbacks const* pAllocator)
 	{
-		vmaDestroyBuffer(device.m_allocator, buffer, allocation);
+		vmaDestroyBuffer(device.vmaAllocator, buffer, allocation);
 	}
 
 	void VulkanBuffer::loadVertexBufferData(VulkanDevice const& device, gfx::VertexBufferCPU const& cpu_buffer)
 	{
 		void* data;
-		axVerifyMsg(VK_SUCCESS == vmaMapMemory(device.m_allocator, allocation, &data),
+		axVerifyMsg(VK_SUCCESS == vmaMapMemory(device.vmaAllocator, allocation, &data),
 			"Failed to map buffer memory!"
 		);
 
 		apex::memcpy_s<float>(data, cpu_buffer.size(), cpu_buffer.data(), cpu_buffer.size());
 
-		vmaUnmapMemory(device.m_allocator, allocation);
+		vmaUnmapMemory(device.vmaAllocator, allocation);
 	}
 
 	void VulkanBuffer::loadIndexBufferData(VulkanDevice const& device, gfx::IndexBufferCPU const& cpu_buffer)
 	{
 		void* data;
-		axVerifyMsg(VK_SUCCESS == vmaMapMemory(device.m_allocator, allocation, &data),
+		axVerifyMsg(VK_SUCCESS == vmaMapMemory(device.vmaAllocator, allocation, &data),
 			"Failed to map buffer memory!"
 		);
 
 		apex::memcpy_s<uint32>(data, cpu_buffer.count(), cpu_buffer.data().data, cpu_buffer.count());
 
-		vmaUnmapMemory(device.m_allocator, allocation);
+		vmaUnmapMemory(device.vmaAllocator, allocation);
 	}
 
 	void* VulkanBuffer::getMappedMemory() const
@@ -128,7 +128,7 @@ namespace apex::vk {
 	void VulkanBuffer::map(VulkanDevice const& device, void **ppData) const
 	{
 		// TODO: Handle non-HOST_VISIBLE memory properly
-		axVerifyMsg(VK_SUCCESS == vmaMapMemory(device.m_allocator, allocation, ppData),
+		axVerifyMsg(VK_SUCCESS == vmaMapMemory(device.vmaAllocator, allocation, ppData),
 			"Failed to map buffer memory! [TODO: Handle non-HOST_VISIBLE memory properly]"
 		);
 	}
@@ -136,7 +136,7 @@ namespace apex::vk {
 	void VulkanBuffer::unmap(VulkanDevice const& device) const
 	{
 		// TODO: Handle non-HOST_COHERENT memory
-		vmaUnmapMemory(device.m_allocator, allocation);
+		vmaUnmapMemory(device.vmaAllocator, allocation);
 	}
 
 	void VulkanBuffer::CopyBufferData(VulkanDevice const& device, VulkanBuffer const& dst_buffer, VulkanBuffer const& src_buffer, VkDeviceSize size)

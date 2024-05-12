@@ -78,7 +78,7 @@ namespace vk {
 
 		VkCommandPool    transferCommandPool{};
 		
-		VmaAllocator		 m_allocator{};
+		VmaAllocator		 vmaAllocator{};
 
 		VkPhysicalDeviceProperties       physicalDeviceProperties{};
 		VulkanPhysicalDeviceFeatures     physicalDeviceFeatures{};

@@ -23,7 +23,7 @@ namespace apex::gfx {
 		m_renderPass.create(m_context->m_device.logicalDevice, m_context->m_swapchain.surfaceFormat.format, &m_depthImage, VULKAN_NULL_ALLOCATOR);
 
 		// Create swapchain framebuffers
-		m_context->m_swapchain.createFramebuffers(m_context->m_device.logicalDevice, m_renderPass.renderPass, &m_depthImageView, VULKAN_NULL_ALLOCATOR);
+		m_context->m_swapchain.createFramebuffers(m_context->m_device.logicalDevice, m_renderPass.renderPass, &m_depthImage.imageView, VULKAN_NULL_ALLOCATOR);
 
 		// Create descriptor set layouts
 		{
@@ -82,7 +82,7 @@ namespace apex::gfx {
 		{
 			destroyPerFrameData(m_context->m_device, VULKAN_NULL_ALLOCATOR);
 
-			//vmaUnmapMemory(m_context->m_device.m_allocator, m_uniformBuffers[i].allocation);
+			//vmaUnmapMemory(m_context->m_device.vmaAllocator, m_uniformBuffers[i].allocation);
 			m_uniformBuffers[i].destroy(m_context->m_device, VULKAN_NULL_ALLOCATOR);
 		}
 
@@ -94,7 +94,6 @@ namespace apex::gfx {
 
 		m_renderPass.destroy(m_context->m_device.logicalDevice, VULKAN_NULL_ALLOCATOR);
 
-		vkDestroyImageView(m_context->m_device.logicalDevice, m_depthImageView, VULKAN_NULL_ALLOCATOR);
 		m_depthImage.destroy(m_context->m_device, VULKAN_NULL_ALLOCATOR);
 	}
 
@@ -132,7 +131,7 @@ namespace apex::gfx {
 	void ForwardRenderer::resizeFramebuffers()
 	{
 		// Recreate swapchain framebuffers
-		m_context->m_swapchain.createFramebuffers(m_context->m_device.logicalDevice, m_renderPass.renderPass, &m_depthImageView, VULKAN_NULL_ALLOCATOR);
+		m_context->m_swapchain.createFramebuffers(m_context->m_device.logicalDevice, m_renderPass.renderPass, &m_depthImage.imageView, VULKAN_NULL_ALLOCATOR);
 	}
 
 	void ForwardRenderer::prepareGeometry(vk::VulkanDevice const& device, VkAllocationCallbacks const* pAllocator)
@@ -158,30 +157,6 @@ namespace apex::gfx {
 			.setMemoryUsage(VMA_MEMORY_USAGE_GPU_ONLY)
 			.setAllocationRequiredFlags(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
 			.build(m_context->m_device, VULKAN_NULL_ALLOCATOR);
-
-		VkImageViewCreateInfo depthImageViewCreateInfo {
-			.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
-			.image = m_depthImage.image,
-			.viewType = VK_IMAGE_VIEW_TYPE_2D,
-			.format = m_depthImage.format,
-			.components = {
-				.r = VK_COMPONENT_SWIZZLE_IDENTITY,
-				.g = VK_COMPONENT_SWIZZLE_IDENTITY,
-				.b = VK_COMPONENT_SWIZZLE_IDENTITY,
-				.a = VK_COMPONENT_SWIZZLE_IDENTITY
-			},
-			.subresourceRange = {
-				.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT,
-				.baseMipLevel = 0,
-				.levelCount = 1,
-				.baseArrayLayer = 0,
-				.layerCount = 1
-			}
-		};
-
-		axVerifyMsg(VK_SUCCESS == vkCreateImageView(m_context->m_device.logicalDevice, &depthImageViewCreateInfo, VULKAN_NULL_ALLOCATOR, &m_depthImageView),
-			"Failed to create depth image view!"
-		);
 	}
 
 	void ForwardRenderer::createUniformBuffers(vk::VulkanDevice const& device, VkAllocationCallbacks const* pAllocator)
@@ -201,7 +176,7 @@ namespace apex::gfx {
 				VMA_ALLOCATION_CREATE_MAPPED_BIT | VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT,
 				pAllocator);
 
-			/*axVerifyMsg(VK_SUCCESS == vmaMapMemory(device.m_allocator, m_uniformBuffers[i].allocation, &m_uniformBuffersMapped[i]),
+			/*axVerifyMsg(VK_SUCCESS == vmaMapMemory(device.vmaAllocator, m_uniformBuffers[i].allocation, &m_uniformBuffersMapped[i]),
 				"Failed to map uniform buffer memory!"
 			);*/
 			m_uniformBuffersMapped[i] = m_uniformBuffers[i].getMappedMemory();

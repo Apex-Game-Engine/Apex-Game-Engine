@@ -3,26 +3,28 @@
 namespace apex {
 namespace vk {
 
-	void VulkanImage::create2DImage(VulkanDevice const& device, VkFormat format, VkImageUsageFlags usage_flags, VkExtent3D extent)
-	{
-		VkImageCreateInfo image_info {
-			.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
-			.imageType = VK_IMAGE_TYPE_2D,
-			.format = format,
-			.extent = extent,
-			.mipLevels = 1,
-			.arrayLayers = 1,
-			.samples = VK_SAMPLE_COUNT_1_BIT,
-			.tiling = VK_IMAGE_TILING_OPTIMAL,
-			.usage = usage_flags,
-			.sharingMode = VK_SHARING_MODE_EXCLUSIVE,
-			.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED
-		};
+	namespace {
+		constexpr VkImageViewType getImageViewType(VkImageType image_type)
+		{
+			switch (image_type) {
+			case VK_IMAGE_TYPE_1D:
+				return VK_IMAGE_VIEW_TYPE_1D;
+			case VK_IMAGE_TYPE_2D:
+				return VK_IMAGE_VIEW_TYPE_2D;
+			case VK_IMAGE_TYPE_3D:
+				return VK_IMAGE_VIEW_TYPE_3D;
+			default:
+				axAssertMsg(false, "Invalid image type");
+				return VK_IMAGE_VIEW_TYPE_2D;
+			}
+		}
 	}
+
 
 	void VulkanImage::destroy(VulkanDevice const& device, VkAllocationCallbacks const* pAllocator)
 	{
-		vmaDestroyImage(device.m_allocator, image, allocation);
+		vkDestroyImageView(device.logicalDevice, imageView, pAllocator);
+		vmaDestroyImage(device.vmaAllocator, image, allocation);
 	}
 
 	VulkanImageBuilder::VulkanImageBuilder()
@@ -30,6 +32,7 @@ namespace vk {
 			.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
 			.pNext = nullptr,
 			.flags = 0,
+			.imageType = VK_IMAGE_TYPE_2D,
 			.mipLevels = 1,
 			.arrayLayers = 1,
 			.samples = VK_SAMPLE_COUNT_1_BIT,
@@ -37,9 +40,29 @@ namespace vk {
 		}
 		, m_allocationCreateInfo {
 			.flags = 0,
-			.requiredFlags = 0,
+			.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
+			.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
 			.preferredFlags = 0,
 			.memoryTypeBits = 0,
+		}
+		, m_imageViewCreateInfo {
+			.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+			.pNext = nullptr,
+			.flags = 0,
+			.viewType = VK_IMAGE_VIEW_TYPE_2D,
+			.components = {
+				.r = VK_COMPONENT_SWIZZLE_IDENTITY,
+				.g = VK_COMPONENT_SWIZZLE_IDENTITY,
+				.b = VK_COMPONENT_SWIZZLE_IDENTITY,
+				.a = VK_COMPONENT_SWIZZLE_IDENTITY,
+			},
+			.subresourceRange = {
+				.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+				.baseMipLevel = 0,
+				.levelCount = 1,
+				.baseArrayLayer = 0,
+				.layerCount = 1,
+			},
 		}
 	{
 	}
@@ -47,12 +70,17 @@ namespace vk {
 	VulkanImageBuilder& VulkanImageBuilder::setImageType(VkImageType image_type)
 	{
 		m_imageCreateInfo.imageType = image_type;
+		m_imageViewCreateInfo.viewType = getImageViewType(image_type);
 		return *this;
 	}
 
 	VulkanImageBuilder& VulkanImageBuilder::setFormat(VkFormat format)
 	{
 		m_imageCreateInfo.format = format;
+		m_imageViewCreateInfo.format = format;
+		if (format == VK_FORMAT_D16_UNORM || format == VK_FORMAT_D32_SFLOAT || format == VK_FORMAT_D16_UNORM_S8_UINT || format == VK_FORMAT_D24_UNORM_S8_UINT || format == VK_FORMAT_D32_SFLOAT_S8_UINT) {
+			m_imageViewCreateInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+		}
 		return *this;
 	}
 
@@ -70,6 +98,7 @@ namespace vk {
 	VulkanImageBuilder& VulkanImageBuilder::setMipLevels(uint32 mip_levels)
 	{
 		m_imageCreateInfo.mipLevels = mip_levels;
+		m_imageViewCreateInfo.subresourceRange.levelCount = mip_levels;
 		return *this;
 	}
 
@@ -127,6 +156,18 @@ namespace vk {
 		return *this;
 	}
 
+	VulkanImageBuilder& VulkanImageBuilder::setAspectFlags(VkImageAspectFlags aspect_flags)
+	{
+		m_imageViewCreateInfo.subresourceRange.aspectMask = aspect_flags;
+		return *this;
+	}
+
+	VulkanImageBuilder& VulkanImageBuilder::overrideImageViewCreateInfo(VkImageViewCreateInfo const& create_info)
+	{
+		m_imageViewCreateInfo = create_info;
+		return *this;
+	}
+
 	VulkanImage VulkanImageBuilder::build(VulkanDevice const& device, VkAllocationCallbacks const* pAllocator)
 	{
 		VulkanImage image;
@@ -137,12 +178,18 @@ namespace vk {
 		axAssertMsg(m_imageCreateInfo.extent.height > 0, "Extent height must be greater than 0");
 		axAssertMsg(m_imageCreateInfo.extent.depth > 0, "Extent depth must be greater than 0");
 
-		axVerifyMsg(VK_SUCCESS == vmaCreateImage(device.m_allocator, &m_imageCreateInfo, &m_allocationCreateInfo, &image.image, &image.allocation, &image.allocationInfo),
+		axVerifyMsg(VK_SUCCESS == vmaCreateImage(device.vmaAllocator, &m_imageCreateInfo, &m_allocationCreateInfo, &image.image, &image.allocation, &image.allocationInfo),
 			"Failed to create image"
 		);
 
 		image.extent = m_imageCreateInfo.extent;
 		image.format = m_imageCreateInfo.format;
+
+		m_imageViewCreateInfo.image = image.image;
+
+		axVerifyMsg(VK_SUCCESS == vkCreateImageView(device.logicalDevice, &m_imageViewCreateInfo, pAllocator, &image.imageView),
+			"Failed to create image view"
+		);
 
 		return image;
 	}
