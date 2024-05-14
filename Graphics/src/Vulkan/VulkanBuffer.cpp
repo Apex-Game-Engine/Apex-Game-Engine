@@ -141,38 +141,17 @@ namespace apex::vk {
 
 	void VulkanBuffer::CopyBufferData(VulkanDevice const& device, VulkanBuffer const& dst_buffer, VulkanBuffer const& src_buffer, VkDeviceSize size)
 	{
-		VkCommandBuffer transferCommandBuffer = device.beginOneShotCommandBuffer(device.transferCommandPool);
+		auto lambda = [&](VkCommandBuffer commandBuffer) {
+			VkBufferCopy copyRegion {
+				.srcOffset = 0,
+				.dstOffset = 0,
+				.size = size
+			};
 
-		VkBufferCopy copyRegion {
-			.srcOffset = 0,
-			.dstOffset = 0,
-			.size = size
+			vkCmdCopyBuffer(commandBuffer, src_buffer.buffer, dst_buffer.buffer, 1, &copyRegion);
 		};
-
-		vkCmdCopyBuffer(transferCommandBuffer, src_buffer.buffer, dst_buffer.buffer, 1, &copyRegion);
-
-		vkEndCommandBuffer(transferCommandBuffer);
-
-		VkSubmitInfo submitInfo {
-			.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-			//.waitSemaphoreCount = ,
-			//.pWaitSemaphores = ,
-			//.pWaitDstStageMask = ,
-			.commandBufferCount = 1,
-			.pCommandBuffers = &transferCommandBuffer,
-			// .signalSemaphoreCount = ,
-			// .pSignalSemaphores = ,
-		};
-
-		vkQueueSubmit(device.transferQueue, 1, &submitInfo, VK_NULL_HANDLE);
-
-		// Here, we're synchronously waiting on the queue to go idle
-		// TODO: Better synchronize transfer operations
-		//   1. Use Fences to fire multiple commands at once and wait for them before starting submitting
-		//   2. Use Semaphores to schedule the rendering commands on the GPU to start after the transfer commands are completed - no CPU side waiting
-		vkQueueWaitIdle(device.transferQueue);
-
-		vkFreeCommandBuffers(device.logicalDevice, device.transferCommandPool, 1, &transferCommandBuffer);
+		auto delegate = Delegate<void(VkCommandBuffer)>(lambda);
+		device.submitImmediateCommands(VulkanQueueType::eTransfer, VulkanCommandPoolType::eTransfer, delegate);
 	}
 
 	size_t VulkanBuffer::size() const

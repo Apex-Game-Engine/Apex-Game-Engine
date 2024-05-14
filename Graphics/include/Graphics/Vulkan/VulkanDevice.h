@@ -5,6 +5,7 @@
 
 #include "VulkanCommon.h"
 #include "Containers/AxArray.h"
+#include "Core/Delegate.h"
 
 namespace apex {
 namespace vk {
@@ -63,6 +64,22 @@ namespace vk {
 		VkPhysicalDeviceVulkan13Features features13{};
 	};
 
+	enum class VulkanQueueType : uint8
+	{
+		eGraphics,
+		ePresent,
+		eTransfer,
+		eCompute,
+		COUNT
+	};
+
+	enum class VulkanCommandPoolType : uint8
+	{
+		eTransfer,
+		eCompute,
+		COUNT
+	};
+
 	struct VulkanDevice
 	{
 		VkPhysicalDevice physicalDevice{};
@@ -75,8 +92,11 @@ namespace vk {
 		VkQueue          presentQueue{};
 		VkQueue          transferQueue{};
 		VkQueue          computeQueue{};
+		VkQueue*		 queues{ &graphicsQueue };
 
 		VkCommandPool    transferCommandPool{};
+		VkCommandPool    computeCommandPool{};
+		VkCommandPool*   commandPools{ &transferCommandPool };
 		
 		VmaAllocator		 vmaAllocator{};
 
@@ -92,6 +112,7 @@ namespace vk {
 		void createCommandPools(VkAllocationCallbacks const* pAllocator);
 		void destroy(VkAllocationCallbacks const* pAllocator);
 
+		void submitImmediateCommands(VulkanQueueType queue_type, VulkanCommandPoolType command_pool_type, Delegate<void(VkCommandBuffer)> const& function) const;
 		auto beginOneShotCommandBuffer(VkCommandPool command_pool) const -> VkCommandBuffer;
 		auto findSuitableMemoryType(uint32 type_filter, VkMemoryPropertyFlags properties) const -> uint32;
 		void createMemoryAllocator(VkInstance instance, VkAllocationCallbacks const* pAllocator);
