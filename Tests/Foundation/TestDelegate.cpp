@@ -75,19 +75,19 @@ TEST(TestDelegate, TestVoidReturnNonCapturingLambda)
 
 TEST(TestDelegate, TestVoidReturnCapturingLambda)
 {
-	EXPECT_TRUE(false); // This test fails, because the lambda is not copied into the delegate
-	//EXPECT_EQ(detail::counter, 0);
-	//{
-	//	int value = 42;
-	//	apex::Delegate<void()> delegate;
-	//	delegate.set<[&value]() { detail::counter = value; }>();
-	//	delegate();
-	//	EXPECT_EQ(detail::counter, 42);
+	EXPECT_EQ(detail::counter, 0);
+	{
+		int value = 42;
+		auto lambda = [&value]() { detail::counter = value; };
+		apex::Delegate<void()> delegate;
+		delegate.set(lambda);
+		delegate();
+		EXPECT_EQ(detail::counter, 42);
 
-	//	value = 0;
-	//	delegate();
-	//	EXPECT_EQ(detail::counter, 0);
-	//}
+		value = 0;
+		delegate();
+		EXPECT_EQ(detail::counter, 0);
+	}
 }
 
 TEST(TestDelegate, TestVoidReturnMemberFunction)
@@ -259,5 +259,24 @@ TEST(TestDelegate, TestMemberFunctionTemplateFromBaseClass)
 
 		counter.set(42);
 		EXPECT_EQ(counter.value, 84);
+	}
+}
+
+void call_delegate(apex::Delegate<bool(Counter)> const& delegate, Counter counter)
+{
+	EXPECT_TRUE(delegate(std::forward<Counter>(counter)));
+}
+
+TEST(TestDelegate, TestPassingIntoFunction)
+{
+	{
+		Counter counter;
+		apex::Delegate<bool(Counter)> delegate;
+		counter.set(42);
+		auto lambda = [](Counter counter) { return counter.value > 5; };
+		delegate.set(lambda);
+
+		call_delegate(delegate, counter);
+		EXPECT_EQ(counter.value, 42);
 	}
 }
