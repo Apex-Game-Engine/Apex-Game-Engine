@@ -13,5 +13,7 @@ namespace vk {
 
 	auto query_swapchain_support_details(VkPhysicalDevice physical_device, VkSurfaceKHR surface) -> VulkanSwapchainSupportDetails;
 
+	void transition_image_layout(VkCommandBuffer command_buffer, VkImage image, VkImageLayout old_layout, VkImageLayout new_layout);
+
 }
 }

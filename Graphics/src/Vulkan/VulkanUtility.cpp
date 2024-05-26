@@ -68,4 +68,43 @@ namespace apex::vk {
 		return supportDetails;
 	}
 
+	void transition_image_layout(
+		VkCommandBuffer command_buffer,
+		VkImage image,
+		VkImageLayout old_layout,
+		VkImageLayout new_layout)
+	{
+		auto aspectFlags = static_cast<VkImageAspectFlags>(new_layout == VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL
+					                                              ? VK_IMAGE_ASPECT_DEPTH_BIT
+					                                              : VK_IMAGE_ASPECT_COLOR_BIT);
+
+		VkImageMemoryBarrier2 imageBarrier {
+			.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
+			.pNext = nullptr,
+			.srcStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+			.srcAccessMask = VK_ACCESS_2_MEMORY_WRITE_BIT,
+			.dstStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+			.dstAccessMask = VK_ACCESS_2_MEMORY_READ_BIT | VK_ACCESS_2_MEMORY_WRITE_BIT,
+			.oldLayout = old_layout,
+			.newLayout = new_layout,
+			.image = image,
+			.subresourceRange = {
+				.aspectMask = aspectFlags,
+				.baseMipLevel = 0,
+				.levelCount = VK_REMAINING_MIP_LEVELS,
+				.baseArrayLayer = 0,
+				.layerCount = VK_REMAINING_ARRAY_LAYERS
+			},
+		};
+
+		VkDependencyInfo dependencyInfo {
+			.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+			.pNext = nullptr,
+			.dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT,
+			.imageMemoryBarrierCount = 1,
+			.pImageMemoryBarriers = &imageBarrier,
+		};
+
+		vkCmdPipelineBarrier2(command_buffer, &dependencyInfo);
+	}
 }
