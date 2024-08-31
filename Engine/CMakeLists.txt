@@ -23,6 +23,7 @@ target_link_libraries(Engine
     PUBLIC
     Foundation
     Graphics
+    fastgltf::fastgltf
 )
 
 target_include_directories(Engine
