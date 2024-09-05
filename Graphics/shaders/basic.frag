@@ -8,7 +8,7 @@ layout (location = 0) out vec4 outColor;
 layout (binding = 1) uniform sampler2D texQuad;
 
 const vec3 ambientColor = vec3(0.05, 0.03, 0.01);
-const vec3 lightPos = vec3(0.0, 0.0, 2.0);
+const vec3 lightPos = vec3(0.0, 5.0, 2.0);
 
 void main()
 {

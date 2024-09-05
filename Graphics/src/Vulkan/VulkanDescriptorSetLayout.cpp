@@ -1,7 +1,6 @@
 ﻿#include "Graphics/Vulkan/VulkanDescriptorSetLayout.h"
 
 #include "Core/Asserts.h"
-#include "Graphics/Vulkan/Core.h"
 
 namespace apex::vk {
 
