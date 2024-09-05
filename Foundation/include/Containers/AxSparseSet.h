@@ -182,7 +182,7 @@ namespace apex {
 		 * \brief Returns an iterable range of immutable keys in the set.
 		 * \return An AxRange of const keys.
 		 */
-		auto keys() const { return ranges::AxRange<const dense_array>(m_dense.begin(), m_dense.end()); }
+		auto keys() const { return ranges::AxRange<const dense_array, typename dense_array::const_iterator>(m_dense.begin(), m_dense.end()); }
 
 		/**
 		 * \brief Returns the currently allocated max capacity of the set.
