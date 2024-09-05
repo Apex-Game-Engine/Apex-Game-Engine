@@ -320,6 +320,11 @@ struct SineWaveMovementSystem : public ecs::System<ecs::get_t<apex::Transform, S
 		m_componentView.each([&] (auto& transform, const auto& movement) { applyMovement(transform, movement, time); });
 	}
 
+	void run(Time time, apex::Transform& transform, SineWaveMovement& movement)
+	{
+		applyMovement(transform, movement, time);
+	}
+
 	void applyMovement(apex::Transform& transform, SineWaveMovement const& movement, Time const& time)
 	{
 		transform.position.y = movement.amplitude * sinf(movement.frequency * time.time);
@@ -401,10 +406,7 @@ struct DamageSystem : public ecs::System<DamageSystem, ecs::get_t<apex::DamageIn
 	DamageSystem(apex::ecs::Registry& registry) : System(registry) {}
 
 	template <typename Event>
-	bool onEvent(Event const& event)
-	{
-		return false;
-	}
+	bool onEvent(Event const& event);
 
 	template <>
 	bool onEvent<apex::CollisionEvent>(apex::CollisionEvent const& event)
@@ -423,18 +425,34 @@ template <typename Event>
 struct EventQueue
 {
 	EventQueue(apex::ecs::Registry& registry)
-		: listeners(registry.view<ecs::EventListener<Event>>())
+		: registry(registry)
 	{}
 
+	apex::ecs::Registry& registry;
 	std::queue<Event> events;
 
-	using view_t = decltype(std::declval<apex::ecs::Registry>().view<ecs::EventListener<Event>>());
-	view_t listeners;
+	void handle()
+	{
+		auto listeners = registry.view<ecs::EventListener<Event>>();
+		while (!events.empty())
+		{
+			auto& event = events.front();
+			for (auto entity : listeners.keys())
+			{
+				auto& eventListener = registry.get<ecs::EventListener<Event>>(entity).value().get();
+				eventListener.eventHandler(event);
+				/*if (eventListener.eventHandler(event))
+					break;*/
+			}
+			events.pop();
+		}
+	}
 };
 
 TEST_F(TestEcs, TestEventHandlerInvoking)
 {
 	apex::ecs::Registry registry;
+	EventQueue<apex::CollisionEvent> collisionEventQueue(registry);
 
 	DamageSystem damageSystem(registry);
 
@@ -452,13 +470,17 @@ TEST_F(TestEcs, TestEventHandlerInvoking)
 
 	apex::CollisionEvent collisionEvent { player, enemy };
 
-	auto collisionEventView = registry.view<ecs::EventListener<apex::CollisionEvent>>();
+	collisionEventQueue.events.push(collisionEvent);
+
+	collisionEventQueue.handle();
+
+	/*auto collisionEventView = registry.view<ecs::EventListener<apex::CollisionEvent>>();
 	for (auto entity : collisionEventView.keys())
 	{
 		auto& eventListener = registry.get<ecs::EventListener<apex::CollisionEvent>>(entity).value().get();
 		if (eventListener.eventHandler(collisionEvent))
 			break;
-	}
+	}*/
 
 	/*collisionEventView.each([&](apex::ecs::Entity entity)
 	{

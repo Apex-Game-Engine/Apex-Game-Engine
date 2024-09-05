@@ -1,5 +1,6 @@
 ﻿#include <gtest/gtest.h>
 
+#include "StringHash.h"
 #include "Apex/TypeInfo.h"
 #include "Containers/AxStaticString.h"
 #include "Containers/AxStringRef.h"
@@ -16,20 +17,6 @@ namespace apex
 
 namespace apex::internal
 {
-    constexpr uint32_t fnv_prime_32 = 16777619;
-    constexpr uint64_t fnv_prime_64 = 1099511628211U;
-
-    constexpr uint32_t fnv_offset_basis_32 = 2166136261;
-    constexpr uint64_t fnv_offset_basis_64 = 14695981039346656037U;
-
-    inline constexpr uint64_t hash_fnv1a_64(const char* const str, const uint64_t hash = fnv_offset_basis_64)
-    {
-        // hash = fnv_offset_basis_64
-        // hash = hash ^ str[idx]
-        // hash = hash * fnv_prime_64
-        return (str[0] == '\0') ? hash : hash_fnv1a_64(&str[1], (hash ^ str[0]) * fnv_prime_64);
-    }
-
     enum Things
     {
 	    eNothing = 0
