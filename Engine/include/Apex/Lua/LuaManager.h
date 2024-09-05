@@ -1,5 +1,5 @@
 #pragma once
-#include <lua.h>
+#include <lua.hpp>
 
 struct lua_State;
 
@@ -37,6 +37,10 @@ namespace lua {
 		LuaState(LuaStateCreateOptions const& options = {});
 		~LuaState();
 
+		LuaResult loadFile(const char* filename) const;
+		LuaResult doFile(const char* filename) const;
+
+		LuaResult loadString(char const* code) const;
 		LuaResult doString(char const* code) const;
 
 		LuaResult registerFunction(PFN_LuaCFunction pfunc, const char* lua_name) const;
@@ -47,7 +51,11 @@ namespace lua {
 			
 		}
 
+		LuaResult callFunction(const char* lua_name, int nargs, int nresults) const;
+
 		lua_State* raw() const { return m_lua; }
+
+		const char* getError() const;
 
 	private:
 		lua_State *m_lua;
