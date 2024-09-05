@@ -102,3 +102,6 @@ namespace core {
 
 }
 }
+
+#define APEX_REGISTER_TYPE(TYPE) \
+	static constexpr apex::uint32 g_TypeIndex_##TYPE = apex::core::TypeIndex<TYPE>::value()
