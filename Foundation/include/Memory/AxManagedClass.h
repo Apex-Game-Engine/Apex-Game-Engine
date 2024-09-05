@@ -63,6 +63,7 @@ namespace apex {
 
 		constexpr AxManagedClassAdapter() = default;
 		constexpr AxManagedClassAdapter(T value) : m_value(value) {}
+		constexpr AxManagedClassAdapter(T* pointer) : m_value(*pointer) {}
 		constexpr AxManagedClassAdapter& operator=(T other) { m_value = other; return *this; }
 
 		constexpr operator T() const { return m_value; }

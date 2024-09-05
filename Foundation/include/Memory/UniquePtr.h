@@ -14,15 +14,20 @@ namespace apex {
 		static_assert(!std::is_reference_v<T>);
 
 	public:
-		using element_type = T;
-		using pointer      = T*;
-		using reference    = T&;
+		using underlying_type = apex::remove_managed_adapter_t<T>;
+		using value_type     = underlying_type;
+		using pointer        = value_type*;
+		using reference      = value_type&;
+		using stored_ptr     = T*;
 
 		// default ctor
 		constexpr UniquePtr() noexcept : m_ptr() {}
 
 		// parameter initializing ctor
 		constexpr explicit UniquePtr(pointer ptr) noexcept : m_ptr(ptr) {}
+
+		template <typename WrappedPtr = std::enable_if_t<apex::is_managed_adapted_class_v<T>, T>>
+		constexpr explicit UniquePtr(WrappedPtr ptr) noexcept : m_ptr(ptr) {}
 
 		// move ctor
 		constexpr UniquePtr(UniquePtr&& other) noexcept : m_ptr(other.release()) {}
@@ -73,18 +78,18 @@ namespace apex {
 		[[nodiscard]] constexpr reference operator*() const noexcept
 		{
 			axAssertMsg(m_ptr, "Attempted to dereference a null UniquePtr");
-			return *m_ptr;
+			return *_ConvertToPointer();
 		}
 
 		[[nodiscard]] constexpr pointer operator->() const noexcept
 		{
 			axAssertMsg(m_ptr, "Attempted to dereference a null UniquePtr");
-			return m_ptr;
+			return _ConvertToPointer();
 		}
 
 		[[nodiscard]] constexpr pointer get() const noexcept
 		{
-			return m_ptr;
+			return _ConvertToPointer();
 		}
 
 		constexpr explicit operator bool() const noexcept
@@ -104,15 +109,28 @@ namespace apex {
 
 		constexpr void reset(pointer ptr = nullptr) noexcept
 		{
-			pointer old = std::exchange(m_ptr, ptr);
+			stored_ptr old = std::exchange(m_ptr, stored_ptr(ptr));
 			apex::default_delete(old);
 		}
 
 		UniquePtr(const UniquePtr&)            = delete;
 		UniquePtr& operator=(UniquePtr const&) = delete;
 
+	protected:
+		auto _ConvertToPointer() const noexcept -> pointer
+		{
+			if constexpr (apex::is_managed_adapted_class_v<T>)
+			{
+				return apex::from_managed_adapter<value_type>(m_ptr);
+			}
+			else
+			{
+				return m_ptr;
+			}
+		}
+
 	private:
-		pointer m_ptr;
+		stored_ptr m_ptr;
 
 		template <typename> friend class UniquePtr;
 	};

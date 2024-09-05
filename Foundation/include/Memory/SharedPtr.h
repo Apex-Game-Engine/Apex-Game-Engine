@@ -9,7 +9,9 @@
 
 namespace apex {
 
-	template <typename T, typename Lock>
+	using default_shared_ptr_lock = cncy::NullLock;
+
+	template <typename T, typename Lock = default_shared_ptr_lock>
 	class SharedPtr;
 
 	template <apex::managed_class T, concurrency::lockable Lock>
@@ -18,10 +20,11 @@ namespace apex {
 		static_assert(!std::is_reference_v<T>);
 
 	public:
-		using element_type = T;
-		using pointer      = T*;
-		using reference    = T&;
-		using mutex_type   = Lock;
+		using underlying_type = apex::remove_managed_adapter_t<T>;
+		using value_type      = underlying_type;
+		using pointer         = value_type*;
+		using reference       = value_type&;
+		using mutex_type      = Lock;
 
 	private:
 		struct SharedPtrData : public AxManagedClass
@@ -43,6 +46,15 @@ namespace apex {
 			_Allocate();
 			// std::lock_guard lock(m_data->mutex);
 			m_data->ptr.reset(ptr);
+			m_data->refCount = 1;
+		}
+
+		template <typename TWrappedPtr = std::enable_if_t<apex::is_managed_adapted_class_v<T>, T>>
+		constexpr explicit SharedPtr(TWrappedPtr* ptr) noexcept : m_data(nullptr)
+		{
+			_Allocate();
+			// std::lock_guard lock(m_data->mutex);
+			m_data->ptr.reset(apex::from_managed_adapter(ptr));
 			m_data->refCount = 1;
 		}
 
@@ -308,8 +320,6 @@ namespace apex {
 	private:
 		storage_type* m_data;
 	};
-
-	using default_shared_ptr_lock = cncy::NullLock;
 
 	// make a SharedPtr from a AxHandle
 	template <apex::managed_class T, cncy::lockable Lock = default_shared_ptr_lock, typename... Args> requires (!std::is_array_v<T>) // managed_class , not array
