@@ -4,7 +4,8 @@
 namespace apex {
 
 	/**
-	 * \brief Non-owning string reference. A simple wrapper class over const char*
+	 * \brief Non-owning null-terminated string reference. 
+	 * A simple wrapper class over const char*. 
 	 */
 	class AxStringRef : public AxManagedClass
 	{

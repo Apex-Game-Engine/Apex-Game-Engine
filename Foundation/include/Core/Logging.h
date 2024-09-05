@@ -5,7 +5,7 @@
 #include "Core/Types.h"
 #include "Concurrency/Concurrency.h"
 
-namespace apex::concurrency::lock
+namespace apex::concurrency
 {
 	struct NullLock;
 }
