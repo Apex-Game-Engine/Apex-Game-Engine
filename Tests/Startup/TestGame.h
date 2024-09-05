@@ -2,6 +2,7 @@
 
 #include "Apex/Game.h"
 #include "Apex/Application.h"
+#include "Apex/ModelLoader.h"
 #include "Apex/Window.h"
 #include "Graphics/ForwardRenderer.h"
 #include "Graphics/Camera.h"
@@ -31,6 +32,11 @@ public:
 
 		auto quadMeshCpu = apex::gfx::Quad::getMesh();
 		meshes[1].create(renderer.getContext().m_device, &quadMeshCpu, nullptr);
+
+		{
+			apex::ModelLoader loader;
+			(void)loader.readMetadata("X:/ApexGameEngine-Vulkan/assets/Suzanne/Suzanne.gltf");
+		}
 
 		{
 			apex::gfx::MeshCPU meshCpu;
