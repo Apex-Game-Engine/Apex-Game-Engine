@@ -59,6 +59,12 @@ namespace gfx {
 		~CommandList() = default;
 
 		template <typename T> requires std::is_base_of_v<Command, T>
+		void addCommand(T& command)
+		{
+			_addCommand(apex::make_unique<T>(command));
+		}
+
+		template <typename T> requires std::is_base_of_v<Command, T>
 		void addCommand(UniquePtr<T>&& command)
 		{
 			_addCommand(std::forward<UniquePtr<T>>(command));

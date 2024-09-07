@@ -27,6 +27,15 @@ macro(group_shader_files)
     endforeach()
 endmacro(group_shader_files)
 
+macro(group_lua_files)
+	foreach(_source IN ITEMS ${ARGV})
+		get_filename_component(_source_path "${_source}" PATH)
+		string(REPLACE "${CMAKE_CURRENT_SOURCE_DIR}/scripts" "" _group_path "${_source_path}")
+		string(REPLACE "/" "\\" _group_path "${_group_path}")
+		source_group("Lua Scripts\\${_group_path}" FILES "${_source}")
+	endforeach()
+endmacro(group_lua_files)
+
 # The following two functions have been taken from https://stackoverflow.com/a/29672231
 # set PCH for VS project
 function(set_target_precompiled_header Target PrecompiledHeader PrecompiledSource)

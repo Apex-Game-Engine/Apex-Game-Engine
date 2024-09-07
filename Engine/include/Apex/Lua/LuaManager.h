@@ -38,20 +38,29 @@ namespace lua {
 		~LuaState();
 
 		LuaResult loadFile(const char* filename) const;
-		LuaResult doFile(const char* filename) const;
+		[[maybe_unused]] LuaResult doFile(const char* filename) const;
 
 		LuaResult loadString(char const* code) const;
-		LuaResult doString(char const* code) const;
+		[[maybe_unused]] LuaResult doString(char const* code) const;
 
-		LuaResult registerFunction(PFN_LuaCFunction pfunc, const char* lua_name) const;
+		// TODO: This only registers static or global functions to a table.
+		// We want to be able to register functions as Lua globals and also allow registering C++ member functions.
+		[[maybe_unused]] LuaResult registerCFunction(PFN_LuaCFunction pfunc, const char* lua_name) const;
+		LuaResult registerCClosure(PFN_LuaCFunction pfunc, int n, const char* lua_name) const;
+		LuaResult registerCClosureGlobal(PFN_LuaCFunction pfunc, int n, const char* lua_name);
 
-		template <typename T>
-		LuaResult registerFunction(T pfunc, const char* lua_name) const
-		{
-			
-		}
-
+		// TODO: This only calls global functions. We want to be able to call member functions.
 		LuaResult callFunction(const char* lua_name, int nargs, int nresults) const;
+
+		[[maybe_unused]] LuaResult createTable(int narr, int nrec) const;
+
+		// TODO: This only creates tables in the global scope. We want to be able to create tables in other tables.
+		[[maybe_unused]] LuaResult createTable(const char* name) const;
+		[[maybe_unused]] LuaResult createTable(const char* name, int narr, int nrec) const;
+
+		LuaResult pushLightUserData(void* lightuserdata);
+
+		LuaResult setGlobal(const char* name) const;
 
 		lua_State* raw() const { return m_lua; }
 
