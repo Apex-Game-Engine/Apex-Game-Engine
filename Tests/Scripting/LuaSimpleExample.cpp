@@ -180,14 +180,13 @@ void LuaSimpleExample::initialize()
 		DEBUG_BREAK();
 	}
 
-	luaRes = m_lua.loadFile(R"(X:\ApexGameEngine-Vulkan\Tests\Scripting\scripts\test_cameratransform.lua)");
+	luaRes = m_lua.doFile(R"(X:\ApexGameEngine-Vulkan\Tests\Scripting\scripts\test_cameratransform.lua)");
 	if (apex::lua::LuaResult::Ok != luaRes)
 	{
 		axErrorFmt("Error loading test_camera.lua\n[LUA_ERROR]: {0}\n", m_lua.getError());
 		DEBUG_BREAK();
 	}
-	//lua_pushstring(m_lua.raw(), "apex_updateCameraTransform");
-	//lua_rawset(m_lua.raw(), LUA_REGISTRYINDEX);
+
 	lua_rawsetp(m_lua.raw(), LUA_REGISTRYINDEX, detail::l_updateCameraTransform_Name);
 
 	luaRes = static_cast<apex::lua::LuaResult>(lua_pcall(m_lua.raw(), 0, 0, 0));
@@ -214,8 +213,7 @@ void LuaSimpleExample::update(float deltaTimeMs)
 
 	lua_getglobal(m_lua.raw(), detail::l_updateCameraTransform_Name);
 	axAssert(lua_iscfunction(m_lua.raw(), -1));
-	//lua_pushstring(m_lua.raw(), "apex_updateCameraTransform");
-	//lua_rawget(m_lua.raw(), LUA_REGISTRYINDEX);
+	
 	lua_rawgetp(m_lua.raw(), LUA_REGISTRYINDEX, detail::l_updateCameraTransform_Name);
 	auto luaRes = static_cast<apex::lua::LuaResult>(lua_pcall(m_lua.raw(), 0, 1, 0));
 	if (apex::lua::LuaResult::Ok != luaRes)

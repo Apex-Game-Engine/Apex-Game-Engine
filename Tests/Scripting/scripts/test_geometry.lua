@@ -27,11 +27,7 @@ local function generateSphere(radius, segments, rings)
 	return vertices, indices
 end
 
--- Perlin noise function for terrain height variation
-local function perlinNoise(x, y)
-    -- Simplified noise function; replace with a proper Perlin noise implementation if needed
-    return math.sin(x * 4e2) * math.cos(y * 4e2)
-end
+local perlinNoise = apex.math.generate.perlinNoise
 
 -- Function to generate a large terrain
 local function generateTerrain(width, depth, gridSize)
@@ -54,8 +50,8 @@ local function generateTerrain(width, depth, gridSize)
     end
 
     -- Generate vertices for the grid
-    for i = 0, cols do
-        for j = 0, rows do
+    for i = 0, cols - 1 do
+        for j = 0, rows - 1 do
             local x = i * gridSize - width / 2
             local z = j * gridSize - depth / 2
             local pnx = x * width * 64.0
@@ -69,11 +65,11 @@ local function generateTerrain(width, depth, gridSize)
     end
 
     -- Generate indices for each grid cell
-    for i = 0, cols - 1 do
-        for j = 0, rows - 1 do
-            local topLeft = i * (rows + 1) + j + 1
+    for i = 0, cols - 2 do
+        for j = 0, rows - 2 do
+            local topLeft = i * rows + j 
             local topRight = topLeft + 1
-            local bottomLeft = topLeft + (rows + 1)
+            local bottomLeft = topLeft + rows
             local bottomRight = bottomLeft + 1
 
             -- First triangle

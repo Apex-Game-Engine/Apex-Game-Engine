@@ -4,12 +4,49 @@
 #include <lua.hpp>
 
 namespace apex {
+
+	namespace generate
+	{
+		float perlinNoise(int x, int y)
+		{
+			
+		}
+
+		int l_perlinNoise(lua_State* L)
+		{
+			lua_Integer x = luaL_checkinteger(L, 1);
+			lua_Integer y = luaL_checkinteger(L, 2);
+			lua_pushnumber(L, perlinNoise(static_cast<int>(x), static_cast<int>(y)));
+			return 1;
+		}
+	}
+
+
 namespace lua {
+
+	const luaL_Reg apex_lib[] = {
+		{ "perlinNoise", apex::generate::perlinNoise },
+		{ nullptr, nullptr }
+	};
+
+	LUAMOD_API int luaopen_apex(lua_State* L)
+	{
+		luaL_newlib(L, );
+	}
+
+	LuaTable& LuaTable::setField(const char* key)
+	{
+		lua_setfield(m_lua->raw(), -2, key);
+		return *this;
+	}
 
 	LuaState::LuaState(LuaStateCreateOptions const& options)
 	{
 		m_lua = luaL_newstate();
-		luaL_openlibs(m_lua);
+		if (options.loadStdLibs)
+			luaL_openlibs(m_lua);
+		if (options.loadApexLib)
+			luaL_requiref(m_lua, "apex", luaopen_apex, 1);
 	}
 
 	LuaState::~LuaState()
@@ -93,6 +130,30 @@ namespace lua {
 	LuaResult LuaState::pushLightUserData(void* lightuserdata)
 	{
 		lua_pushlightuserdata(m_lua, lightuserdata);
+		return LuaResult::Ok;
+	}
+
+	LuaResult LuaState::pushNumber(double number)
+	{
+		lua_pushnumber(m_lua, number);
+		return LuaResult::Ok;
+	}
+
+	LuaResult LuaState::pushInteger(int number)
+	{
+		lua_pushinteger(m_lua, number);
+		return LuaResult::Ok;
+	}
+
+	LuaResult LuaState::pushString(const char* string)
+	{
+		lua_pushstring(m_lua, string);
+		return LuaResult::Ok;
+	}
+
+	LuaResult LuaState::pushNamespace(const char* name)
+	{
+		lua_getglobal(m_lua, name);
 		return LuaResult::Ok;
 	}
 

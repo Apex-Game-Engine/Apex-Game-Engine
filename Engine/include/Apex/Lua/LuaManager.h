@@ -5,9 +5,12 @@ struct lua_State;
 
 namespace apex {
 namespace lua {
+	class LuaState;
 
 	struct LuaStateCreateOptions
 	{
+		bool loadStdLibs = true;
+		bool loadApexLib = true;
 	};
 
 	enum class LuaType
@@ -30,6 +33,18 @@ namespace lua {
 	};
 
 	using PFN_LuaCFunction = int(*)(lua_State*);
+
+	class LuaTable
+	{
+	public:
+		LuaTable& setField(const char* key);
+
+		template <typename T>
+		LuaTable& setField(const char* key, const T& value);
+
+	private:
+		LuaState* m_lua;
+	};
 
 	class LuaState
 	{
@@ -59,6 +74,10 @@ namespace lua {
 		[[maybe_unused]] LuaResult createTable(const char* name, int narr, int nrec) const;
 
 		LuaResult pushLightUserData(void* lightuserdata);
+		LuaResult pushNumber(double number);
+		LuaResult pushInteger(int number);
+		LuaResult pushString(const char* string);
+		LuaResult pushNamespace(const char* name);
 
 		LuaResult setGlobal(const char* name) const;
 
@@ -69,6 +88,20 @@ namespace lua {
 	private:
 		lua_State *m_lua;
 	};
+
+
+
+	template <typename Func, typename RetFn, typename ...ArgFns>
+	void registerFunction(lua_State * lua, Func&& func)
+	{
+		lua_pushlightuserdata(lua, new Func(std::forward<Func>(func)));
+		lua_pushcclosure(lua, [](lua_State * lua) -> int
+		{
+			auto func = reinterpret_cast<Func*>(lua_touserdata(lua, lua_upvalueindex(1)));
+			return RetFn::call(lua, *func, ArgFns::call(lua)...);
+		}, 1);
+	}
+
 
 }
 }
