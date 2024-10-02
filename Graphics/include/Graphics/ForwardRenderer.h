@@ -42,6 +42,10 @@ namespace gfx {
 	protected:
 		void resizeFramebuffers();
 		void prepareGeometry(vk::VulkanDevice const& device, VkAllocationCallbacks const* pAllocator);
+		void createGraphicsPipelineLayout(vk::VulkanDevice const& device, AxArrayRef<VkDescriptorSetLayout> const& descriptor_set_layouts, AxArrayRef<
+		                                  VkPushConstantRange> const& push_constant_ranges, VkAllocationCallbacks const* pAllocator);
+		void createGraphicsPipeline(vk::VulkanDevice const& device, vk::VulkanShaderStagesDesc const& shader_stages_desc, gfx::VertexDescription const&
+		                            vertex_description, VkExtent2D swapchain_extent, VkAllocationCallbacks const* pAllocator);
 		void createDepthBuffer();
 		void createUniformBuffers(vk::VulkanDevice const& device, VkAllocationCallbacks const* pAllocator);
 		void createDescriptorPool(vk::VulkanDevice const& device, VkAllocationCallbacks const* pAllocator);
@@ -55,9 +59,9 @@ namespace gfx {
 		static constexpr uint32  kMaxFramesInFlight { 1 };
 
 	private:
-		// Renderer-specific // TODO: Consider moving to separate struct for renderer
-		vk::BasicRenderPass            m_renderPass{}; // TODO: Add more render passes as required
-		vk::BasicPipeline              m_pipeline{}; // TODO: Add more pipelines as required
+
+		VkPipelineLayout               m_graphicsPipelineLayout{};
+		VkPipeline                     m_graphicsPipeline{};
 
 		VkDescriptorPool               m_descriptorPool{};
 		vk::VulkanDescriptorSetLayout  m_cameraDescriptorSetLayout{}; // TODO: Add more descriptor set layouts as required
