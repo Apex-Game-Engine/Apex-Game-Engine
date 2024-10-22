@@ -9,7 +9,7 @@ namespace apex {
 	{
 		float perlinNoise(int x, int y)
 		{
-			
+			return 0.f;
 		}
 
 		int l_perlinNoise(lua_State* L)
@@ -25,13 +25,14 @@ namespace apex {
 namespace lua {
 
 	const luaL_Reg apex_lib[] = {
-		{ "perlinNoise", apex::generate::perlinNoise },
+		{ "perlinNoise", apex::generate::l_perlinNoise },
 		{ nullptr, nullptr }
 	};
 
 	LUAMOD_API int luaopen_apex(lua_State* L)
 	{
-		luaL_newlib(L, );
+		//luaL_newlib(L, );
+		return 1;
 	}
 
 	LuaTable& LuaTable::setField(const char* key)
@@ -78,21 +79,28 @@ namespace lua {
 		return static_cast<LuaResult>(result);
 	}
 
-	LuaResult LuaState::registerCFunction(PFN_LuaCFunction pfunc, const char* lua_name) const
+	LuaResult LuaState::registerCFunctionToTable(PFN_LuaCFunction pfunc, const char* lua_name) const
 	{
 		lua_pushcfunction(m_lua, pfunc);
 		lua_setfield(m_lua, -2, lua_name);
 		return LuaResult::Ok;
 	}
 
-	LuaResult LuaState::registerCClosure(PFN_LuaCFunction pfunc, int n, const char* lua_name) const
+	LuaResult LuaState::registerCClosureToTable(PFN_LuaCFunction pfunc, int n, const char* lua_name) const
 	{
 		lua_pushcclosure(m_lua, pfunc, n);
 		lua_setfield(m_lua, -2, lua_name);
 		return LuaResult::Ok;
 	}
 
-	LuaResult LuaState::registerCClosureGlobal(PFN_LuaCFunction pfunc, int n, const char* lua_name)
+	LuaResult LuaState::registerCFunction(PFN_LuaCFunction pfunc, const char* lua_name) const
+	{
+		lua_pushcfunction(m_lua, pfunc);
+		lua_setglobal(m_lua, lua_name);
+		return LuaResult::Ok;
+	}
+
+	LuaResult LuaState::registerCClosure(PFN_LuaCFunction pfunc, int n, const char* lua_name) const
 	{
 		lua_pushcclosure(m_lua, pfunc, n);
 		lua_setglobal(m_lua, lua_name);
@@ -160,6 +168,12 @@ namespace lua {
 	LuaResult LuaState::setGlobal(const char* name) const
 	{
 		lua_setglobal(m_lua, name);
+		return LuaResult::Ok;
+	}
+
+	LuaResult LuaState::setField(int idx, const char* name) const
+	{
+		lua_setfield(m_lua, idx, name);
 		return LuaResult::Ok;
 	}
 

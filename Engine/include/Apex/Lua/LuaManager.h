@@ -60,9 +60,10 @@ namespace lua {
 
 		// TODO: This only registers static or global functions to a table.
 		// We want to be able to register functions as Lua globals and also allow registering C++ member functions.
-		[[maybe_unused]] LuaResult registerCFunction(PFN_LuaCFunction pfunc, const char* lua_name) const;
+		[[maybe_unused]] LuaResult registerCFunctionToTable(PFN_LuaCFunction pfunc, const char* lua_name) const;
+		LuaResult registerCClosureToTable(PFN_LuaCFunction pfunc, int n, const char* lua_name) const;
+		LuaResult registerCFunction(PFN_LuaCFunction pfunc, const char* lua_name) const;
 		LuaResult registerCClosure(PFN_LuaCFunction pfunc, int n, const char* lua_name) const;
-		LuaResult registerCClosureGlobal(PFN_LuaCFunction pfunc, int n, const char* lua_name);
 
 		// TODO: This only calls global functions. We want to be able to call member functions.
 		LuaResult callFunction(const char* lua_name, int nargs, int nresults) const;
@@ -80,6 +81,7 @@ namespace lua {
 		LuaResult pushNamespace(const char* name);
 
 		LuaResult setGlobal(const char* name) const;
+		LuaResult setField(int idx, const char* name) const;
 
 		lua_State* raw() const { return m_lua; }
 

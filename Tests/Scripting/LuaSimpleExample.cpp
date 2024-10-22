@@ -149,8 +149,6 @@ namespace detail
 
 }
 
-#define UNUSED_VAL(...) (void)(__VA_ARGS__)
-
 void LuaSimpleExample::initialize()
 {
 	auto& renderer = *apex::Application::Instance()->getRenderer();
@@ -165,13 +163,13 @@ void LuaSimpleExample::initialize()
 
 	UNUSED_VAL(m_lua.createTable(0, 1));
 	UNUSED_VAL(m_lua.pushLightUserData(&vertices));
-	UNUSED_VAL(m_lua.registerCClosure(detail::l_submitVertices, 1, detail::l_submitVertices_Name));
+	UNUSED_VAL(m_lua.registerCClosureToTable(detail::l_submitVertices, 1, detail::l_submitVertices_Name));
 	UNUSED_VAL(m_lua.pushLightUserData(&indices));
-	UNUSED_VAL(m_lua.registerCClosure(detail::l_submitIndices, 1, detail::l_submitIndices_Name));
+	UNUSED_VAL(m_lua.registerCClosureToTable(detail::l_submitIndices, 1, detail::l_submitIndices_Name));
 	UNUSED_VAL(m_lua.setGlobal("apex"));
 
 	UNUSED_VAL(m_lua.pushLightUserData(&m_cameraTransform));
-	UNUSED_VAL(m_lua.registerCClosureGlobal(detail::l_updateCameraTransform, 1, detail::l_updateCameraTransform_Name));
+	UNUSED_VAL(m_lua.registerCClosure(detail::l_updateCameraTransform, 1, detail::l_updateCameraTransform_Name));
 
 	luaRes = m_lua.loadFile(R"(X:\ApexGameEngine-Vulkan\Tests\Scripting\scripts\test_geometry.lua)");
 	if (apex::lua::LuaResult::Ok != luaRes)

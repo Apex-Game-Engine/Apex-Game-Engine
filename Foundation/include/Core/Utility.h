@@ -4,6 +4,7 @@
 // #define min(a, b) (((a) < (b)) ? (a) : (b))
 // #define max(a, b) (((a) > (b)) ? (a) : (b))
 
+#define UNUSED_VAL(...) (void)(__VA_ARGS__)
 
 namespace apex {
 

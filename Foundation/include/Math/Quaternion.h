@@ -80,6 +80,8 @@ namespace math {
 }
 }
 
+#define QUATFMT "%f, %f, %f, %f"
+#define QUATARGS(v) ((v).x), ((v).y), ((v).z), ((v).w)
 
 #ifndef APEX_MATH_SKIP_INLINE_IMPL
 #include "Quaternion.inl"

@@ -108,6 +108,8 @@ namespace math {
 }
 }
 
+#define VEC3FMT "%f, %f, %f"
+#define VEC3ARGS(v) ((v).x), ((v).y), ((v).z)
 
 #ifndef APEX_MATH_SKIP_INLINE_IMPL
 #include "Vector3.inl"
