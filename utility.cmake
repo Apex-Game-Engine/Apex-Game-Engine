@@ -47,23 +47,25 @@ endfunction(ignore_precompiled_header)
 # shader compiler taken from https://stackoverflow.com/a/60472877
 function(target_vulkan_shaders Target)
     cmake_parse_arguments(PARSE_ARGV 1 arg "" "" "SOURCES")
+    set(SPIRV_OUTPUTS)
     foreach(source ${arg_SOURCES})
         cmake_path(GET source FILENAME source_filename)
-        set(output_path "${CMAKE_CURRENT_BINARY_DIR}/spv/${source_filename}.spv")
+        set(spirv_output "${CMAKE_CURRENT_BINARY_DIR}/spv/${source_filename}.spv")
         message(STATUS "Adding ${source_filename} as shader source")
         add_custom_command(
-            OUTPUT ${output_path}
+            OUTPUT ${spirv_output}
             DEPENDS ${source}
             COMMAND
                 ${GLSLC}
                 --target-env=vulkan1.3
-                -o ${output_path}
+                -o ${spirv_output}
                 ${source}
             COMMENT "Compiling shader file : ${source}"
+            VERBATIM
         )
-        target_sources(${Target} PRIVATE ${output_path})
-        set_target_properties(${Target} PROPERTIES RESOURCE ${output_path})
+        list(APPEND SPIRV_OUTPUTS ${spirv_output})
     endforeach()
+    add_custom_target(${Target} ALL DEPENDS ${SPIRV_OUTPUTS})
 endfunction()
 
 
