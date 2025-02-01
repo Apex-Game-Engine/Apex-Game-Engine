@@ -5,13 +5,13 @@
 namespace apex {
 	class AxHandle;
 
-namespace memory {
+namespace mem {
 	class MemoryManagerImpl;
 	class PoolAllocator;
 
 	constexpr size_t g_allocatorDefaultCapacity = 1024ui64 * 1024ui64 * 128ui64; // 128 MiB
 
-	enum class AllocationType : uint8
+	enum class AllocationType : u8
 	{
 		eGlobal, // Global Multi-pool Allocator
 		eArena, // Arena Allocator
@@ -21,7 +21,7 @@ namespace memory {
 		COUNT
 	};
 
-	enum class MemoryTag : uint8
+	enum class MemoryTag : u8
 	{
 		eGame,
 		eRender,
@@ -32,8 +32,8 @@ namespace memory {
 
 	struct MemoryManagerDesc
 	{
-		uint32 frameArenaSize;
-		uint32 numFramesInFlight;
+		u32 frameArenaSize;
+		u32 numFramesInFlight;
 		// More to come ...
 	};
 	

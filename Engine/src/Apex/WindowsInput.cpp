@@ -8,7 +8,7 @@
 
 namespace apex {
 
-	KeyCode translateKeyCode(int32 key)
+	KeyCode translateKeyCode(s32 key)
 	{
 		switch (key)
 		{
@@ -129,7 +129,7 @@ namespace apex {
 		return KeyCode::KeyUnknown;
 	}
 
-	MouseButton translateMouseButton(int32 input)
+	MouseButton translateMouseButton(s32 input)
 	{
 		switch (input)
 		{

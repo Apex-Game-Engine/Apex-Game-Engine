@@ -14,7 +14,7 @@ namespace apex {
 
 	struct Win32Application : public Application
 	{
-		Win32Application(uint32 width, uint32 height, const char* name);
+		Win32Application(u32 width, u32 height, const char* name);
 		static LRESULT CALLBACK ProcessWindowsEvents(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
 		LRESULT CALLBACK processWindowsEvents(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);

@@ -1,7 +1,7 @@
 ﻿#pragma once
 
 namespace apex {
-namespace memory {
+namespace mem {
 
 	struct MemoryStats
 	{

@@ -18,7 +18,7 @@ namespace apex
 
 	struct DamageInflictor
 	{
-		apex::float32 damage;
+		apex::f32 damage;
 	};
 
 	struct SomeTag {};
@@ -35,30 +35,30 @@ class TestEcs : public testing::Test
 public:
 	static void SetUpTestSuite()
 	{
-		apex::memory::MemoryManager::initialize({ 0, 0 });
+		apex::mem::MemoryManager::initialize({ 0, 0 });
 	}
 
 	static void TearDownTestSuite()
 	{
-		apex::memory::MemoryManager::shutdown();
+		apex::mem::MemoryManager::shutdown();
 	}
 
 	void SetUp() override
 	{
-		auto allocated = apex::memory::MemoryManager::getAllocatedSize();
+		auto allocated = apex::mem::MemoryManager::getAllocatedSize();
 		printf("<PRE> Memory allocated: %llu\n", allocated);
 	}
 
 	void TearDown() override
 	{
-		auto allocated = apex::memory::MemoryManager::getAllocatedSize();
+		auto allocated = apex::mem::MemoryManager::getAllocatedSize();
 		printf("<POST> Memory allocated: %llu\n", allocated);
 	}
 };
 
 TEST_F(TestEcs, TestTypeIndex)
 {
-	auto id = apex::core::TypeIndex<apex::uint32>::value();
+	auto id = apex::core::TypeIndex<apex::u32>::value();
 	printf("%d\n", id);
 }
 
@@ -105,9 +105,9 @@ TEST_F(TestEcs, TestSingleComponentView)
 	auto view = registry.view<apex::Transform>();
 	view.each([&registry, &i](apex::ecs::Entity entity)
 	{
-		EXPECT_EQ(entity, static_cast<apex::uint32>(i));
+		EXPECT_EQ(entity, static_cast<apex::u32>(i));
 
-		printf("entity: %u\n", static_cast<apex::uint32>(entity));
+		printf("entity: %u\n", static_cast<apex::u32>(entity));
 		apex::Transform& transform = registry.get<apex::Transform>(entity).value();
 		printf("%f %f %f\n", transform.position.x, transform.position.y, transform.position.z);
 
@@ -139,9 +139,9 @@ TEST_F(TestEcs, TestMultiComponentView)
 	i = 0;
 	view.each([&registry, &i](apex::ecs::Entity entity)
 	{
-		EXPECT_EQ(entity, static_cast<apex::uint32>(i));
+		EXPECT_EQ(entity, static_cast<apex::u32>(i));
 
-		printf("entity: %u\n", static_cast<apex::uint32>(entity));
+		printf("entity: %u\n", static_cast<apex::u32>(entity));
 		apex::Transform& transform = registry.get<apex::Transform>(entity).value();
 		printf("%f %f %f\n", transform.position.x, transform.position.y, transform.position.z);
 		apex::DamageInflictor& damageInflictor = registry.get<apex::DamageInflictor>(entity).value();
@@ -213,7 +213,7 @@ TEST_F(TestEcs, TestEmptyComponentView)
 	auto view = registry.view<apex::Transform, apex::SomeTag>();
 	view.each([&i](apex::ecs::Entity entity, auto& transform)
 	{
-		printf("entity: %u\n", static_cast<apex::uint32>(entity));
+		printf("entity: %u\n", static_cast<apex::u32>(entity));
 
 		EXPECT_EQ(static_cast<uint32_t>(entity), i);
 
@@ -224,7 +224,7 @@ TEST_F(TestEcs, TestEmptyComponentView)
 struct DamageMessage
 {
 	apex::ecs::Entity target;
-	apex::float32 value;
+	apex::f32 value;
 };
 
 namespace ecs {
@@ -296,14 +296,14 @@ namespace ecs {
 
 struct SineWaveMovement
 {
-	apex::float32 amplitude;
-	apex::float32 frequency;
+	apex::f32 amplitude;
+	apex::f32 frequency;
 };
 
 struct Time
 {
-	apex::float32 time;
-	apex::float32 deltaTime;
+	apex::f32 time;
+	apex::f32 deltaTime;
 };
 
 using S = ecs::System<ecs::NullEventHandler, ecs::get_t<apex::Transform, SineWaveMovement>, ecs::exclude_t<>, ecs::signal_t<>, ecs::listen_t<>>;
@@ -479,7 +479,7 @@ TEST_F(TestEcs, TestEventHandlerInvoking)
 //     a. compute collision
 // 3. Collision response
 
-//struct SphereCollider { apex::float32 radius; };
+//struct SphereCollider { apex::f32 radius; };
 struct AABB { apex::math::Vector3 size; };
 
 template <typename T, size_t _Bucket_size>
@@ -511,7 +511,7 @@ public:
 
 	T& operator[](size_t index)
 	{
-		axAssertMsg(index < m_size, "Index out of bounds");
+		axAssertFmt(index < m_size, "Index out of bounds");
 		size_t bucketIndex = index / _Bucket_size;
 		size_t elementIndex = index % _Bucket_size;
 		for (auto& bucket : m_buckets)
@@ -533,8 +533,8 @@ struct BoundingVolumeHierarchy
 	struct Node
 	{
 		apex::ecs::Entity entity;
-		apex::uint32 left;
-		apex::uint32 right;
+		apex::u32 left;
+		apex::u32 right;
 	};
 
 	apex::AxList<Node> nodes;

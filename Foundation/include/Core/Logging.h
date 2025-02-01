@@ -5,6 +5,11 @@
 #include "Core/Types.h"
 #include "Concurrency/Concurrency.h"
 
+namespace apex
+{
+	class Console;
+}
+
 namespace apex::concurrency
 {
 	struct NullLock;
@@ -13,7 +18,7 @@ namespace apex::concurrency
 namespace apex {
 namespace logging {
 
-	enum class LogLevel : apex::uint8
+	enum class LogLevel : apex::u8
 	{
 		Trace    = 0,
 		Debug    = 1,
@@ -30,10 +35,10 @@ namespace logging {
 		const char *filepath;
 		const char *funcsig;
 		const char *msg;
-		uint32 lineno;
+		u32 lineno;
 		LogLevel level;
 
-		LogMsg(const char *filepath, const char *funcsig, const char *msg, uint32 lineno, LogLevel level);
+		LogMsg(const char *filepath, const char *funcsig, const char *msg, u32 lineno, LogLevel level);
 
 		const char *filename;
 	};
@@ -46,34 +51,38 @@ namespace logging {
 
 	struct Logger
 	{
-		void log(LogLevel level, const char *file, const char *funcsig, uint32 lineno, const char *msg) const;
+		void log(LogLevel level, const char *file, const char *funcsig, u32 lineno, const char *msg) const;
 		void log(const LogMsg& log_msg) const;
 
 		void addSink(ISink* sink);
+		void removeSink(ISink* sink);
 
-		static void initialize();
+		static void AttachConsole(Console* console);
+		static void Init();
 		static Logger& get();
 
-		static void log(ISink* sink, LogLevel level, const char *file, const char *funcsig, uint32 lineno, const char *msg);
+		static void log(ISink* sink, LogLevel level, const char *file, const char *funcsig, u32 lineno, const char *msg);
 		static void log(ISink* sink, const LogMsg& log_msg);
 
 		ISink* m_sinks[8];
 		size_t m_sinkCount {0};
 	};
 
-	struct IConsoleSink : public ISink
+	struct ConsoleSink : public ISink
 	{
 		virtual void log(const LogMsg& log_msg) override;
+
+		Console* console;
 	};
-	using ConsoleSink_st = IConsoleSink;
+	using ConsoleSink_st = ConsoleSink;
 
 	template <typename Lock_t>
-	struct ConsoleSink final : public IConsoleSink
+	struct ConsoleSink_mt final : public ConsoleSink
 	{
 		void log(const LogMsg& log_msg) override
 		{
 			concurrency::LockGuard lock{ m_lock };
-			IConsoleSink::log(log_msg);
+			ConsoleSink::log(log_msg);
 		}
 
 	private:
@@ -116,11 +125,11 @@ namespace logging {
 #define axInfo(msg)     axLogLevel(apex::logging::LogLevel::Info, __FILE__, __FUNCTION__, __LINE__, msg)
 #define axWarn(msg)     axLogLevel(apex::logging::LogLevel::Warn, __FILE__, __FUNCTION__, __LINE__, msg)
 #define axError(msg)    axLogLevel(apex::logging::LogLevel::Error, __FILE__, __FUNCTION__, __LINE__, msg)
-#define axCritical(msg) axLogLevel(apex::logging::LogLevel::Critical, __FILE__, __FUNCTION__, __LINE__, msg)
+#define axCritical(msg) (axLogLevel(apex::logging::LogLevel::Critical, __FILE__, __FUNCTION__, __LINE__, msg), DEBUG_BREAK())
 
 #define axLogFmt(_fmt, ...)      axLogLevelFmt(apex::logging::LogLevel::Trace, __FILE__, __FUNCTION__, __LINE__, _fmt, ##__VA_ARGS__)
 #define axDebugFmt(_fmt, ...)    axLogLevelFmt(apex::logging::LogLevel::Debug, __FILE__, __FUNCTION__, __LINE__, _fmt, ##__VA_ARGS__)
 #define axInfoFmt(_fmt, ...)     axLogLevelFmt(apex::logging::LogLevel::Info, __FILE__, __FUNCTION__, __LINE__, _fmt, ##__VA_ARGS__)
 #define axWarnFmt(_fmt, ...)     axLogLevelFmt(apex::logging::LogLevel::Warn, __FILE__, __FUNCTION__, __LINE__, _fmt, ##__VA_ARGS__)
-#define axErrorFmt(_fmt, ...)    axLogLevelFmt(apex::logging::LogLevel::Error, __FILE__, __FUNCTION__, __LINE__, _fmt, ##__VA_ARGS__)
-#define axCriticalFmt(_fmt, ...) axLogLevelFmt(apex::logging::LogLevel::Critical, __FILE__, __FUNCTION__, __LINE__, _fmt, ##__VA_ARGS__)
+#define axErrorFmt(_fmt, ...)    (axLogLevelFmt(apex::logging::LogLevel::Error, __FILE__, __FUNCTION__, __LINE__, _fmt, ##__VA_ARGS__), DEBUG_BREAK())
+#define axCriticalFmt(_fmt, ...) (axLogLevelFmt(apex::logging::LogLevel::Critical, __FILE__, __FUNCTION__, __LINE__, _fmt, ##__VA_ARGS__), DEBUG_BREAK())

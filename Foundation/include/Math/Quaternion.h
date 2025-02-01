@@ -9,16 +9,16 @@ namespace math {
 	struct Quat
 	{
 		// q = w + xi + yj + zk
-		float32 w = 1.0f;
-		float32 x = 0.0f;
-		float32 y = 0.0f;
-		float32 z = 0.0f;
+		f32 w = 1.0f;
+		f32 x = 0.0f;
+		f32 y = 0.0f;
+		f32 z = 0.0f;
 
 		constexpr Quat() = default;
-		constexpr Quat(float32 w, float32 x, float32 y, float32 z) : w(w), x(x), y(y), z(z) {}
+		constexpr Quat(f32 w, f32 x, f32 y, f32 z) : w(w), x(x), y(y), z(z) {}
 
 		// Constructs a quaternion from an axis and an angle
-		static auto fromAxisAngle(Vector3 axis, float32 angle) -> Quat;
+		static auto fromAxisAngle(Vector3 axis, f32 angle) -> Quat;
 
 		// Constructs a quaternion from Euler angles
 		static auto fromEulerAngles(Vector3 euler_angles) -> Quat;
@@ -30,7 +30,7 @@ namespace math {
 		auto axis() const -> Vector3;
 
 		// Returns the angle of the quaternion
-		auto angle() const -> float32;
+		auto angle() const -> f32;
 
 		// Returns the Euler angles of the quaternion
 		auto eulerAngles() const -> Vector3;
@@ -45,22 +45,22 @@ namespace math {
 		auto inverse() const -> Quat;
 
 		// Returns the dot product of two quaternions
-		static auto dot(Quat a, Quat b) -> float32;
+		static auto dot(Quat a, Quat b) -> f32;
 
 		// Returns the normalized quaternion
 		auto normalize() const -> Quat;
 
 		// Returns the length of the quaternion
-		auto length() const -> float32;
+		auto length() const -> f32;
 
 		// Returns the squared length of the quaternion
-		auto lengthSquared() const -> float32;
+		auto lengthSquared() const -> f32;
 
 		Quat & operator+=(Quat const &v);
 		Quat & operator-=(Quat const &v);
 		Quat & operator*=(Quat const &v);
-		Quat & operator*=(float32 t);
-		Quat & operator/=(float32 t);
+		Quat & operator*=(f32 t);
+		Quat & operator/=(f32 t);
 	};
 
 	// Quat utility functions
@@ -68,14 +68,14 @@ namespace math {
 	Quat operator+(Quat const &u, Quat const &v); // addition of two quaternions
 	Quat operator-(Quat const &u, Quat const &v); // subtraction of two quaternions
 	Quat operator*(Quat const &u, Quat const &v); // multiplication of two quaternions
-	Quat operator*(float32 t, Quat const &v); // scalar multiplication of quaternion
-	Quat operator*(Quat const &v, float32 t); // scalar multiplication of quaternion
-	Quat operator/(Quat const &v, float32 t); // scalar division of quaternion
+	Quat operator*(f32 t, Quat const &v); // scalar multiplication of quaternion
+	Quat operator*(Quat const &v, f32 t); // scalar multiplication of quaternion
+	Quat operator/(Quat const &v, f32 t); // scalar division of quaternion
 
 	bool operator==(Quat const &u, Quat const &v); // element-wise comparison
 	bool operator!=(Quat const &u, Quat const &v); // element-wise comparison
 
-	Quat slerp(Quat const &q1, Quat const &q2, float32 t); // spherical linear interpolation
+	Quat slerp(Quat const &q1, Quat const &q2, f32 t); // spherical linear interpolation
 
 }
 }

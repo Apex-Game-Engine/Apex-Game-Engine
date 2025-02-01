@@ -6,16 +6,16 @@
 #include "Core/Logging.h"
 
 namespace apex {
-namespace memory {
+namespace mem {
 
 	class PoolAllocator : public IMemoryTracker
 	{
 	public:
 		PoolAllocator() = default;
-		PoolAllocator(void* p_begin, size_t size, uint32 block_size);
+		PoolAllocator(void* p_begin, size_t size, u32 block_size);
 		~PoolAllocator() = default;
 
-		void initialize(void* p_begin, size_t size, uint32 block_size);
+		void initialize(void* p_begin, size_t size, u32 block_size);
 		void reset(); // Potentially EXPENSIVE operation !
 		void shutdown();
 
@@ -23,11 +23,11 @@ namespace memory {
 		[[nodiscard]] void* allocate(size_t size, size_t align);
 		void free(void *ptr);
 
-		[[nodiscard]] uint32 getTotalBlocks() const { return m_numTotalBlocks; }
-		[[nodiscard]] uint32 getBlockSize() const { return m_blockSize; }
-		[[nodiscard]] uint32 getFreeBlocks() const { return m_numFreeBlocks; }
+		[[nodiscard]] u32 getTotalBlocks() const { return m_numTotalBlocks; }
+		[[nodiscard]] u32 getBlockSize() const { return m_blockSize; }
+		[[nodiscard]] u32 getFreeBlocks() const { return m_numFreeBlocks; }
 
-		bool containsPointer(void* mem) const { return mem >= m_pBase && mem < static_cast<uint8*>(m_pBase) + m_numTotalBlocks * m_blockSize; }
+		bool containsPointer(void* mem) const { return mem >= m_pBase && mem < static_cast<u8*>(m_pBase) + m_numTotalBlocks * m_blockSize; }
 		bool checkManaged(void* mem) const { return containsPointer(mem) && (reinterpret_cast<intptr_t>(mem) - reinterpret_cast<intptr_t>(m_pBase)) % m_blockSize == 0; }
 		
 		[[nodiscard]] size_t getTotalCapacity() const override { return static_cast<size_t>(m_blockSize) * m_numTotalBlocks; }
@@ -36,9 +36,9 @@ namespace memory {
 	private:
 		void *m_pBase { nullptr };
 		void *m_allocPtr {};
-		uint32 m_blockSize {};
-		uint32 m_numTotalBlocks {};
-		uint32 m_numFreeBlocks {};
+		u32 m_blockSize {};
+		u32 m_numTotalBlocks {};
+		u32 m_numFreeBlocks {};
 
 		friend class MemoryManagerImpl;
 

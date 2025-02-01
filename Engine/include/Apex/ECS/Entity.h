@@ -6,10 +6,10 @@
 namespace apex {
 namespace ecs {
 
-	using entity_id = uint32;
-	using component_id = uint32;
+	using entity_id = u32;
+	using component_id = u32;
 
-	constexpr entity_id kMaxEntityId = constants::uint32_MAX - 1;
+	constexpr entity_id kMaxEntityId = Constants::u32_MAX - 1;
 
 	template <typename EntityType>
 	struct EntityMasks;
@@ -20,8 +20,8 @@ namespace ecs {
 
 		struct Masks
 		{
-			uint32 identifier : 20;
-			uint32 version : 12;
+			u32 identifier : 20;
+			u32 version : 12;
 		} masks;
 
 		static_assert(sizeof(masks) == sizeof(uint));
@@ -31,7 +31,7 @@ namespace ecs {
 
 		constexpr operator entity_id() const { return uint; }
 	};
-	constexpr Entity null_entity = constants::uint32_MAX;
+	constexpr Entity null_entity = Constants::u32_MAX;
 
 	
 	template <typename Component>

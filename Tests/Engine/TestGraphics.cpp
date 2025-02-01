@@ -11,12 +11,12 @@ class TestGraphics : public ::testing::Test
 public:
 	static void SetUpTestSuite()
 	{
-		apex::memory::MemoryManager::initialize({0, 0});
+		apex::mem::MemoryManager::initialize({0, 0});
 	}
 
 	static void TearDownTestSuite()
 	{
-		apex::memory::MemoryManager::shutdown();
+		apex::mem::MemoryManager::shutdown();
 	}
 };
 

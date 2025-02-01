@@ -34,9 +34,9 @@ public:
 
 		{
 			apex::gfx::MeshCPU meshCpu;
-			apex::float32 X = 0.525731112119133606f;
-			apex::float32 Z = 0.850650808352039932f;
-			apex::float32 N = 0.f;
+			apex::f32 X = 0.525731112119133606f;
+			apex::f32 Z = 0.850650808352039932f;
+			apex::f32 N = 0.f;
 			apex::AxArray<apex::gfx::Vertex_P0_C0> vertices = {
 				{ .position = { -X, N, Z }, .color = { 1, 0, 0, 1 } },
 				{ .position = { X, N, Z }, .color = { 1, 0, 0, 1 } },
@@ -51,7 +51,7 @@ public:
 				{ .position = { Z, -X, N }, .color = { 1, 0, 0, 1 } },
 				{ .position = { -Z, -X, N }, .color = { 1, 0, 0, 1 } }
 			};
-			apex::AxArray<apex::uint32> indices = {
+			apex::AxArray<apex::u32> indices = {
 				0, 1, 4,
 				0, 4, 9,
 				9, 4, 5,
@@ -121,8 +121,8 @@ public:
 
 		int width, height;
 		apex::Application::Instance()->getWindow()->getFramebufferSize(width, height);
-		apex::float32 aspect = static_cast<apex::float32>(width) / static_cast<apex::float32>(height);
-		apex::float32 fov = math::radians(60.f);
+		apex::f32 aspect = static_cast<apex::f32>(width) / static_cast<apex::f32>(height);
+		apex::f32 fov = math::radians(60.f);
 		m_camera.projection = math::perspective(fov, aspect, 0.1f, 1000.f);
 		m_camera.projection[1][1] *= -1;
 

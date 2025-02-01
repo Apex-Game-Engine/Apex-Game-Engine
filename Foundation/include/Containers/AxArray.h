@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include "Core/Asserts.h"
 #include "Core/TypeTraits.h"
 #include "Core/Utility.h"
@@ -170,7 +170,7 @@ namespace apex {
 		template <typename... Args>
 		reference emplace_back(Args&&... args)
 		{
-			axAssertMsg(m_size < m_capacity, "Array size exceeds capacity!");
+			axAssertFmt(m_size < m_capacity, "Array size exceeds capacity!");
 			_ConstructInPlace(&m_data[m_size], std::forward<Args>(args)...);
 			return m_data[m_size++];
 		}
@@ -179,7 +179,7 @@ namespace apex {
 		reference emplace(size_t index, Args&&... args)
 		{
 			axAssert(index < m_size + 1 && index < m_capacity);
-			axAssertMsg(m_size < m_capacity, "Array size exceeds capacity!");
+			axAssertFmt(m_size < m_capacity, "Array size exceeds capacity!");
 			// shift elements to the right from index upto size
 			_ShiftElementsRight(index);
 			_ConstructInPlace(&m_data[index], std::forward<Args>(args)...);
@@ -189,27 +189,27 @@ namespace apex {
 
 		void append(const value_type& obj)
 		{
-			axAssertMsg(m_size < m_capacity, "Array size exceeds capacity!");
+			axAssertFmt(m_size < m_capacity, "Array size exceeds capacity!");
 			m_data[m_size++] = obj;
 		}
 
 		void append(value_type&& obj)
 		{
-			axAssertMsg(m_size < m_capacity, "Array size exceeds capacity!");
+			axAssertFmt(m_size < m_capacity, "Array size exceeds capacity!");
 			m_data[m_size++] = std::move(obj);
 		}
 
 		void pop_back()
 		{
-			axAssertMsg(m_size > 0, "Cannot pop from empty array!");
+			axAssertFmt(m_size > 0, "Cannot pop from empty array!");
 			_DestroyInPlace(m_data + m_size - 1);
 			m_size--;
 		}
 
 		void insert(size_t index, const value_type& obj)
 		{
-			axAssert(index < m_size + 1 && index < m_capacity);
-			axAssertMsg(m_size < m_capacity, "Array size exceeds capacity!");
+			axAssertFmt(index < m_size + 1 && index < m_capacity, "Array insertion index in out of range!");
+			axAssertFmt(m_size < m_capacity, "Array size exceeds capacity!");
 			// shift elements to the right from index upto size
 			_ShiftElementsRight(index);
 			m_data[index] = obj;
@@ -218,8 +218,8 @@ namespace apex {
 
 		void insert(size_t index, value_type&& obj)
 		{
-			axAssert(index < m_size + 1 && index < m_capacity);
-			axAssertMsg(m_size < m_capacity, "Array size exceeds capacity!");
+			axAssertFmt(index < m_size + 1 && index < m_capacity, "Array insertion index in out of range!");
+			axAssertFmt(m_size < m_capacity, "Array size exceeds capacity!");
 			// shift elements to the right from index upto size
 			_ShiftElementsRight(index);
 			// append(std::move(obj));
@@ -257,8 +257,8 @@ namespace apex {
 
 		[[nodiscard]] auto dataMutable() const -> pointer { return const_cast<AxArray * const>(this)->_ConvertToValuePointer(); }
 
-		[[nodiscard]] auto back() -> reference { return m_data[m_size - 1]; }
-		[[nodiscard]] auto back() const -> const_reference { return m_data[m_size - 1]; }
+		[[nodiscard]] auto back() -> reference { return _GetReference(m_size - 1); }
+		[[nodiscard]] auto back() const -> const_reference { return _GetReference(m_size - 1); }
 
 		[[nodiscard]] auto front() -> reference { return m_data[0]; }
 		[[nodiscard]] auto front() const -> const_reference { return m_data[0]; }
@@ -366,6 +366,18 @@ namespace apex {
 			}
 		}
 
+		reference _GetReference(size_t index)
+		{
+			if constexpr (std::same_as<value_type, stored_type>)
+			{
+				return m_data[index];
+			}
+			else
+			{
+				return m_data[index].value();
+			}
+		}
+
 		template <typename... Args>
 		void fill(stored_type* first, stored_type* last, Args&&... args) requires (std::is_constructible_v<T, Args...>)
 		{
@@ -408,7 +420,7 @@ namespace apex {
 		template <typename... Args>
 		void resize(size_t new_size, Args&&... args)
 		{
-			axAssertMsg(new_size <= Base::m_capacity, "Array size exceeds maximum capacity!");
+			axAssertFmt(new_size <= Base::m_capacity, "Array size exceeds maximum capacity!");
 
 			size_t oldSize = Base::m_size;
 			Base::m_size = new_size;
@@ -476,10 +488,10 @@ namespace apex {
 	};
 
 	template <typename T>
-	auto make_array_ref(T* data, size_t count) -> AxArrayRef<T>
+	auto make_array_ref(void* data, size_t count) -> AxArrayRef<T>
 	{
 		AxArrayRef<T> ref;
-		ref.data = data;
+		ref.data = static_cast<T*>(data);
 		ref.count = count;
 		return ref;
 	}

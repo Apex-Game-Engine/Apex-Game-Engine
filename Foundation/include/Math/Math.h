@@ -5,10 +5,10 @@
 
 namespace apex {
 namespace math {
-	float32 sqrt(float32 val);
-	float32 clamp(float32 val, float32 min, float32 max);
-	float32 radians(float32 degrees);
-	float32 degrees(float32 radians);
+	f32 sqrt(f32 val);
+	f32 clamp(f32 val, f32 min, f32 max);
+	f32 radians(f32 degrees);
+	f32 degrees(f32 radians);
 
 	template <typename T> requires std::is_integral_v<T>
 	constexpr bool is_pow_2(T val)
@@ -55,7 +55,7 @@ namespace math {
 		float tMin, tMax;
 
 		// parametric form of a ray
-		Point3D at(float32 t) const;
+		Point3D at(f32 t) const;
 	};
 
 	struct BoundingVolume

@@ -8,7 +8,7 @@
 namespace apex {
 namespace math {
 
-	inline Quat Quat::fromAxisAngle(Vector3 axis, float32 angle)
+	inline Quat Quat::fromAxisAngle(Vector3 axis, f32 angle)
 	{
 		axis = std::sin(angle / 2) * axis.normalize();
 		return Quat{ std::cos(angle / 2), axis.x, axis.y, axis.z };
@@ -16,12 +16,12 @@ namespace math {
 
 	inline auto Quat::fromEulerAngles(Vector3 euler_angles) -> Quat
 	{
-		float32 c1 = std::cos(euler_angles.x / 2);
-		float32 s1 = std::sin(euler_angles.x / 2);
-		float32 c2 = std::cos(euler_angles.y / 2);
-		float32 s2 = std::sin(euler_angles.y / 2);
-		float32 c3 = std::cos(euler_angles.z / 2);
-		float32 s3 = std::sin(euler_angles.z / 2);
+		f32 c1 = std::cos(euler_angles.x / 2);
+		f32 s1 = std::sin(euler_angles.x / 2);
+		f32 c2 = std::cos(euler_angles.y / 2);
+		f32 s2 = std::sin(euler_angles.y / 2);
+		f32 c3 = std::cos(euler_angles.z / 2);
+		f32 s3 = std::sin(euler_angles.z / 2);
 
 		return Quat{
 			c1 * c2 * c3 + s1 * s2 * s3,
@@ -33,28 +33,28 @@ namespace math {
 
 	inline auto Quat::axis() const -> Vector3
 	{
-		float32 sinAngle = std::sqrt(1.0f - w * w);
+		f32 sinAngle = std::sqrt(1.0f - w * w);
 		if (sinAngle < 0.0001f)
 			return Vector3{ x, y, z };
 		return Vector3{ x , y , z } / sinAngle;
 	}
 
-	inline auto Quat::angle() const -> float32
+	inline auto Quat::angle() const -> f32
 	{
 		return 2 * std::acos(w);
 	}
 
 	inline auto Quat::matrix() const -> Matrix4x4
 	{
-		float32 xx = x * x;
-		float32 yy = y * y;
-		float32 zz = z * z;
-		float32 xy = x * y;
-		float32 xz = x * z;
-		float32 yz = y * z;
-		float32 wx = w * x;
-		float32 wy = w * y;
-		float32 wz = w * z;
+		f32 xx = x * x;
+		f32 yy = y * y;
+		f32 zz = z * z;
+		f32 xy = x * y;
+		f32 xz = x * z;
+		f32 yz = y * z;
+		f32 wx = w * x;
+		f32 wy = w * y;
+		f32 wz = w * z;
 
 		return Matrix4x4{
 			1 - 2 * (yy + zz), 2 * (xy - wz), 2 * (xz + wy), 0,
@@ -94,10 +94,10 @@ namespace math {
 
 	inline Quat& Quat::operator*=(Quat const& v)
 	{
-		float32 w1 = w * v.w - x * v.x - y * v.y - z * v.z;
-		float32 x1 = w * v.x + x * v.w + y * v.z - z * v.y;
-		float32 y1 = w * v.y - x * v.z + y * v.w + z * v.x;
-		float32 z1 = w * v.z + x * v.y - y * v.x + z * v.w;
+		f32 w1 = w * v.w - x * v.x - y * v.y - z * v.z;
+		f32 x1 = w * v.x + x * v.w + y * v.z - z * v.y;
+		f32 y1 = w * v.y - x * v.z + y * v.w + z * v.x;
+		f32 z1 = w * v.z + x * v.y - y * v.x + z * v.w;
 		w = w1;
 		x = x1;
 		y = y1;
@@ -105,7 +105,7 @@ namespace math {
 		return *this;
 	}
 
-	inline Quat& Quat::operator*=(float32 t)
+	inline Quat& Quat::operator*=(f32 t)
 	{
 		w *= t;
 		x *= t;
@@ -114,7 +114,7 @@ namespace math {
 		return *this;
 	}
 
-	inline Quat& Quat::operator/=(float32 t)
+	inline Quat& Quat::operator/=(f32 t)
 	{
 		w /= t;
 		x /= t;
@@ -141,19 +141,19 @@ namespace math {
 		return u1 *= v;
 	}
 
-	inline Quat operator*(float32 t, Quat const& v)
+	inline Quat operator*(f32 t, Quat const& v)
 	{
 		Quat v1(v);
 		return v1 *= t;
 	}
 
-	inline Quat operator*(Quat const& v, float32 t)
+	inline Quat operator*(Quat const& v, f32 t)
 	{
 		Quat v1(v);
 		return v1 *= t;
 	}
 
-	inline Quat operator/(Quat const& v, float32 t)
+	inline Quat operator/(Quat const& v, f32 t)
 	{
 		Quat v1(v);
 		return v1 /= t;
@@ -169,19 +169,19 @@ namespace math {
 		return !(u == v);
 	}
 
-	inline Quat slerp(Quat const& q1, Quat const& q2, float32 t)
+	inline Quat slerp(Quat const& q1, Quat const& q2, f32 t)
 	{
-		float32 cosTheta = Quat::dot(q1, q2);
+		f32 cosTheta = Quat::dot(q1, q2);
 		if (cosTheta > 0.9995f)
 		{
 			Quat result = q1 + t * (q2 - q1);
 			return result.normalize();
 		}
 
-		float32 theta = std::acos(cosTheta);
-		float32 sinTheta = std::sin(theta);
-		float32 t1 = std::sin((1 - t) * theta) / sinTheta;
-		float32 t2 = std::sin(t * theta) / sinTheta;
+		f32 theta = std::acos(cosTheta);
+		f32 sinTheta = std::sin(theta);
+		f32 t1 = std::sin((1 - t) * theta) / sinTheta;
+		f32 t2 = std::sin(t * theta) / sinTheta;
 		return q1 * t1 + q2 * t2;
 	}
 }

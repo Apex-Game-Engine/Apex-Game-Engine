@@ -1,8 +1,16 @@
 ﻿#pragma once
 #include <algorithm>
 
-// #define min(a, b) (((a) < (b)) ? (a) : (b))
-// #define max(a, b) (((a) > (b)) ? (a) : (b))
+#ifdef min
+#undef min
+#endif
+
+#ifdef max
+#undef max
+#endif
+
+
+#define UNUSED_ARG(x) 
 
 
 namespace apex {

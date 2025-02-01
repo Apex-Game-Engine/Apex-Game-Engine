@@ -6,32 +6,32 @@
 
 namespace apex {
 
-	template <uint16 N>
+	template <u16 N>
 	class AxStaticString
 	{
 	public:
 		constexpr explicit AxStaticString(AxStringView str) noexcept
-		: AxStaticString{str.m_str, std::make_integer_sequence<uint16, N>{}}
+		: AxStaticString{str.m_str, std::make_integer_sequence<u16, N>{}}
 		{}
 
 		constexpr explicit AxStaticString(std::string_view str) noexcept
-		: AxStaticString{str.data(), std::make_integer_sequence<uint16, N>{}}
+		: AxStaticString{str.data(), std::make_integer_sequence<u16, N>{}}
 		{}
 
 		constexpr const char* data() const noexcept { return m_chars; }
 
-		constexpr uint16 size() const noexcept { return N; }
+		constexpr u16 size() const noexcept { return N; }
 
 		constexpr operator std::string_view() const noexcept { return {data(), size()}; }
 
 	private:
-		template <uint16... I>
-		constexpr AxStaticString(const char* str, std::integer_sequence<uint16, I...>) noexcept
+		template <u16... I>
+		constexpr AxStaticString(const char* str, std::integer_sequence<u16, I...>) noexcept
 		: m_chars{static_cast<char>(str[I])..., static_cast<char>('\0')}
 		{}
 
-		template <uint16... I>
-		constexpr AxStaticString(std::string_view str, std::integer_sequence<uint16, I...>) noexcept
+		template <u16... I>
+		constexpr AxStaticString(std::string_view str, std::integer_sequence<u16, I...>) noexcept
 		: m_chars{str[I]..., static_cast<char>('\0')}
 		{}
 
@@ -49,7 +49,7 @@ namespace apex {
 
 	  constexpr const char* data() const noexcept { return nullptr; }
 
-	  constexpr uint16 size() const noexcept { return 0; }
+	  constexpr u16 size() const noexcept { return 0; }
 
 	  constexpr operator std::string_view() const noexcept { return {}; }
 	};

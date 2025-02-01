@@ -64,7 +64,7 @@ namespace apex {
 				}
 			});
 
-			axCheckMsg(range != m_options.end(), "Invalid command line option provided!");
+			axCheckFmt(range != m_options.end(), "Invalid command line option provided!");
 
 
 			if (range->hasValue)

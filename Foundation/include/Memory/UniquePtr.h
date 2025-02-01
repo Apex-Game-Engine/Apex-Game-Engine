@@ -77,13 +77,13 @@ namespace apex {
 
 		[[nodiscard]] constexpr reference operator*() const noexcept
 		{
-			axAssertMsg(m_ptr, "Attempted to dereference a null UniquePtr");
+			axAssertFmt(m_ptr, "Attempted to dereference a null UniquePtr");
 			return *_ConvertToPointer();
 		}
 
 		[[nodiscard]] constexpr pointer operator->() const noexcept
 		{
-			axAssertMsg(m_ptr, "Attempted to dereference a null UniquePtr");
+			axAssertFmt(m_ptr, "Attempted to dereference a null UniquePtr");
 			return _ConvertToPointer();
 		}
 

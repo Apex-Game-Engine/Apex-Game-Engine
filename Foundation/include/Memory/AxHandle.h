@@ -3,7 +3,7 @@
 #include "Core/Types.h"
 
 namespace apex {
-	namespace memory
+	namespace mem
 	{
 		class MemoryManagerTest;
 	}
@@ -63,10 +63,10 @@ namespace apex {
 
 	private:
 		void*  m_cachedPtr { nullptr };
-		uint32 m_memoryPoolIdx {};
-		// uint32 m_memoryBlockIdx {};
+		u32 m_memoryPoolIdx {};
+		// u32 m_memoryBlockIdx {};
 
-		friend class memory::MemoryManagerTest;
+		friend class mem::MemoryManagerTest;
 	};
 
 	template <typename T>
@@ -84,3 +84,5 @@ namespace apex {
 			return AxHandle(sizeof(size_t) + sizeof(std::remove_extent_t<T>) * size);
 	}
 }
+
+#define apex_new(TYPE) new (apex::make_handle<TYPE>()) TYPE

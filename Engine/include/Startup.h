@@ -15,8 +15,8 @@
 
 	int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR pCmdLine, int nCmdShow)
 	{
-		apex::logging::Logger::initialize();
-		apex::memory::MemoryManager::initialize({ .frameArenaSize = 0, .numFramesInFlight = 3 });
+		apex::logging::Logger::Init();
+		apex::mem::MemoryManager::initialize({ .frameArenaSize = 0, .numFramesInFlight = 3 });
 
 		{
 			apex::CommandLineArguments cmdline({
@@ -42,7 +42,7 @@
 
 			cmdline = {};
 		}
-		apex::memory::MemoryManager::shutdown();
+		apex::mem::MemoryManager::shutdown();
 
 	#if defined(APEX_CONFIG_DEBUG) || defined(APEX_CONFIG_DEVELOPMENT)
 		system("pause");

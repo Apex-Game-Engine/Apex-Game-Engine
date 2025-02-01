@@ -4,13 +4,13 @@
 
 namespace apex {
 
-	enum class InputState : uint8
+	enum class InputState : u8
 	{
 		Released,
 		Pressed,
 	};
 
-	enum class KeyCode : uint32
+	enum class KeyCode : u32
 	{
 		KeyUnknown = 0,
 		KeySpace = 32,
@@ -134,7 +134,7 @@ namespace apex {
 		COUNT,
 	};
 
-	enum class KeyModifiers : uint32
+	enum class KeyModifiers : u32
 	{
 		ModShift = 0x0001,
 		ModControl = 0x0002,
@@ -144,7 +144,7 @@ namespace apex {
 		ModNumLock = 0x0020
 	};
 
-	enum class MouseButton : uint8
+	enum class MouseButton : u8
 	{
 		MouseBtnUnknown = 0,
 		MouseBtn1 = 1,
@@ -182,8 +182,8 @@ namespace apex {
 		inline void setKeyState(KeyCode key, InputState state);
 		inline void setMouseButtonState(MouseButton button, InputState state);
 		inline void setMousePosition(math::Vector2 const& normalized_mouse_pos);
-		inline void setMouseWheelDeltaV(float32 delta);
-		inline void setMouseWheelDeltaH(float32 value);
+		inline void setMouseWheelDeltaV(f32 delta);
+		inline void setMouseWheelDeltaH(f32 value);
 
 	private:
 		static InputManager *s_pInstance; // pimpl idiom

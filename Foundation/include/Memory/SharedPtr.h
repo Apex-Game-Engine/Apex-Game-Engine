@@ -124,21 +124,21 @@ namespace apex {
 
 		[[nodiscard]] constexpr reference operator*() const noexcept
 		{
-			axAssertMsg(m_data, "Attempted to dereference a null SharedPtr");
-			axAssertMsg(m_data->ptr, "Attempted to dereference a null SharedPtr");
+			axAssertFmt(m_data, "Attempted to dereference a null SharedPtr");
+			axAssertFmt(m_data->ptr, "Attempted to dereference a null SharedPtr");
 			return *m_data->ptr;
 		}
 
 		[[nodiscard]] constexpr pointer operator->() const noexcept
 		{
-			axAssertMsg(m_data, "Attempted to dereference a null SharedPtr");
-			axAssertMsg(m_data->ptr, "Attempted to dereference a null SharedPtr");
+			axAssertFmt(m_data, "Attempted to dereference a null SharedPtr");
+			axAssertFmt(m_data->ptr, "Attempted to dereference a null SharedPtr");
 			return m_data->ptr.get();
 		}
 
 		[[nodiscard]] constexpr pointer get() const noexcept
 		{
-			axAssertMsg(m_data, "Attempted to dereference a null SharedPtr");
+			axAssertFmt(m_data, "Attempted to dereference a null SharedPtr");
 			return m_data->ptr.get();
 		}
 
@@ -277,14 +277,14 @@ namespace apex {
 
 		[[nodiscard]] constexpr reference operator[](size_t idx) const noexcept
 		{
-			axAssertMsg(m_data, "Attempted to dereference a null SharedPtr");
-			axAssertMsg(m_data->ptr, "Attempted to dereference a null SharedPtr");
+			axAssertFmt(m_data, "Attempted to dereference a null SharedPtr");
+			axAssertFmt(m_data->ptr, "Attempted to dereference a null SharedPtr");
 			return m_data->ptr[idx];
 		}
 
 		[[nodiscard]] constexpr pointer get() const noexcept
 		{
-			axAssertMsg(m_data, "Attempted to dereference a null SharedPtr");
+			axAssertFmt(m_data, "Attempted to dereference a null SharedPtr");
 			return m_data->ptr.get();
 		}
 

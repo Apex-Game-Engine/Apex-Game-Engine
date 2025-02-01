@@ -2,7 +2,7 @@
 #include "IMemoryTracker.h"
 
 namespace apex {
-namespace memory {
+namespace mem {
 
 	class ArenaAllocator
 #ifdef APEX_ENABLE_MEMORY_TRACKING

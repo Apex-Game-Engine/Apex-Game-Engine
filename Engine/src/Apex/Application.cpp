@@ -22,12 +22,12 @@ namespace apex {
 		getInputManager()->setMousePosition(normalized_mouse_pos);
 	}
 
-	void Application::setMouseWheelDeltaV(float32 value)
+	void Application::setMouseWheelDeltaV(f32 value)
 	{
 		getInputManager()->setMouseWheelDeltaV(value);
 	}
 
-	void Application::setMouseWheelDeltaH(float32 value)
+	void Application::setMouseWheelDeltaH(f32 value)
 	{
 		getInputManager()->setMouseWheelDeltaH(value);
 	}

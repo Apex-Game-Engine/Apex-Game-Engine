@@ -34,7 +34,7 @@ namespace math {
 		return *this;
 	}
 
-	inline Vector2& Vector2::operator*=(float32 t)
+	inline Vector2& Vector2::operator*=(f32 t)
 	{
 		m_values[0] *= t;
 		m_values[1] *= t;
@@ -46,17 +46,17 @@ namespace math {
 		return (*this) *= { 1/v.x, 1/v.y };
 	}
 
-	inline Vector2& Vector2::operator/=(float32 t)
+	inline Vector2& Vector2::operator/=(f32 t)
 	{
 		return (*this) *= 1/t;
 	}
 
-	inline float32 Vector2::length() const
+	inline f32 Vector2::length() const
 	{
 		return apex::math::sqrt(lengthSquared());
 	}
 
-	inline float32 Vector2::lengthSquared() const
+	inline f32 Vector2::lengthSquared() const
 	{
 		return x*x + y*y;
 	}
@@ -96,17 +96,17 @@ namespace math {
 		return { u.x * v.x, u.y * v.y };
 	}
 
-	inline Vector2 operator*(float32 t, Vector2 const& v)
+	inline Vector2 operator*(f32 t, Vector2 const& v)
 	{
 		return { t * v.x, t * v.y };
 	}
 
-	inline Vector2 operator*(Vector2 const& v, float32 t)
+	inline Vector2 operator*(Vector2 const& v, f32 t)
 	{
 		return t * v;
 	}
 
-	inline Vector2 operator/(Vector2 const& v, float32 t)
+	inline Vector2 operator/(Vector2 const& v, f32 t)
 	{
 		return (1/t) * v;
 	}
@@ -159,7 +159,7 @@ namespace math {
 		return vec /= vec.length();
 	}
 
-	inline float32 dot(Vector2 const& u, Vector2 const& v)
+	inline f32 dot(Vector2 const& u, Vector2 const& v)
 	{
 		return u.x * v.x
 			 + u.y * v.y;

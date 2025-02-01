@@ -14,7 +14,7 @@ void operator delete[](void* mem) noexcept;
 
 namespace apex {
 
-	namespace memory {
+	namespace mem {
 		class MemoryManagerTest;
 		class MemoryManager;
 	}
@@ -25,20 +25,13 @@ namespace apex {
 		void* operator new(size_t);
 		void* operator new[](size_t);
 
-		void operator delete(void*);
-		void operator delete[](void*);
-
 		void* operator new(size_t size, void* mem);
 		void* operator new[](size_t size, void* mem);
 
-		void operator delete(void*, void*);
-		void operator delete[](void*, void*);
-
-		void* operator new(size_t size, AxHandle& handle);
-		void* operator new[](size_t size, AxHandle& handle);
-
-		void operator delete(void *ptr, AxHandle& handle);
-		void operator delete[](void *ptr, AxHandle& handle);
+		void* operator new(size_t size, AxHandle handle);
+		void* operator new[](size_t size, AxHandle handle);
+		//void* operator new(size_t size, AxHandle& handle);
+		//void* operator new[](size_t size, AxHandle& handle);
 	};
 
 	struct ExternallyManaged {};
@@ -78,12 +71,12 @@ namespace apex {
 	};
 
 	static_assert(sizeof(AxManagedClassAdapter<bool>) == sizeof(bool));
-	static_assert(sizeof(AxManagedClassAdapter<uint8>) == sizeof(uint8));
-	static_assert(sizeof(AxManagedClassAdapter<uint16>) == sizeof(uint16));
-	static_assert(sizeof(AxManagedClassAdapter<uint32>) == sizeof(uint32));
-	static_assert(sizeof(AxManagedClassAdapter<uint64>) == sizeof(uint64));
-	static_assert(sizeof(AxManagedClassAdapter<float32>) == sizeof(float32));
-	static_assert(sizeof(AxManagedClassAdapter<float64>) == sizeof(float64));
+	static_assert(sizeof(AxManagedClassAdapter<u8>) == sizeof(u8));
+	static_assert(sizeof(AxManagedClassAdapter<u16>) == sizeof(u16));
+	static_assert(sizeof(AxManagedClassAdapter<u32>) == sizeof(u32));
+	static_assert(sizeof(AxManagedClassAdapter<u64>) == sizeof(u64));
+	static_assert(sizeof(AxManagedClassAdapter<f32>) == sizeof(f32));
+	static_assert(sizeof(AxManagedClassAdapter<f64>) == sizeof(f64));
 
 	template <typename T>
 	constexpr auto adapt_to_managed_class(T* ptr)

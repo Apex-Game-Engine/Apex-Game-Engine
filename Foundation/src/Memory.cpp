@@ -11,7 +11,7 @@ namespace apex {
 
 	void* AxManagedClass::operator new(size_t size)
 	{
-		axAssertMsg(false,
+		axAssertFmt(false,
 			"default new operator called on a AxManagedClass instance!"
 			"\nThis might lead to exceptional conditions.");
 		return malloc(size);
@@ -19,36 +19,10 @@ namespace apex {
 
 	void* AxManagedClass::operator new [](size_t size)
 	{
-		axAssertMsg(false,
+		axAssertFmt(false,
 			"default new[] operator called on a AxManagedClass instance!"
 			"\nThis might lead to exceptional conditions.");
 		return malloc(size);
-	}
-
-	void AxManagedClass::operator delete(void* ptr)
-	{
-		if (memory::MemoryManager::checkManaged(ptr))
-		{
-			if (memory::MemoryManager::canFree(ptr))
-				memory::MemoryManager::free(ptr);
-		}
-		else
-		{
-			free(ptr);
-		}
-	}
-
-	void AxManagedClass::operator delete [](void* ptr)
-	{
-		if (memory::MemoryManager::checkManaged(ptr))
-		{
-			if (memory::MemoryManager::canFree(ptr))
-				memory::MemoryManager::free(ptr);
-		}
-		else
-		{
-			free(ptr);
-		}
 	}
 
 	void* AxManagedClass::operator new(size_t size, void* mem)
@@ -61,17 +35,7 @@ namespace apex {
 		return mem;
 	}
 
-	void AxManagedClass::operator delete(void*, void*)
-	{
-		return;
-	}
-
-	void AxManagedClass::operator delete [](void*, void*)
-	{
-		return;
-	}
-
-	void* AxManagedClass::operator new(size_t size, AxHandle& handle)
+	void* AxManagedClass::operator new(size_t size, AxHandle handle)
 	{
 		// TODO: Please change this to something smarter!
 		if (handle.isValid())
@@ -85,7 +49,7 @@ namespace apex {
 		return handle.getAs<void>();
 	}
 
-	void* AxManagedClass::operator new [](size_t size, AxHandle& handle)
+	void* AxManagedClass::operator new [](size_t size, AxHandle handle)
 	{
 		if (handle.isValid())
 		{
@@ -98,42 +62,47 @@ namespace apex {
 		return handle.getAs<void>();
 	}
 
-	void AxManagedClass::operator delete(void* ptr, AxHandle& handle)
-	{
-		handle.free();
-	}
-
-	void AxManagedClass::operator delete [](void* ptr, AxHandle& handle)
-	{
-		handle.free();
-	}
-
 }
 
 #ifndef APEX_ENABLE_TESTS
-
 void* operator new(size_t size)
 {
-	axLog("new ()");
+	//axLog("new ()");
 	return malloc(size);
 }
 
 void* operator new [](size_t size)
 {
-	axLog("new[] ()");
+	//axLog("new[] ()");
 	return malloc(size);
 }
-
-void operator delete(void* mem)
-{
-	axLog("delete ()");
-	free(mem);
-}
-
-void operator delete [](void* mem)
-{
-	axLog("delete[] ()");
-	free(mem);
-}
-
 #endif
+
+void operator delete(void* ptr) noexcept
+{
+	using namespace apex;
+	if (mem::MemoryManager::checkManaged(ptr))
+	{
+		if (mem::MemoryManager::canFree(ptr))
+			mem::MemoryManager::free(ptr);
+	}
+	else
+	{
+		free(ptr);
+	}
+}
+
+void operator delete [](void* ptr) noexcept
+{
+	using namespace apex;
+	if (mem::MemoryManager::checkManaged(ptr))
+	{
+		if (mem::MemoryManager::canFree(ptr))
+			mem::MemoryManager::free(ptr);
+	}
+	else
+	{
+		free(ptr);
+	}
+}
+

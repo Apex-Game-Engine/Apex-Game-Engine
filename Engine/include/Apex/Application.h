@@ -6,8 +6,8 @@
 #include "Memory/UniquePtr.h"
 
 namespace apex {
-	enum class InputState : uint8;
-	enum class KeyCode : uint32;
+	enum class InputState : u8;
+	enum class KeyCode : u32;
 
 	namespace gfx {
 		class ForwardRenderer;
@@ -26,7 +26,7 @@ namespace apex {
 	{
 		virtual ~Application() = default;
 
-		static Application* Construct(uint32 width, uint32 height, const char* name, UniquePtr<Game>&& pGame);
+		static Application* Construct(u32 width, u32 height, const char* name, UniquePtr<Game>&& pGame);
 
 		static Application* Instance()
 		{
@@ -49,8 +49,8 @@ namespace apex {
 		void setKeyState(KeyCode key, InputState state);
 		void setMouseButtonState(MouseButton button, InputState state);
 		void setMousePosition(math::Vector2 const& normalized_mouse_pos);
-		void setMouseWheelDeltaV(float32 value);
-		void setMouseWheelDeltaH(float32 value);
+		void setMouseWheelDeltaV(f32 value);
+		void setMouseWheelDeltaH(f32 value);
 	};
 
 }

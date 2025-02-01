@@ -2,7 +2,7 @@
 
 #include <Api.h>
 #include <Containers/AxStaticString.h>
-#include <Containers/AxStringRef.h>
+#include <Containers/AxStringView.h>
 #include <Core/Types.h>
 
 namespace apex {
@@ -12,9 +12,9 @@ namespace core {
 	{
 		struct APEX_API TypeIndex final
 		{
-			static uint32 next()
+			static u32 next()
 			{
-				static uint32 value{};
+				static u32 value{};
 				return value++;
 			}
 		};
@@ -23,9 +23,9 @@ namespace core {
 	template <typename Type, typename = void>
 	struct TypeIndex final
 	{
-		static constexpr uint32 value() noexcept
+		static constexpr u32 value() noexcept
 		{
-			static const uint32 value = internal::TypeIndex::next();
+			static const u32 value = internal::TypeIndex::next();
 			return value;
 		}
 	};
@@ -90,7 +90,7 @@ namespace core {
 		{
 			constexpr auto cname = internal::TypeName<T>();
 			static auto name = AxStaticString<cname.m_size>{cname.m_str};
-			return AxStringRef{name.data(), name.size()};
+			return AxStringView{name.data(), name.size()};
 		}
 	};
 
@@ -104,4 +104,4 @@ namespace core {
 }
 
 #define APEX_REGISTER_TYPE(TYPE) \
-	static const apex::uint32 g_TypeIndex_##TYPE = apex::core::TypeIndex<TYPE>::value()
+	static const apex::u32 g_TypeIndex_##TYPE = apex::core::TypeIndex<TYPE>::value()

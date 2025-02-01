@@ -2,12 +2,10 @@
 
 namespace apex {
 
-	namespace detail {
-		thread_local static char g_fmtBuffer[2048];
-	}
+	thread_local static char g_fmtBuffer[2048];
 
 	buffer_iterator get_buffer()
 	{
-		return {detail::g_fmtBuffer, std::size(detail::g_fmtBuffer) };
+		return {g_fmtBuffer, std::size(g_fmtBuffer) };
 	}
 }

@@ -2,7 +2,7 @@
 
 #include "Core/Asserts.h"
 
-namespace apex::memory {
+namespace apex::mem {
 
 	StackAllocator::StackAllocator(void* p_begin, size_t size)
 	: m_pBase(p_begin)
@@ -19,10 +19,10 @@ namespace apex::memory {
 
 	void* StackAllocator::allocate(size_t size)
 	{
-		axAssertMsg(m_pBase != nullptr, "Stack allocator not initialized!");
-		axAssertMsg(m_capacity - m_offset > size, "Stack allocator overflow!");
+		axAssertFmt(m_pBase != nullptr, "Stack allocator not initialized!");
+		axAssertFmt(m_capacity - m_offset > size, "Stack allocator overflow!");
 
-		void* top = &static_cast<uint8*>(m_pBase)[m_offset];
+		void* top = &static_cast<u8*>(m_pBase)[m_offset];
 
 		m_offset += size;
 

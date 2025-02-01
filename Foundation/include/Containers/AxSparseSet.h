@@ -30,7 +30,7 @@ namespace apex {
 		 * \brief Creates an empty set with initial capacity.
 		 * \param capacity Initial capacity.
 		 */
-		explicit AxSparseSet(uint32 capacity)
+		explicit AxSparseSet(u32 capacity)
 		: m_sparse(capacity)
 		, m_dense(capacity)
 		{
@@ -62,7 +62,7 @@ namespace apex {
 		void add(key_type key)
 		{
 			axAssert(key < capacity());
-			axAssertMsg(!contains(key), "Cannot add element. ID already exists in the set!");
+			axAssertFmt(!contains(key), "Cannot add element. ID already exists in the set!");
 
 			_Insert(key);
 		}
@@ -92,7 +92,7 @@ namespace apex {
 		void remove(key_type key)
 		{
 			axAssert(key < capacity());
-			axAssertMsg(contains(key), "Cannot delete element. ID does not exist!");
+			axAssertFmt(contains(key), "Cannot delete element. ID does not exist!");
 
 			_Remove(key);
 		}

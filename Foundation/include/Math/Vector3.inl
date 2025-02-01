@@ -39,7 +39,7 @@ namespace math {
 		return *this;
 	}
 
-	inline Vector3& Vector3::operator*=(const float32 t)
+	inline Vector3& Vector3::operator*=(const f32 t)
 	{
 		m_values[0] *= t;
 		m_values[1] *= t;
@@ -52,17 +52,17 @@ namespace math {
 		return (*this) *= {1/v.x, 1/v.y, 1/v.z};
 	}
 
-	inline Vector3& Vector3::operator/=(const float32 t)
+	inline Vector3& Vector3::operator/=(const f32 t)
 	{
 		return (*this) *= 1/t;
 	}
 
-	inline float32 Vector3::length() const
+	inline f32 Vector3::length() const
 	{
 		return apex::math::sqrt(lengthSquared());
 	}
 
-	inline float32 Vector3::lengthSquared() const
+	inline f32 Vector3::lengthSquared() const
 	{
 		return apex::math::dot(*this, *this);
 	}
@@ -127,7 +127,7 @@ namespace math {
 		return { u.x * v.x, u.y * v.y, u.z * v.z };
 	}
 
-	inline Vector3 operator*(float32 t, Vector3 const& v)
+	inline Vector3 operator*(f32 t, Vector3 const& v)
 	{
 		__m128 mT = _mm_set1_ps(t);
         __m128 mV = _mm_loadu_ps(v.m_values);
@@ -140,12 +140,12 @@ namespace math {
 		return { t * v.x, t * v.y, t * v.z };
 	}
 
-	inline Vector3 operator*(Vector3 const& v, float32 t)
+	inline Vector3 operator*(Vector3 const& v, f32 t)
 	{
 		return t * v;
 	}
 
-	inline Vector3 operator/(Vector3 const& v, float32 t)
+	inline Vector3 operator/(Vector3 const& v, f32 t)
 	{
 		return (1/t) * v;
 	}
@@ -200,7 +200,7 @@ namespace math {
 		return vec /= vec.length();
 	}
 
-	inline float32 dot(Vector3 const& u, Vector3 const& v)
+	inline f32 dot(Vector3 const& u, Vector3 const& v)
 	{
 		__m128 mU = _mm_loadu_ps(u.m_values);
 		__m128 mV = _mm_loadu_ps(v.m_values);
@@ -243,7 +243,7 @@ namespace math {
 		return u - 2 * dot(u, n) * n;
 	}
 
-	inline Vector3 refract(Vector3 const& u, Vector3 const& n, float32 refraction_ratio)
+	inline Vector3 refract(Vector3 const& u, Vector3 const& n, f32 refraction_ratio)
 	{
 		/*
 		 *     i * sin(theta) = i' * sin(theta')
@@ -255,14 +255,14 @@ namespace math {
 		 *	   R'_par = -sqrt(1 - |R'_perp|^2) * n
 		 */
 
-		float32 cos_theta = fmin(dot(-u, n), 1.f);
+		f32 cos_theta = fmin(dot(-u, n), 1.f);
 		Vector3 ray_out_perp = refraction_ratio * (u + cos_theta * n);
 		Vector3 ray_out_par = -math::sqrt(fabs(1.f - ray_out_perp.lengthSquared())) * n;
 
 		return ray_out_perp + ray_out_par;
 	}
 
-	inline Vector3 lerp(Vector3 const& u, Vector3 const& v, float32 t)
+	inline Vector3 lerp(Vector3 const& u, Vector3 const& v, f32 t)
 	{
 		return (1 - t) * u + t * v;
 	}
