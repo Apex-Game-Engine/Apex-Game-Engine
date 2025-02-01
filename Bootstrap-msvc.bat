@@ -1,0 +1,1 @@
+call "Bootstrap.bat" msvc
