@@ -7,13 +7,13 @@
 #pragma warning(disable: 4267) // size_t to uint32_t conversion
 
 namespace apex {
-namespace memory {
+namespace mem {
 
 	using literals::operator""_KiB;
 	using literals::operator""_MiB;
 
-	using pool_size = uint32;
-	using elem_size = uint32;
+	using pool_size = u32;
+	using elem_size = u32;
 
 	// TODO: Consider splitting this into multiple pool arenas { Game, Render, GPU }
 	static constexpr std::pair<elem_size, pool_size> g_memoryPoolSizes[] = {

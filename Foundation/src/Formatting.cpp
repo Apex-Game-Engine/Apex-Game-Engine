@@ -1,4 +1,4 @@
-#include "Core/Formatting.h"
+﻿#include "Core/Formatting.h"
 
 namespace apex {
 

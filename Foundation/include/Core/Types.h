@@ -7,74 +7,74 @@ namespace apex {
 
     // using Bool  = bool;
 
-	using int8  = char;
-    using int16 = short;
-    using int32 = int;
-    using int64 = long long;
+	using s8  = char;
+    using s16 = short;
+    using s32 = int;
+    using s64 = long long;
 
-    using uint8  = unsigned char;
-    using uint16 = unsigned short;
-    using uint32 = unsigned int;
-    using uint64 = unsigned long long;
+    using u8  = unsigned char;
+    using u16 = unsigned short;
+    using u32 = unsigned int;
+    using u64 = unsigned long long;
 
-    using float32 = float;
-    using float64 = double;
+    using f32 = float;
+    using f64 = double;
 
     // additional types
-	using byte = uint8;
-    using sbyte = int8;
+	using byte = u8;
+    using sbyte = s8;
 
     static_assert(sizeof(bool)  == 1, "Integer type `Bool` does not have correct size!");
 
-    static_assert(sizeof(int8)  == 1, "Integer type `int8` does not have correct size!");
-    static_assert(sizeof(int16) == 2, "Integer type `int16` does not have correct size!");
-    static_assert(sizeof(int32) == 4, "Integer type `int32` does not have correct size!");
-    static_assert(sizeof(int64) == 8, "Integer type `int64` does not have correct size!");
+    static_assert(sizeof(s8)  == 1, "Integer type `s8` does not have correct size!");
+    static_assert(sizeof(s16) == 2, "Integer type `s16` does not have correct size!");
+    static_assert(sizeof(s32) == 4, "Integer type `s32` does not have correct size!");
+    static_assert(sizeof(s64) == 8, "Integer type `s64` does not have correct size!");
 
-    static_assert(sizeof(uint8)  == 1, "Integer type `uint8` does not have correct size!");
-    static_assert(sizeof(uint16) == 2, "Integer type `uint16` does not have correct size!");
-    static_assert(sizeof(uint32) == 4, "Integer type `uint32` does not have correct size!");
-    static_assert(sizeof(uint64) == 8, "Integer type `uint64` does not have correct size!");
+    static_assert(sizeof(u8)  == 1, "Integer type `u8` does not have correct size!");
+    static_assert(sizeof(u16) == 2, "Integer type `u16` does not have correct size!");
+    static_assert(sizeof(u32) == 4, "Integer type `u32` does not have correct size!");
+    static_assert(sizeof(u64) == 8, "Integer type `u64` does not have correct size!");
 
-    static_assert(sizeof(float32) == 4, "Floating type `float32` does not have correct size!");
-    static_assert(sizeof(float64) == 8, "Floating type `float64` does not have correct size!");
+    static_assert(sizeof(f32) == 4, "Floating type `f32` does not have correct size!");
+    static_assert(sizeof(f64) == 8, "Floating type `f64` does not have correct size!");
 
-    namespace constants
+    struct Constants
     {
-	    constexpr int8  int8_MAX  = 0x7fi8;
-	    constexpr int8  int8_MIN  = 0x80i8;
-	    constexpr int16 int16_MAX = 0x7fffi16;
-	    constexpr int16 int16_MIN = 0x8000i16;
-	    constexpr int32 int32_MAX = 0x7fffffffi32;
-	    constexpr int32 int32_MIN = 0x80000000i32;
-	    constexpr int64 int64_MAX = 0x7fffffffffffffffi64;
-	    constexpr int64 int64_MIN = 0x8000000000000000i64;
+	    static constexpr s8  s8_MAX  = 0x7fi8;
+	    static constexpr s8  s8_MIN  = 0x80i8;
+	    static constexpr s16 s16_MAX = 0x7fffi16;
+	    static constexpr s16 s16_MIN = 0x8000i16;
+	    static constexpr s32 s32_MAX = 0x7fffffffi32;
+	    static constexpr s32 s32_MIN = 0x80000000i32;
+	    static constexpr s64 s64_MAX = 0x7fffffffffffffffi64;
+	    static constexpr s64 s64_MIN = 0x8000000000000000i64;
 
-	    constexpr uint8  uint8_MAX  = 0xffui8;
-	    constexpr uint16 uint16_MAX = 0xffffui16;
-	    constexpr uint32 uint32_MAX = 0xffffffffui32;
-	    constexpr uint64 uint64_MAX = 0xffffffffffffffffui64;
+	    static constexpr u8  u8_MAX  = 0xffui8;
+	    static constexpr u16 u16_MAX = 0xffffui16;
+	    static constexpr u32 u32_MAX = 0xffffffffui32;
+	    static constexpr u64 u64_MAX = 0xffffffffffffffffui64;
 
-        constexpr float32 float32_MAX        = FLT_MAX;
-        constexpr float32 float32_MIN        = FLT_MIN;
-        constexpr float32 float32_MAX_2_EXP  = FLT_MAX_EXP;
-        constexpr float32 float32_MIN_2_EXP  = FLT_MIN_EXP;
-        constexpr float32 float32_MAX_10_EXP = FLT_MAX_10_EXP;
-        constexpr float32 float32_MIN_10_EXP = FLT_MIN_10_EXP;
-        constexpr float32 float32_EPSILON    = FLT_EPSILON;
-        constexpr float32 float32_INFINITY   = std::numeric_limits<float32>::infinity();
-        constexpr float32 float32_PI         = 3.1415926535897932385f;
+        static constexpr f32 f32_MAX        = FLT_MAX;
+        static constexpr f32 f32_MIN        = FLT_MIN;
+        static constexpr f32 f32_MAX_2_EXP  = FLT_MAX_EXP;
+        static constexpr f32 f32_MIN_2_EXP  = FLT_MIN_EXP;
+        static constexpr f32 f32_MAX_10_EXP = FLT_MAX_10_EXP;
+        static constexpr f32 f32_MIN_10_EXP = FLT_MIN_10_EXP;
+        static constexpr f32 f32_EPSILON    = FLT_EPSILON;
+        static constexpr f32 f32_INFINITY   = std::numeric_limits<f32>::infinity();
+        static constexpr f32 f32_PI         = 3.1415926535897932385f;
 
-        constexpr float64 float64_MAX        = DBL_MAX;
-        constexpr float64 float64_MIN        = DBL_MIN;
-        constexpr float64 float64_MAX_2_EXP  = DBL_MAX_EXP;
-        constexpr float64 float64_MIN_2_EXP  = DBL_MIN_EXP;
-        constexpr float64 float64_MAX_10_EXP = DBL_MAX_10_EXP;
-        constexpr float64 float64_MIN_10_EXP = DBL_MIN_10_EXP;
-        constexpr float64 float64_EPSILON    = DBL_EPSILON;
-        constexpr float64 float64_INFINITY   = std::numeric_limits<float64>::infinity();
-        constexpr float64 float64_PI         = 3.1415926535897932385;
-    }
+        static constexpr f64 f64_MAX        = DBL_MAX;
+        static constexpr f64 f64_MIN        = DBL_MIN;
+        static constexpr f64 f64_MAX_2_EXP  = DBL_MAX_EXP;
+        static constexpr f64 f64_MIN_2_EXP  = DBL_MIN_EXP;
+        static constexpr f64 f64_MAX_10_EXP = DBL_MAX_10_EXP;
+        static constexpr f64 f64_MIN_10_EXP = DBL_MIN_10_EXP;
+        static constexpr f64 f64_EPSILON    = DBL_EPSILON;
+        static constexpr f64 f64_INFINITY   = std::numeric_limits<f64>::infinity();
+        static constexpr f64 f64_PI         = 3.1415926535897932385;
+    };
 
 	namespace detail
     {
@@ -84,9 +84,9 @@ namespace apex {
              * https://stackoverflow.com/a/3423299
              */
 
-            using raw_type         = float32;
-            using bits_type        = uint32;
-            using signed_bits_type = int32;
+            using raw_type         = f32;
+            using bits_type        = u32;
+            using signed_bits_type = s32;
 
 			static constexpr size_t kMaxUlps          = 4;
 
@@ -94,14 +94,14 @@ namespace apex {
             static constexpr size_t kFractionBitCount = std::numeric_limits<raw_type>::digits - 1;
             static constexpr size_t kExponentBitCount = kBitCount - 1 - kFractionBitCount;
 
-            static constexpr uint32 kSignBitMask      = static_cast<uint32>(1) << (kBitCount - 1);
-            static constexpr uint32 kFractionBitMask  = ~static_cast<uint32>(0) >> (kExponentBitCount + 1);
-            static constexpr uint32 kExponentBitMask  = ~(kSignBitMask | kFractionBitMask);
+            static constexpr u32 kSignBitMask      = static_cast<u32>(1) << (kBitCount - 1);
+            static constexpr u32 kFractionBitMask  = ~static_cast<u32>(0) >> (kExponentBitCount + 1);
+            static constexpr u32 kExponentBitMask  = ~(kSignBitMask | kFractionBitMask);
 
             static_assert(kFractionBitMask == 0x007fffff);
             static_assert(kExponentBitMask == 0x7f800000);
 
-		    Float32(float32 num = 0.0f) : f(num) {}
+		    Float32(f32 num = 0.0f) : f(num) {}
 
             [[nodiscard]] bits_type signBit() const { return bits & kSignBitMask; }
             [[nodiscard]] bits_type fractionBits() const { return bits & kFractionBitMask; }
@@ -123,10 +123,7 @@ namespace apex {
 			    {
 				    return ~b + 1;
 			    }
-		    	else
-			    {
-				    return kSignBitMask | b;
-			    }
+			    return kSignBitMask | b;
 		    }
 
             static bits_type _distanceBetweenNumbers(bits_type const& b1, bits_type const& b2)
@@ -143,12 +140,12 @@ namespace apex {
 	    };
     }
 
-    inline bool floatCompareApproximatelyEqual(float32 a, float32 b)
+    inline bool floatCompareApproximatelyEqual(f32 a, f32 b)
     {
-        return fabsf(a - b) <= ( (a == 0 || b == 0) ? constants::float32_EPSILON : ((fabsf(a) < fabsf(b) ? fabsf(b) : fabsf(a)) * constants::float32_EPSILON ));
+        return fabsf(a - b) <= ( (a == 0 || b == 0) ? Constants::f32_EPSILON : ((fabsf(a) < fabsf(b) ? fabsf(b) : fabsf(a)) * Constants::f32_EPSILON ));
     }
 
-    inline bool floatCompareAlmostEqual(float32 a, float32 b)
+    inline bool floatCompareAlmostEqual(f32 a, f32 b)
     {
 	    detail::Float32 A { a };
         detail::Float32 B { b };
@@ -156,9 +153,9 @@ namespace apex {
         return A.almostEqual(B);
     }
 
-	inline bool floatCompareNearZero(float32 const& v)
+	inline bool floatCompareNearZero(f32 const& v)
 	{
-		return fabsf(v) < constants::float32_EPSILON;
+		return fabsf(v) < Constants::f32_EPSILON;
 	}
 
     /**
@@ -210,6 +207,6 @@ namespace apex {
 	}
 
     // TODO: Create a new Timestep class that provides conversion to nanos, micros, millis and seconds
-    using Timestep = float32;
+    using Timestep = f32;
 
 }

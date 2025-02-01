@@ -1,4 +1,4 @@
-#include "Concurrency/Concurrency.h"
+﻿#include "Concurrency/Concurrency.h"
 #include "Core/Asserts.h"
 #include "Core/Platform.h"
 

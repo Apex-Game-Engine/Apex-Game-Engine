@@ -21,7 +21,7 @@ namespace ecs {
 
 		static constexpr auto kComponentPoolGrowthRate = 2u;
 
-		uint32 m_entityCount{};
+		u32 m_entityCount{};
 		AxSparseMap<component_id, UniquePtr<base_pool_type>> m_pools{};
 		size_t minPoolSize = 8;
 

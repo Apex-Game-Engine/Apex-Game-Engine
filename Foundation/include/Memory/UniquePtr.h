@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "Core/Asserts.h"
 #include "AxManagedClass.h"

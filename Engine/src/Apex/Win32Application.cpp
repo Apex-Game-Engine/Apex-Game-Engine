@@ -14,7 +14,7 @@
 
 namespace apex {
 
-	Application* Application::Construct(uint32 width, uint32 height, const char* name, UniquePtr<Game>&& pGame)
+	Application* Application::Construct(u32 width, u32 height, const char* name, UniquePtr<Game>&& pGame)
 	{
 		Win32Application* pInstance = new Win32Application(width, height, name);
 		pInstance->m_game = std::forward<UniquePtr<Game>&&>(pGame);
@@ -23,7 +23,7 @@ namespace apex {
 		return s_pInstance;
 	}
 
-	Win32Application::Win32Application(uint32 width, uint32 height, const char* name)
+	Win32Application::Win32Application(u32 width, u32 height, const char* name)
 	: m_hInstance(GetModuleHandle(NULL))
 	, m_running(false)
 	, m_applicationState(ApplicationState::eStopped)
@@ -104,8 +104,8 @@ namespace apex {
 
 				int width, height;
 				m_window->getFramebufferSize(width, height);
-				const math::Vector2 mousePos = { static_cast<float32>(pt.x), static_cast<float32>(pt.y) };
-				const math::Vector2 windowSize = { static_cast<float32>(width), static_cast<float32>(height) };
+				const math::Vector2 mousePos = { static_cast<f32>(pt.x), static_cast<f32>(pt.y) };
+				const math::Vector2 windowSize = { static_cast<f32>(width), static_cast<f32>(height) };
 				const math::Vector2 normalizedMousePos = (2.f * mousePos - windowSize) / windowSize;
 
 				setMousePosition(normalizedMousePos);

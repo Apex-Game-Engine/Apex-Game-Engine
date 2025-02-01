@@ -1,8 +1,8 @@
-#include "Memory/PoolAllocator.h"
+﻿#include "Memory/PoolAllocator.h"
 
 #include "Core/Asserts.h"
 
-namespace apex::memory {
+namespace apex::mem {
 
 	namespace {
 		struct Block
@@ -11,12 +11,12 @@ namespace apex::memory {
 		};
 	}
 
-	PoolAllocator::PoolAllocator(void* p_begin, size_t size, uint32 block_size)
+	PoolAllocator::PoolAllocator(void* p_begin, size_t size, u32 block_size)
 	{
 		initialize(p_begin, size, block_size);
 	}
 
-	void PoolAllocator::initialize(void* p_begin, size_t size, uint32 block_size)
+	void PoolAllocator::initialize(void* p_begin, size_t size, u32 block_size)
 	{
 		axAssertFmt(p_begin != nullptr, "Invalid memory address!");
 		axAssert(size > block_size);
@@ -24,7 +24,7 @@ namespace apex::memory {
 		m_pBase = p_begin;
 		m_allocPtr = m_pBase;
 		m_blockSize = block_size;
-		m_numTotalBlocks = static_cast<uint32>(size / static_cast<size_t>(m_blockSize));
+		m_numTotalBlocks = static_cast<u32>(size / static_cast<size_t>(m_blockSize));
 		m_numFreeBlocks = m_numTotalBlocks;
 
 		reset();
@@ -46,7 +46,7 @@ namespace apex::memory {
 		Block *blockPtr = static_cast<Block*>(m_allocPtr);
 		if (blockPtr->pNext == nullptr)
 		{
-			m_allocPtr = static_cast<uint8*>(m_allocPtr) + m_blockSize;
+			m_allocPtr = static_cast<u8*>(m_allocPtr) + m_blockSize;
 		}
 		else
 		{

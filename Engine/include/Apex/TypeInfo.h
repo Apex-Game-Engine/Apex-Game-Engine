@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include <Api.h>
 #include <Containers/AxStaticString.h>
@@ -12,9 +12,9 @@ namespace core {
 	{
 		struct APEX_API TypeIndex final
 		{
-			static uint32 next()
+			static u32 next()
 			{
-				static uint32 value{};
+				static u32 value{};
 				return value++;
 			}
 		};
@@ -23,9 +23,9 @@ namespace core {
 	template <typename Type, typename = void>
 	struct TypeIndex final
 	{
-		static constexpr uint32 value() noexcept
+		static constexpr u32 value() noexcept
 		{
-			static const uint32 value = internal::TypeIndex::next();
+			static const u32 value = internal::TypeIndex::next();
 			return value;
 		}
 	};
@@ -104,4 +104,4 @@ namespace core {
 }
 
 #define APEX_REGISTER_TYPE(TYPE) \
-	static const apex::uint32 g_TypeIndex_##TYPE = apex::core::TypeIndex<TYPE>::value()
+	static const apex::u32 g_TypeIndex_##TYPE = apex::core::TypeIndex<TYPE>::value()

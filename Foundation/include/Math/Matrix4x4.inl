@@ -35,7 +35,7 @@ namespace math {
 
 	#pragma region Matrix4x4 utility functions
 
-	inline Matrix4x4 operator*(Matrix4x4 const& m, float32 t)
+	inline Matrix4x4 operator*(Matrix4x4 const& m, f32 t)
 	{
 		return {
 			m[0] * t,
@@ -109,15 +109,15 @@ namespace math {
 		Matrix4x4 inverse { inv0 * signA, inv1 * signB, inv2 * signA, inv3 * signB };
 		Vector4 row0 { inverse[0][0], inverse[1][0], inverse[2][0], inverse[3][0] };
 		Vector4 dot0 { m[0] * row0 };
-		float32 dot1 = (dot0.x + dot0.y) + (dot0.z + dot0.w);
-		float32 one_over_determinant = 1.0f / dot1;
+		f32 dot1 = (dot0.x + dot0.y) + (dot0.z + dot0.w);
+		f32 one_over_determinant = 1.0f / dot1;
 		return inverse * one_over_determinant;
 	}
 
-	inline Matrix4x4 rotateX(Matrix4x4 const& m, float32 angle)
+	inline Matrix4x4 rotateX(Matrix4x4 const& m, f32 angle)
 	{
-		float32 c = std::cos(angle);
-		float32 s = std::sin(angle);
+		f32 c = std::cos(angle);
+		f32 s = std::sin(angle);
 
 		/* x-axis rotation matrix :
 		 *     1, 0, 0, 0,
@@ -136,10 +136,10 @@ namespace math {
 		return res;
 	}
 
-	inline Matrix4x4 rotateY(Matrix4x4 const& m, float32 angle)
+	inline Matrix4x4 rotateY(Matrix4x4 const& m, f32 angle)
 	{
-		float32 c = std::cos(angle);
-		float32 s = std::sin(angle);
+		f32 c = std::cos(angle);
+		f32 s = std::sin(angle);
 
 		/* x-axis rotation matrix :
 		 *     c, 0, s, 0,
@@ -158,10 +158,10 @@ namespace math {
 		return res;
 	}
 
-	inline Matrix4x4 rotateZ(Matrix4x4 const& m, float32 angle)
+	inline Matrix4x4 rotateZ(Matrix4x4 const& m, f32 angle)
 	{
-		float32 c = std::cos(angle);
-		float32 s = std::sin(angle);
+		f32 c = std::cos(angle);
+		f32 s = std::sin(angle);
 
 		/* x-axis rotation matrix :
 		 *     c,-s, 0, 0,
@@ -180,7 +180,7 @@ namespace math {
 		return res;
 	}
 
-	inline Matrix4x4 rotateZYX(Matrix4x4 const& m, float32 angleX, float32 angleY, float32 angleZ)
+	inline Matrix4x4 rotateZYX(Matrix4x4 const& m, f32 angleX, f32 angleY, f32 angleZ)
 	{
 		return eulerZYX(angleX, angleY, angleZ) * m;
 	}
@@ -190,20 +190,20 @@ namespace math {
 		return rotateZYX(m, angles.x, angles.y, angles.z);
 	}
 
-	inline Matrix4x4 rotateAxisAngle(Matrix4x4 const& m, Vector3 const& axis, float32 angle)
+	inline Matrix4x4 rotateAxisAngle(Matrix4x4 const& m, Vector3 const& axis, f32 angle)
 	{
 		return rotateAxisAngle(m, axis, std::cos(angle), std::sin(angle));
 	}
 
-	inline Matrix4x4 rotateAxisAngle(Matrix4x4 const& m, Vector3 const& axis, float32 cosAngle, float32 sinAngle)
+	inline Matrix4x4 rotateAxisAngle(Matrix4x4 const& m, Vector3 const& axis, f32 cosAngle, f32 sinAngle)
 	{
-		float32 c = cosAngle;
-		float32 s = sinAngle;
-		float32 t = 1.f - c;
+		f32 c = cosAngle;
+		f32 s = sinAngle;
+		f32 t = 1.f - c;
 		Vector3 a = normalize(axis);
-		float32 x = a.x;
-		float32 y = a.y;
-		float32 z = a.z;
+		f32 x = a.x;
+		f32 y = a.y;
+		f32 z = a.z;
 		Matrix4x4 res { row_major{},
 			t*x*x + c, t*x*y - s*z, t*x*z + s*y, 0,
 			t*x*y + s*z, t*y*y + c, t*y*z - s*x, 0,
@@ -215,7 +215,7 @@ namespace math {
 
 	inline Vector3 decomposeRotation(Matrix4x4 const& m)
 	{
-		float32 x, y, z;
+		f32 x, y, z;
 		if (m[0][2] < 1.f)
 		{
 			if (m[0][2] > -1.f)
@@ -227,7 +227,7 @@ namespace math {
 			else
 			{
 				// Not a unique solution: x - z = atan2(-m[2][1], m[1][1])
-				y = constants::float32_PI / 2;
+				y = Constants::f32_PI / 2;
 				z = -std::atan2(-m[2][1], m[1][1]);
 				x = 0;
 			}
@@ -235,7 +235,7 @@ namespace math {
 		else
 		{
 			// Not a unique solution: x + z = atan2(-m[2][1], m[1][1])
-			y = -constants::float32_PI;
+			y = -Constants::f32_PI;
 			z = std::atan2(-m[2][1], m[1][1]);
 			x = 0;
 		}
@@ -307,10 +307,10 @@ namespace math {
 		return View;
 	}
 
-	inline Matrix4x4 perspective(float32 fov, float32 aspect_ratio, float32 near_z, float32 far_z)
+	inline Matrix4x4 perspective(f32 fov, f32 aspect_ratio, f32 near_z, f32 far_z)
 	{
-		float32 recip_tan_fov_by_2 = cos(fov * 0.5f) / sin(fov * 0.5f);
-		float32 z_range = far_z - near_z;
+		f32 recip_tan_fov_by_2 = cos(fov * 0.5f) / sin(fov * 0.5f);
+		f32 z_range = far_z - near_z;
 
 		Matrix4x4 Proj { row_major{},
 			recip_tan_fov_by_2 / aspect_ratio,          0        ,              0              ,             0                ,
@@ -322,26 +322,26 @@ namespace math {
 		return Proj;
 	}
 
-	inline Matrix4x4 eulerZYX(float32 angleX, float32 angleY, float32 angleZ)
+	inline Matrix4x4 eulerZYX(f32 angleX, f32 angleY, f32 angleZ)
 	{
-		float32 A = angleX;
-		float32 B = angleY;
-		float32 Y = angleZ;
+		f32 A = angleX;
+		f32 B = angleY;
+		f32 Y = angleZ;
 
-		float32 cA = cos(A), sA = sin(A);
-		float32 cB = cos(B), sB = sin(B);
-		float32 cY = cos(Y), sY = sin(Y);
+		f32 cA = cos(A), sA = sin(A);
+		f32 cB = cos(B), sB = sin(B);
+		f32 cY = cos(Y), sY = sin(Y);
 
-		float32 cAcB = cA * cB;
-		float32 sAcB = sA * cB;
+		f32 cAcB = cA * cB;
+		f32 sAcB = sA * cB;
 
-		float32 cAcY = cA * cY;
-		float32 cAsY = cA * sY;
-		float32 sAcY = sA * cY;
-		float32 sAsY = sA * sY;
+		f32 cAcY = cA * cY;
+		f32 cAsY = cA * sY;
+		f32 sAcY = sA * cY;
+		f32 sAsY = sA * sY;
 
-		float32 cBcY = cB * cY;
-		float32 cBsY = cB * sY;
+		f32 cBcY = cB * cY;
+		f32 cBsY = cB * sY;
 
 		Matrix4x4 rot { row_major{},
 			cBcY, sB * sAcY - cAsY, sB * cAcY + sAsY, 0,

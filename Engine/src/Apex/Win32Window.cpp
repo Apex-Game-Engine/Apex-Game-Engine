@@ -9,7 +9,7 @@ namespace apex {
 
 	const char Win32Window::WNDCLASS_NAME[] = "apex::Win32Window";
 
-	Win32Window::Win32Window(HINSTANCE hInstance, WNDPROC lpfnWndProc, uint32 width, uint32 height, const char* name)
+	Win32Window::Win32Window(HINSTANCE hInstance, WNDPROC lpfnWndProc, u32 width, u32 height, const char* name)
 	{
 		static bool isWndClassRegistered = false;
 		if (!isWndClassRegistered)

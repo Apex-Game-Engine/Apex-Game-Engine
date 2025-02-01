@@ -1,4 +1,4 @@
-#define APEX_ENABLE_MEMORY_LITERALS
+﻿#define APEX_ENABLE_MEMORY_LITERALS
 #include "Memory/AxManagedClass.h"
 #include "Memory/MemoryManager.h"
 #include "Memory/MemoryManagerImpl.h"
@@ -10,13 +10,13 @@
 #include <ranges>
 
 namespace apex {
-namespace memory {
+namespace mem {
 
 	using namespace literals;
 
 	PoolAllocator& MemoryManagerImpl::getMemoryPoolForSize(size_t allocSize)
 	{
-		uint32 i = 0;
+		u32 i = 0;
 		for (const auto elemSize : g_memoryPoolSizes | std::views::keys)
 		{
 			if (allocSize <= elemSize)
@@ -29,7 +29,7 @@ namespace memory {
 
 	PoolAllocator& MemoryManagerImpl::getMemoryPoolFromPointer(void* mem)
 	{
-		uint32 i = 0;
+		u32 i = 0;
 		for ([[maybe_unused]] const auto elemSize : g_memoryPoolSizes | std::views::keys)
 		{
 			if (m_poolAllocators[i].containsPointer(mem))
@@ -64,34 +64,34 @@ namespace memory {
 
 	void MemoryManagerImpl::setUpMemoryPools()
 	{
-		uint32 i = 0;
-		uint8 *pMemItr = m_pBase; // malloc'd memory is 16 byte aligned
+		u32 i = 0;
+		u8 *pMemItr = m_pBase; // malloc'd memory is 16 byte aligned
 
 		for (const auto& [elemSize, poolSize] : g_memoryPoolSizes)
 		{
 			m_poolAllocators[i].initialize(pMemItr, static_cast<size_t>(elemSize) * poolSize, elemSize);
 
-			pMemItr += static_cast<uint64>(elemSize) * poolSize;
+			pMemItr += static_cast<u64>(elemSize) * poolSize;
 			i++;
 		}
 	}
 
-	void MemoryManagerImpl::setUpMemoryArenas(uint32 numFramesInFlight, uint32 frameArenaSize)
+	void MemoryManagerImpl::setUpMemoryArenas(u32 numFramesInFlight, u32 frameArenaSize)
 	{
-		uint8 *pMemItr = m_pBase;
+		u8 *pMemItr = m_pBase;
 		pMemItr += m_poolMemorySize;
 
-		for (uint32 i = 0; i < numFramesInFlight; i++)
+		for (u32 i = 0; i < numFramesInFlight; i++)
 		{
 			void* pFrameBase = detail::align_ptr(pMemItr, alignof(size_t));
 			m_arenaAllocators[i].initialize(pFrameBase, frameArenaSize);
-			pMemItr = static_cast<uint8*>(pFrameBase) + frameArenaSize;
+			pMemItr = static_cast<u8*>(pFrameBase) + frameArenaSize;
 		}
 	}
 
-	std::pair<uint32, void*> MemoryManagerImpl::allocateOnMemoryPool(size_t allocSize)
+	std::pair<u32, void*> MemoryManagerImpl::allocateOnMemoryPool(size_t allocSize)
 	{
-		uint32 poolIdx = 0;
+		u32 poolIdx = 0;
 		for (const auto elemSize : g_memoryPoolSizes | std::views::keys)
 		{
 			if (allocSize <= elemSize)
@@ -110,7 +110,7 @@ namespace memory {
 		getMemoryPoolFromPointer(mem).free(mem);
 	}
 
-	void MemoryManagerImpl::freeFromMemoryPool(uint32 poolIdx, void* mem)
+	void MemoryManagerImpl::freeFromMemoryPool(u32 poolIdx, void* mem)
 	{
 		axAssert(poolIdx < m_poolAllocators.size());
 
@@ -121,7 +121,7 @@ namespace memory {
 
 	namespace
 	{
-		MemoryManagerImpl s_memoryManagerImpl;
+		MemoryManagerImpl s_MemoryManagerImpl;
 	}
 
 	namespace detail
@@ -136,37 +136,37 @@ namespace memory {
 		axAssertFmt((desc.frameArenaSize & (desc.frameArenaSize - 1)) == 0, "Frame allocator capacity must be power of 2!");
 
 		const size_t numArenas = static_cast<size_t>(desc.numFramesInFlight) * static_cast<size_t>(MemoryTag::COUNT);
-		s_memoryManagerImpl.m_arenaAllocators.resize(numArenas);
-		s_memoryManagerImpl.m_arenaMemorySize = numArenas * desc.frameArenaSize;
+		s_MemoryManagerImpl.m_arenaAllocators.resize(numArenas);
+		s_MemoryManagerImpl.m_arenaMemorySize = numArenas * desc.frameArenaSize;
 
 		constexpr size_t numPools = std::size(g_memoryPoolSizes);
-		s_memoryManagerImpl.m_poolMemorySize = detail::calculatePoolSizeRequirements();
-		s_memoryManagerImpl.m_poolAllocators.resize(numPools);
+		s_MemoryManagerImpl.m_poolMemorySize = detail::calculatePoolSizeRequirements();
+		s_MemoryManagerImpl.m_poolAllocators.resize(numPools);
 
-		s_memoryManagerImpl.m_capacity = s_memoryManagerImpl.m_arenaMemorySize + s_memoryManagerImpl.m_poolMemorySize;
-		s_memoryManagerImpl.m_pBase = static_cast<uint8*>(::malloc(s_memoryManagerImpl.m_capacity));
+		s_MemoryManagerImpl.m_capacity = s_MemoryManagerImpl.m_arenaMemorySize + s_MemoryManagerImpl.m_poolMemorySize;
+		s_MemoryManagerImpl.m_pBase = static_cast<u8*>(::malloc(s_MemoryManagerImpl.m_capacity));
 
-		s_memoryManagerImpl.setUpMemoryPools();
-		s_memoryManagerImpl.setUpMemoryArenas(desc.numFramesInFlight, desc.frameArenaSize);
+		s_MemoryManagerImpl.setUpMemoryPools();
+		s_MemoryManagerImpl.setUpMemoryArenas(desc.numFramesInFlight, desc.frameArenaSize);
 		axLog("MemoryManager initialized successfully");
 	}
 
 	void MemoryManager::shutdown()
 	{
 		axLog("MemoryManager shutting down...");
-		for (ArenaAllocator& frameAllocator : s_memoryManagerImpl.m_arenaAllocators)
+		for (ArenaAllocator& frameAllocator : s_MemoryManagerImpl.m_arenaAllocators)
 		{
 			frameAllocator.reset();
 		}
 
-		for (PoolAllocator& poolAllocator : s_memoryManagerImpl.m_poolAllocators)
+		for (PoolAllocator& poolAllocator : s_MemoryManagerImpl.m_poolAllocators)
 		{
 			poolAllocator.shutdown();
 		}
 
-		s_memoryManagerImpl.m_capacity = 0;
-		::free(s_memoryManagerImpl.m_pBase);
-		s_memoryManagerImpl.m_pBase = nullptr;
+		s_MemoryManagerImpl.m_capacity = 0;
+		::free(s_MemoryManagerImpl.m_pBase);
+		s_MemoryManagerImpl.m_pBase = nullptr;
 		axLog("MemoryManager shut down succesfully");
 	}
 
@@ -177,27 +177,27 @@ namespace memory {
 
 	void MemoryManager::free(void* mem)
 	{
-		s_memoryManagerImpl.freeFromMemoryPool(mem);
+		s_MemoryManagerImpl.freeFromMemoryPool(mem);
 	}
 
 	bool MemoryManager::checkManaged(void* mem)
 	{
-		return s_memoryManagerImpl.checkManaged(mem);
+		return s_MemoryManagerImpl.checkManaged(mem);
 	}
 
 	bool MemoryManager::canFree(void* mem)
 	{
-		return s_memoryManagerImpl.canFree(mem);
+		return s_MemoryManagerImpl.canFree(mem);
 	}
 
 	size_t MemoryManager::getTotalCapacity()
 	{
-		return s_memoryManagerImpl.m_capacity;
+		return s_MemoryManagerImpl.m_capacity;
 	}
 
 	size_t MemoryManager::getAllocatedSize()
 	{
-		return s_memoryManagerImpl.getAllocatedSizeInPools();
+		return s_MemoryManagerImpl.getAllocatedSizeInPools();
 	}
 
 	/*void* allocateMemory(MemoryManager& memory_manager, AllocationType alloc_type, size_t size)
@@ -212,7 +212,7 @@ namespace memory {
 #if defined(APEX_CONFIG_DEBUG)
 	MemoryManagerImpl& MemoryManager::getImplInstance()
 	{
-		return s_memoryManagerImpl;
+		return s_MemoryManagerImpl;
 	}
 #endif
 
@@ -230,21 +230,21 @@ namespace memory {
 
 	void AxHandle::free()
 	{
-		memory::s_memoryManagerImpl.freeFromMemoryPool(m_memoryPoolIdx, m_cachedPtr);
+		mem::s_MemoryManagerImpl.freeFromMemoryPool(m_memoryPoolIdx, m_cachedPtr);
 		m_cachedPtr = nullptr;
 		m_memoryPoolIdx = 0;
 	}
 
 	void AxHandle::allocate(size_t size)
 	{
-		auto [poolIdx, mem] = memory::s_memoryManagerImpl.allocateOnMemoryPool(size);
+		auto [poolIdx, mem] = mem::s_MemoryManagerImpl.allocateOnMemoryPool(size);
 		m_cachedPtr = mem;
 		m_memoryPoolIdx = poolIdx;
 	}
 
 	size_t AxHandle::getBlockSize() const
 	{
-		return memory::s_memoryManagerImpl.m_poolAllocators[m_memoryPoolIdx].getBlockSize();
+		return mem::s_MemoryManagerImpl.m_poolAllocators[m_memoryPoolIdx].getBlockSize();
 	}
 
 	//void MemoryStats::addAllocationInfo(size_t size)

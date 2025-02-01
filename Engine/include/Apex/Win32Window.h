@@ -12,7 +12,7 @@ namespace apex {
 	{
 		static const char WNDCLASS_NAME[];
 
-		Win32Window(HINSTANCE hInstance, WNDPROC lpfnWndProc, uint32 width, uint32 height, const char* name);
+		Win32Window(HINSTANCE hInstance, WNDPROC lpfnWndProc, u32 width, u32 height, const char* name);
 		~Win32Window() override;
 
 		void show(int nCmdShow) override;

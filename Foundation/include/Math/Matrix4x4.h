@@ -27,10 +27,10 @@ namespace math {
 
 		// Constructs a 4x4 matrix with given values
 		constexpr Matrix4x4(
-			float32 x0, float32 y0, float32 z0, float32 w0,
-			float32 x1, float32 y1, float32 z1, float32 w1,
-			float32 x2, float32 y2, float32 z2, float32 w2,
-			float32 x3, float32 y3, float32 z3, float32 w3)
+			f32 x0, f32 y0, f32 z0, f32 w0,
+			f32 x1, f32 y1, f32 z1, f32 w1,
+			f32 x2, f32 y2, f32 z2, f32 w2,
+			f32 x3, f32 y3, f32 z3, f32 w3)
 		: m_columns { 
 			{ x0, y0, z0, w0 },
 			{ x1, y1, z1, w1 },
@@ -40,10 +40,10 @@ namespace math {
 		{}
 
 		constexpr Matrix4x4(row_major,
-			float32 x0, float32 x1, float32 x2, float32 x3,
-			float32 y0, float32 y1, float32 y2, float32 y3,
-			float32 z0, float32 z1, float32 z2, float32 z3,
-			float32 w0, float32 w1, float32 w2, float32 w3)
+			f32 x0, f32 x1, f32 x2, f32 x3,
+			f32 y0, f32 y1, f32 y2, f32 y3,
+			f32 z0, f32 z1, f32 z2, f32 z3,
+			f32 w0, f32 w1, f32 w2, f32 w3)
 		: m_columns { 
 			{ x0, y0, z0, w0 },
 			{ x1, y1, z1, w1 },
@@ -58,7 +58,7 @@ namespace math {
 		{}
 
 		// Constructs an identity matrix scaled by given diagonal value
-		explicit constexpr Matrix4x4(float32 diagonal_value)
+		explicit constexpr Matrix4x4(f32 diagonal_value)
 		: m_columns {
 			{ diagonal_value, 0.f, 0.f, 0.f },
 			{ 0.f, diagonal_value, 0.f, 0.f },
@@ -67,7 +67,7 @@ namespace math {
 		}
 		{}
 
-		explicit constexpr Matrix4x4(float32 d0, float32 d1, float32 d2, float32 d3)
+		explicit constexpr Matrix4x4(f32 d0, f32 d1, f32 d2, f32 d3)
 		: m_columns {
 			{ d0, 0.f, 0.f, 0.f },
 			{ 0.f, d1, 0.f, 0.f },
@@ -95,23 +95,23 @@ namespace math {
 
 	// Matrix4x4 utility functions
 
-	Matrix4x4 operator*(Matrix4x4 const &m, float32 t); // multiply each element of matrix with scalar
+	Matrix4x4 operator*(Matrix4x4 const &m, f32 t); // multiply each element of matrix with scalar
 	Vector4 operator*(Matrix4x4 const &m, Vector4 const &v); // matrix-vector multiplication
 	Matrix4x4 operator*(Matrix4x4 const &m1, Matrix4x4 const &m2); // matrix-vector multiplication
 
 	Matrix4x4 inverse(Matrix4x4 const &m); // matrix inverse
 
-	Matrix4x4 rotateX(Matrix4x4 const &m, float32 angle); // rotation about the x-axis
-	Matrix4x4 rotateY(Matrix4x4 const &m, float32 angle); // rotation about the y-axis
-	Matrix4x4 rotateZ(Matrix4x4 const &m, float32 angle); // rotation about the z-axis
+	Matrix4x4 rotateX(Matrix4x4 const &m, f32 angle); // rotation about the x-axis
+	Matrix4x4 rotateY(Matrix4x4 const &m, f32 angle); // rotation about the y-axis
+	Matrix4x4 rotateZ(Matrix4x4 const &m, f32 angle); // rotation about the z-axis
 
 	// rotation about the euler angles in Rz*Ry*Rx order
 	// equivalent to rotateZ(rotateY(rotateX(m, angleX), angleY), angleZ)
-	Matrix4x4 rotateZYX(Matrix4x4 const &m, float32 angleX, float32 angleY, float32 angleZ);
+	Matrix4x4 rotateZYX(Matrix4x4 const &m, f32 angleX, f32 angleY, f32 angleZ);
 	Matrix4x4 rotateZYX(Matrix4x4 const &m, Vector3 const& angles);
 
-	Matrix4x4 rotateAxisAngle(Matrix4x4 const &m, Vector3 const &axis, float32 angle); // rotation about an arbitrary axis
-	Matrix4x4 rotateAxisAngle(Matrix4x4 const& m, Vector3 const& axis, float32 cosAngle, float32 sinAngle); // rotation about an arbitrary axis
+	Matrix4x4 rotateAxisAngle(Matrix4x4 const &m, Vector3 const &axis, f32 angle); // rotation about an arbitrary axis
+	Matrix4x4 rotateAxisAngle(Matrix4x4 const& m, Vector3 const& axis, f32 cosAngle, f32 sinAngle); // rotation about an arbitrary axis
 
 	Vector3 decomposeRotation(Matrix4x4 const &m); // extract euler angles from rotation matrix
 
@@ -121,11 +121,11 @@ namespace math {
 
 	Matrix4x4 lookAt(Vector3 eye, Vector3 target, Vector3 up); // look-at matrix for camera facing in -Z direction
 
-	Matrix4x4 perspective(float32 fov, float32 aspect_ratio, float32 near_z, float32 far_z); // perspective projection
+	Matrix4x4 perspective(f32 fov, f32 aspect_ratio, f32 near_z, f32 far_z); // perspective projection
 
 	// rotation by euler angles (as a compound matrix transformation)
 	// equivalent to rotateZ(rotateY(rotateX(m, angleX), angleY), angleZ)
-	Matrix4x4 eulerZYX(float32 angleX, float32 angleY, float32 angleZ);
+	Matrix4x4 eulerZYX(f32 angleX, f32 angleY, f32 angleZ);
 
 }
 }

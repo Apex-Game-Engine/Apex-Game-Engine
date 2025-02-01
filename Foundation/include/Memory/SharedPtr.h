@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "AxManagedClass.h"
 #include <mutex>
@@ -277,14 +277,14 @@ namespace apex {
 
 		[[nodiscard]] constexpr reference operator[](size_t idx) const noexcept
 		{
-			axAssertMsg(m_data, "Attempted to dereference a null SharedPtr");
-			axAssertMsg(m_data->ptr, "Attempted to dereference a null SharedPtr");
+			axAssertFmt(m_data, "Attempted to dereference a null SharedPtr");
+			axAssertFmt(m_data->ptr, "Attempted to dereference a null SharedPtr");
 			return m_data->ptr[idx];
 		}
 
 		[[nodiscard]] constexpr pointer get() const noexcept
 		{
-			axAssertMsg(m_data, "Attempted to dereference a null SharedPtr");
+			axAssertFmt(m_data, "Attempted to dereference a null SharedPtr");
 			return m_data->ptr.get();
 		}
 

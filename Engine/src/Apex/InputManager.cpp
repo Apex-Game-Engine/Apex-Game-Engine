@@ -12,7 +12,7 @@ namespace apex {
 
 	void InputManager::initialize()
 	{
-		axAssertMsg(s_pInstance == nullptr, "InputManager already initialized!");
+		axAssertFmt(s_pInstance == nullptr, "InputManager already initialized!");
 		s_pInstance = this;
 	}
 
@@ -52,12 +52,12 @@ namespace apex {
 		m_mousePosition = normalized_mouse_pos;
 	}
 
-	void InputManager::setMouseWheelDeltaV(float32 delta)
+	void InputManager::setMouseWheelDeltaV(f32 delta)
 	{
 		m_mouseWheelDelta.y = delta;
 	}
 
-	void InputManager::setMouseWheelDeltaH(float32 value)
+	void InputManager::setMouseWheelDeltaH(f32 value)
 	{
 		m_mouseWheelDelta.x = value;
 	}

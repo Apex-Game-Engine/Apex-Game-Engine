@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "AxArray.h"
 #include "AxRange.h"
 #include "Core/Asserts.h"
@@ -30,7 +30,7 @@ namespace apex {
 		 * \brief Creates an empty set with initial capacity.
 		 * \param capacity Initial capacity.
 		 */
-		explicit AxSparseSet(uint32 capacity)
+		explicit AxSparseSet(u32 capacity)
 		: m_sparse(capacity)
 		, m_dense(capacity)
 		{

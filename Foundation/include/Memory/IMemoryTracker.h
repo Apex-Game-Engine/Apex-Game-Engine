@@ -1,7 +1,7 @@
 ﻿#pragma once
 
 namespace apex {
-namespace memory {
+namespace mem {
 
 	class IMemoryTracker
 	{
@@ -12,7 +12,7 @@ namespace memory {
 
 	void DebugMemoryTrackingInfo(IMemoryTracker* tracker);
 	/*{
-		float32 percentUsage = static_cast<float32>(tracker->getCurrentUsage()) / static_cast<float32>(tracker->getTotalCapacity());
+		f32 percentUsage = static_cast<f32>(tracker->getCurrentUsage()) / static_cast<f32>(tracker->getTotalCapacity());
 
 		char buf[1024];
 		sprintf_s(buf, "Memory Usage:\n\tUsed memory: %lld bytes\n\t%age used memory: %f", tracker->getCurrentUsage(), percentUsage);

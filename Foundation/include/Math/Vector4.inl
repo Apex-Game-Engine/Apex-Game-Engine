@@ -40,7 +40,7 @@ namespace math {
 		return *this;
 	}
 
-	inline Vector4& Vector4::operator*=(const float32 t)
+	inline Vector4& Vector4::operator*=(const f32 t)
 	{
 		m_values[0] *= t;
 		m_values[1] *= t;
@@ -49,7 +49,7 @@ namespace math {
 		return *this;
 	}
 
-	inline Vector4& Vector4::operator/=(const float32 t)
+	inline Vector4& Vector4::operator/=(const f32 t)
 	{
 		return (*this) *= 1/t;
 	}
@@ -73,17 +73,17 @@ namespace math {
 		return { u.x * v.x, u.y * v.y, u.z * v.z, u.w * v.w };
 	}
 
-	inline Vector4 operator*(float32 t, Vector4 const& v)
+	inline Vector4 operator*(f32 t, Vector4 const& v)
 	{
 		return { t * v.x, t * v.y, t * v.z, t * v.w };
 	}
 
-	inline Vector4 operator*(Vector4 const& v, float32 t)
+	inline Vector4 operator*(Vector4 const& v, f32 t)
 	{
 		return t * v;
 	}
 
-	inline Vector4 operator/(Vector4 const& v, float32 t)
+	inline Vector4 operator/(Vector4 const& v, f32 t)
 	{
 		return (1/t) * v;
 	}
@@ -123,7 +123,7 @@ namespace math {
 		return !(u < v);
 	}
 
-	inline float32 dot(Vector4 const& u, Vector4 const& v)
+	inline f32 dot(Vector4 const& u, Vector4 const& v)
 	{
 		__m128 mU = _mm_loadu_ps(u.m_values);
 		__m128 mV = _mm_loadu_ps(v.m_values);

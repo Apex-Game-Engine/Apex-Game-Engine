@@ -21,7 +21,7 @@ namespace apex {
 
 		AxSparseMap() = default;
 
-		explicit AxSparseMap(uint32 capacity)
+		explicit AxSparseMap(u32 capacity)
 		: base_type(capacity)
 		, m_elements(capacity)
 		{
@@ -204,7 +204,7 @@ namespace apex {
 
 		AxSparseMap() = default;
 
-		explicit AxSparseMap(uint32 capacity)
+		explicit AxSparseMap(u32 capacity)
 		: base_type(capacity)
 		{
 		}

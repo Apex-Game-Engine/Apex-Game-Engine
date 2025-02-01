@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "Core/Asserts.h"
 #include "ArenaAllocator.h"
@@ -10,7 +10,7 @@
 #include <optional>
 
 namespace apex {
-namespace memory {
+namespace mem {
 	
 	class MemoryManagerImpl
 	{
@@ -19,11 +19,11 @@ namespace memory {
 		std::vector<PoolAllocator> m_poolAllocators;
 
 		void setUpMemoryPools();
-		void setUpMemoryArenas(uint32 numFramesInFlight, uint32 frameArenaSize);
+		void setUpMemoryArenas(u32 numFramesInFlight, u32 frameArenaSize);
 
-		std::pair<uint32, void*> allocateOnMemoryPool(size_t allocSize);
+		std::pair<u32, void*> allocateOnMemoryPool(size_t allocSize);
 		void freeFromMemoryPool(void* mem);
-		void freeFromMemoryPool(uint32 poolIdx, void* mem);
+		void freeFromMemoryPool(u32 poolIdx, void* mem);
 
 		PoolAllocator& getMemoryPoolForSize(size_t allocSize);
 		PoolAllocator& getMemoryPoolFromPointer(void* mem);
@@ -34,7 +34,7 @@ namespace memory {
 		size_t getAllocatedSizeInPools() const;
 
 	private:
-		uint8 *m_pBase {};
+		u8 *m_pBase {};
 		size_t m_capacity {};
 
 		size_t m_arenaMemorySize;
@@ -45,45 +45,45 @@ namespace memory {
 
 	namespace detail
 	{
-		inline uint64 align_address(uint64 addr, uint64 align)
+		inline u64 align_address(u64 addr, u64 align)
 		{
-			const uint64 mask = align - 1;
+			const u64 mask = align - 1;
 			axAssertFmt((align & mask) == 0, "Alignment MUST be a power of 2!");
 			return (addr + mask) & ~mask;
 		}
 
-		inline void *align_ptr(void *ptr, uint64 align)
+		inline void *align_ptr(void *ptr, u64 align)
 		{
-			const uint64 addr = reinterpret_cast<uint64>(ptr);
-			const uint64 alignedAddr = align_address(addr, align);
+			const u64 addr = reinterpret_cast<u64>(ptr);
+			const u64 alignedAddr = align_address(addr, align);
 			return reinterpret_cast<void*>(alignedAddr);
 		}
 
-		inline void *shift_and_align_pointer(void *raw_ptr, uint64 align)
+		inline void *shift_and_align_pointer(void *raw_ptr, u64 align)
 		{
-			uint8 *pAlignedPtr = static_cast<uint8*>(align_ptr(raw_ptr, align));
+			u8 *pAlignedPtr = static_cast<u8*>(align_ptr(raw_ptr, align));
 			if (pAlignedPtr == raw_ptr)
 				pAlignedPtr += align;
 
 			// Find the shift in alignment
-			uint64 shift = reinterpret_cast<uint64>(pAlignedPtr) - reinterpret_cast<uint64>(raw_ptr);
-			axAssert(shift > 0 && shift <= constants::uint8_MAX);
+			u64 shift = reinterpret_cast<u64>(pAlignedPtr) - reinterpret_cast<u64>(raw_ptr);
+			axAssert(shift > 0 && shift <= Constants::u8_MAX);
 
 			// Store the shift
-			pAlignedPtr[-1] = static_cast<uint8>(shift & 0xff);
+			pAlignedPtr[-1] = static_cast<u8>(shift & 0xff);
 
 			return pAlignedPtr;
 		}
 
 		inline void *unshift_pointer(void *aligned_ptr)
 		{
-			uint8 *pAlignedPtr = static_cast<uint8*>(aligned_ptr);
+			u8 *pAlignedPtr = static_cast<u8*>(aligned_ptr);
 
-			uint64 shift = pAlignedPtr[-1];
+			u64 shift = pAlignedPtr[-1];
 			if (shift == 0)
-				shift = constants::uint8_MAX;
+				shift = Constants::u8_MAX;
 
-			uint8 *pRawPtr = pAlignedPtr - shift;
+			u8 *pRawPtr = pAlignedPtr - shift;
 
 			return pRawPtr;
 		}

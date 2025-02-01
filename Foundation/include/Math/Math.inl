@@ -8,12 +8,12 @@
 namespace apex {
 namespace math {
 
-	inline float32 sqrt(float32 val)
+	inline f32 sqrt(f32 val)
 	{
 		return ::sqrt(val);
 	}
 
-	inline float32 clamp(float32 val, float32 min, float32 max)
+	inline f32 clamp(f32 val, f32 min, f32 max)
 	{
 		return (val < min)
 				? min
@@ -22,25 +22,25 @@ namespace math {
 					: val;
 	}
 
-	inline float32 radians(float32 degrees)
+	inline f32 radians(f32 degrees)
 	{
-		return degrees * constants::float32_PI / 180.f;
+		return degrees * Constants::f32_PI / 180.f;
 	}
 
-	inline float32 degrees(float32 radians)
+	inline f32 degrees(f32 radians)
 	{
-		return radians * 180.f / constants::float32_PI;
+		return radians * 180.f / Constants::f32_PI;
 	}
 
-	inline float32 sign(float32 val)
+	inline f32 sign(f32 val)
 	{
-		return static_cast<float32>((val > 0.f) - (val < 0.f));
+		return static_cast<f32>((val > 0.f) - (val < 0.f));
 		//return std::signbit(val) ? -1.f : 1.f;
 	}
 
 #ifdef APEX_RAYTRACING_DEFINITIONS
 
-	inline Point3D Ray::at(float32 t) const
+	inline Point3D Ray::at(f32 t) const
 	{
 		axAssert(tMin < t && t < tMax);
 		return origin + t * direction;

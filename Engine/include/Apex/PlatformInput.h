@@ -3,8 +3,8 @@
 
 namespace apex {
 
-	KeyCode translateKeyCode(int32 input);
-	MouseButton translateMouseButton(int32 input);
+	KeyCode translateKeyCode(s32 input);
+	MouseButton translateMouseButton(s32 input);
 
 }
 
