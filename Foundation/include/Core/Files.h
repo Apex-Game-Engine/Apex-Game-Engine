@@ -3,29 +3,51 @@
 
 namespace apex {
 
-	struct FileModeFlags
+	struct FileAccessMode
 	{
-		enum FileAccessMode : uint32
+		enum Value : u32
 		{
 			eRead  = 0x00000001,
 			eWrite = 0x00000002,
+
+			eReadWrite = eRead | eWrite,
 		};
 
-		enum FileMode : uint32
-		{
-			eBinary   = 0x00000010,
-			eChar     = 0x00000020,
-			eWideChar = 0x00000040
-		};
+		u32 value;
 
-		enum FileCreateMode : uint32
-		{
-			eCreateNew    = 0x00000100,
-			eOpenExisting = 0x00000200
-		};
+		FileAccessMode(u32 v) : value(v) {}
+
+		constexpr operator u32() const { return value; }
 	};
-	using FileMode = uint32;
 
-	AxArray<char> readFile(char const* filename, FileMode mode = FileModeFlags::eRead | FileModeFlags::eChar);
+	using FileHandle = void*;
+
+	class File
+	{
+	public:
+		static File CreateNew(char const* filename, FileAccessMode mode = FileAccessMode::eReadWrite);
+		static File OpenExisting(char const* filename, FileAccessMode mode = FileAccessMode::eRead);
+
+		File() = default;
+		~File();
+
+		File(File const&) = delete;
+		File& operator=(File const&) = delete;
+
+		File(File&&) = default;
+		File& operator=(File&&) = default;
+
+		void Create(const char* filename, FileAccessMode mode = FileAccessMode::eReadWrite);
+		void Open(const char* filename, FileAccessMode mode = FileAccessMode::eRead);
+
+		AxArray<char> Read();
+
+	private:
+		FileHandle m_handle {};
+		size_t m_size;
+	#if APEX_CONFIG_DEBUG
+		const char* m_filename;
+	#endif
+	};
 
 }

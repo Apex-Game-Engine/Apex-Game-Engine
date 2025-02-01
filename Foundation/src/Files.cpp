@@ -7,70 +7,113 @@
 
 namespace apex {
 
-	AxArray<char> readFile(char const* filename, FileMode mode)
+	enum FileCharMode : u32
+	{
+		eBinary   = 0x00000010,
+		eChar     = 0x00000020,
+		eWideChar = 0x00000040
+	};
+
+	enum FileCreateMode : u32
+	{
+		eCreateNew    = 0x00000100,
+		eOpenExisting = 0x00000200
+	};
+
+	static FileHandle OpenFile(const char* filename, u32 mode)
+	{
+	#ifdef APEX_PLATFORM_WIN32
+		const DWORD dwDesiredAccess = (mode & FileAccessMode::eRead ? GENERIC_READ : 0) | (mode & FileAccessMode::eWrite ? GENERIC_WRITE : 0);
+		const DWORD dwShareMode = (mode & FileAccessMode::eRead ? FILE_SHARE_READ : 0) | (mode & FileAccessMode::eWrite ? FILE_SHARE_WRITE : 0);
+		const DWORD dwCreationDisposition = mode & FileCreateMode::eOpenExisting ? OPEN_EXISTING : mode & FileCreateMode::eCreateNew ? CREATE_NEW : OPEN_ALWAYS;
+
+		HANDLE hFile = CreateFileA(filename, dwDesiredAccess, dwShareMode, NULL, dwCreationDisposition, FILE_ATTRIBUTE_NORMAL, NULL);
+
+		if (INVALID_HANDLE_VALUE == hFile)
+		{
+			axAssertFmt(false, "Could not open file : {}", filename);
+			return nullptr;
+		}
+
+		return hFile;
+	#else
+		#error Not implemented!
+	#endif
+	}
+
+	void CloseFile(FileHandle hFile)
+	{
+		CloseHandle(hFile);
+	}
+
+	static size_t GetFileSize(FileHandle hFile)
+	{
+	#ifdef APEX_PLATFORM_WIN32
+		LARGE_INTEGER liFileSize;
+		if (false == GetFileSizeEx(hFile, &liFileSize))
+		{
+			axAssertFmt(false, "Could not retrieve file size!");
+			return 0;
+		}
+		return liFileSize.QuadPart;
+	#endif
+	}
+
+	File File::CreateNew(char const* filename, FileAccessMode mode)
+	{
+		File file;
+		file.Create(filename, mode);
+		return file;
+	}
+
+	File File::OpenExisting(char const* filename, FileAccessMode mode)
+	{
+		File file;
+		file.Open(filename, mode);
+		return file;
+	}
+
+	File::~File()
+	{
+		CloseFile(m_handle);
+	}
+
+	void File::Create(const char* filename, FileAccessMode mode)
+	{
+		axAssertFmt((mode & FileAccessMode::eReadWrite) != 0, "File must have atleast one of Read or Write access modes!");
+		m_handle = apex::OpenFile(filename, mode | FileCreateMode::eCreateNew);
+		m_size = apex::GetFileSize(m_handle);
+	#if APEX_CONFIG_DEBUG
+		m_filename = filename;
+	#endif
+	}
+
+	void File::Open(const char* filename, FileAccessMode mode)
+	{
+		axAssertFmt((mode & FileAccessMode::eReadWrite) != 0, "File must have atleast one of Read or Write access modes!");
+		m_handle = apex::OpenFile(filename, mode | FileCreateMode::eOpenExisting);
+		m_size = apex::GetFileSize(m_handle);
+	}
+
+	AxArray<char> File::Read()
 	{
 		AxArray<char> fileBuf;
 
 	#ifdef APEX_PLATFORM_WIN32
-		HANDLE hFile;
-
-		DWORD desiredAccess = (mode & FileModeFlags::eRead ? GENERIC_READ : 0) | (mode & FileModeFlags::eWrite ? GENERIC_WRITE : 0);
-		DWORD shareMode = (mode & FileModeFlags::eRead ? FILE_SHARE_READ : 0) | (mode & FileModeFlags::eWrite ? FILE_SHARE_WRITE : 0);
-		DWORD creationDisposition = mode & FileModeFlags::eOpenExisting ? OPEN_EXISTING : mode & FileModeFlags::eCreateNew ? CREATE_NEW : OPEN_ALWAYS;
-
-		hFile = CreateFile(
-			TEXT(filename),
-			desiredAccess,
-			shareMode,
-			NULL,
-			creationDisposition,
-			FILE_ATTRIBUTE_NORMAL,
-			NULL);
-
-		if (INVALID_HANDLE_VALUE == hFile)
-		{
-			axAssertMsg(false, "Could not open file!");
-			return fileBuf;
-		}
-
-		LARGE_INTEGER liFileSize;
-		if (FALSE == GetFileSizeEx(hFile, &liFileSize))
-		{
-			axAssertMsg(false, "Could not retrieve file size!");
-			CloseHandle(hFile);
-			return fileBuf;
-		}
-
-		int64 fileSize = liFileSize.QuadPart + (mode & FileModeFlags::eBinary ? 0 : 1);
-		fileBuf.resize(fileSize);
+		fileBuf.resize(m_size);
 		OVERLAPPED ol {};
 		DWORD dwBytesRead;
-		if (FALSE == ReadFile(hFile, fileBuf.data(), liFileSize.LowPart, &dwBytesRead, &ol))
+		if (FALSE == ::ReadFile(m_handle, fileBuf.data(), static_cast<DWORD>(m_size), &dwBytesRead, &ol))
 		{
-			axAssertMsg(false, "Could not retrieve file size!");
-			CloseHandle(hFile);
-			return fileBuf;
+		#if APEX_CONFIG_DEBUG
+			axAssertFmt(false, "Could not read file : {}", m_filename);
+		#else
+			axAssertFmt(false, "Could not read file!");
+		#endif
 		}
-
-		if ((mode & FileModeFlags::eBinary) == 0 && dwBytesRead > 0 && dwBytesRead <= fileSize - 1)
-		{
-			fileBuf[dwBytesRead] = '\0';
-		}
-
-		CloseHandle(hFile);
-
 		return fileBuf;
-
 	#else
-		#error Not yet implemented correctly!
-		FILE* file;
-		(void)fopen_s(&file, filename, "r");
-
-		axAssertMsg(nullptr != file, "Could not open file!");
-
-		(void)_fseeki64(file, 0, SEEK_END);
-		auto sizeInBytes = _ftelli64(file);
+		#error Not implemented!
 	#endif
 	}
-
 }
