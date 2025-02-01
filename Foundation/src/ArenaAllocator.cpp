@@ -14,8 +14,8 @@ namespace apex::memory {
 
 	void* ArenaAllocator::allocate(size_t size)
 	{
-		axAssertMsg(m_pBase != nullptr, "Allocator not initialized!");
-		axAssertMsg(m_capacity - m_offset > size, "Allocator overflow!");
+		axAssertFmt(m_pBase != nullptr, "Allocator not initialized!");
+		axAssertFmt(m_capacity - m_offset > size, "Allocator overflow!");
 
 		void* top = &static_cast<uint8*>(m_pBase)[m_offset];
 
@@ -28,8 +28,8 @@ namespace apex::memory {
 	{
 		const size_t actualAllocSize = size + align;
 
-		axAssertMsg(m_pBase != nullptr, "Allocator not initialized!");
-		axAssertMsg(m_capacity - m_offset > actualAllocSize, "Allocator overflow!");
+		axAssertFmt(m_pBase != nullptr, "Allocator not initialized!");
+		axAssertFmt(m_capacity - m_offset > actualAllocSize, "Allocator overflow!");
 
 		void* top = &static_cast<uint8*>(m_pBase)[m_offset];
 		top = detail::shift_and_align_pointer(top, align);

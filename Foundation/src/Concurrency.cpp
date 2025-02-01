@@ -1,4 +1,4 @@
-﻿#include "Concurrency/Concurrency.h"
+#include "Concurrency/Concurrency.h"
 #include "Core/Asserts.h"
 #include "Core/Platform.h"
 
@@ -101,7 +101,7 @@ namespace concurrency {
 		size_t tid = std::hash<std::thread::id>{}(std::this_thread::get_id());
 
 		size_t actual = m_atomic.load(std::memory_order_relaxed);
-		axAssertMsg(actual == tid, "Attempting to release ReentrantLock32 not help by current thread!");
+		axAssertFmt(actual == tid, "Attempting to release ReentrantLock32 not help by current thread!");
 
 		--m_refCount;
 		if (m_refCount == 0)

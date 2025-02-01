@@ -1,4 +1,4 @@
-﻿#include "Memory/PoolAllocator.h"
+#include "Memory/PoolAllocator.h"
 
 #include "Core/Asserts.h"
 
@@ -18,7 +18,7 @@ namespace apex::memory {
 
 	void PoolAllocator::initialize(void* p_begin, size_t size, uint32 block_size)
 	{
-		axAssertMsg(p_begin != nullptr, "Invalid memory address!");
+		axAssertFmt(p_begin != nullptr, "Invalid memory address!");
 		axAssert(size > block_size);
 
 		m_pBase = p_begin;
@@ -32,8 +32,8 @@ namespace apex::memory {
 
 	void* PoolAllocator::allocate(size_t size)
 	{
-		axAssertMsg(m_pBase != nullptr, "Pool allocator not initialized!");
-		axAssertMsg(size <= m_blockSize, "Allocation size cannot be larger than pool element size!");
+		axAssertFmt(m_pBase != nullptr, "Pool allocator not initialized!");
+		axAssertFmt(size <= m_blockSize, "Allocation size cannot be larger than pool element size!");
 
 		if (m_numFreeBlocks == 0)
 			return nullptr;
@@ -58,15 +58,15 @@ namespace apex::memory {
 
 	void* PoolAllocator::allocate(size_t size, size_t align)
 	{
-		axAssertMsg(false, "Not implemented yet!");
-		axAssertMsg(align <= 16, "");
+		axAssertFmt(false, "Not implemented yet!");
+		axAssertFmt(align <= 16, "");
 
 		return allocate(size);
 	}
 
 	void PoolAllocator::free(void* ptr)
 	{
-		axAssertMsg(containsPointer(ptr), "Input memory is NOT managed by this Pool!");
+		axAssertFmt(containsPointer(ptr), "Input memory is NOT managed by this Pool!");
 
 		Block *blockPtr = static_cast<Block*>(ptr);
 		blockPtr->pNext = static_cast<Block*>(m_allocPtr);

@@ -4,7 +4,8 @@
 
 namespace apex {
 
-	struct buffer_iterator {
+	struct buffer_iterator
+	{
 		char *data;
 		size_t size;
 	};

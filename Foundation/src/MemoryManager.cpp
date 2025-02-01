@@ -1,4 +1,4 @@
-﻿#define APEX_ENABLE_MEMORY_LITERALS
+#define APEX_ENABLE_MEMORY_LITERALS
 #include "Memory/AxManagedClass.h"
 #include "Memory/MemoryManager.h"
 #include "Memory/MemoryManagerImpl.h"
@@ -133,7 +133,7 @@ namespace memory {
 	void MemoryManager::initialize(MemoryManagerDesc desc)
 	{
 		axLog("MemoryManager initializing...");
-		axAssertMsg((desc.frameArenaSize & (desc.frameArenaSize - 1)) == 0, "Frame allocator capacity must be power of 2!");
+		axAssertFmt((desc.frameArenaSize & (desc.frameArenaSize - 1)) == 0, "Frame allocator capacity must be power of 2!");
 
 		const size_t numArenas = static_cast<size_t>(desc.numFramesInFlight) * static_cast<size_t>(MemoryTag::COUNT);
 		s_memoryManagerImpl.m_arenaAllocators.resize(numArenas);

@@ -2,17 +2,18 @@
 
 #include "Core/Logging.h"
 #include "Core/Types.h"
-
+#include "Core/Console.h"
 
 namespace apex {
 namespace logging {
 
 	namespace detail
 	{
+		constexpr const char* LOG_MSG_ANSI_FORMAT = "%s[%s::(%s):%d] <%s> :: %s\n\033[0m";
 		constexpr const char* LOG_MSG_FORMAT = "[%s::(%s):%d] <%s> :: %s\n";
 		char MSG_BUF[2048] {};
 
-		const char* LOG_LEVEL_STR[static_cast<uint64>(LogLevel::_MAX_ENUM_)] =
+		const char* LOG_LEVEL_STR[static_cast<u64>(LogLevel::_MAX_ENUM_)] =
 		{
 			"Trace",
 			"Debug",
@@ -24,9 +25,35 @@ namespace logging {
 
 		const char* format_log_msg(const LogMsg& log_msg)
 		{
-			(void)sprintf_s(MSG_BUF, LOG_MSG_FORMAT,
+			(void)snprintf(MSG_BUF, sizeof(MSG_BUF), LOG_MSG_FORMAT,
 				log_msg.filename, log_msg.funcsig, log_msg.lineno,
-				LOG_LEVEL_STR[static_cast<uint64>(log_msg.level)],
+				LOG_LEVEL_STR[static_cast<u64>(log_msg.level)],
+				log_msg.msg
+			);
+
+			return MSG_BUF;
+		}
+
+		const char* get_ansi_color_for_level(LogLevel level)
+		{
+			switch (level)
+			{
+			case LogLevel::Trace: return "\033[0m";
+			case LogLevel::Debug: return "\033[44m\033[97m";
+			case LogLevel::Info: return "\033[42m\033[30m";
+			case LogLevel::Warn: return "\033[43m\033[30m";
+			case LogLevel::Error: return "\033[41m\033[97m";
+			case LogLevel::Critical: return "\033[101m\033[30m";
+			default: break;
+			}
+			return "";
+		}
+
+		const char* format_log_message_ansi(const LogMsg& log_msg)
+		{
+			(void)snprintf(MSG_BUF, sizeof(MSG_BUF), LOG_MSG_ANSI_FORMAT, get_ansi_color_for_level(log_msg.level),
+				log_msg.filename, log_msg.funcsig, log_msg.lineno,
+				LOG_LEVEL_STR[static_cast<u64>(log_msg.level)],
 				log_msg.msg
 			);
 
@@ -38,7 +65,7 @@ namespace logging {
 	}
 
 
-	void Logger::log(LogLevel level, const char* file, const char* funcsig, uint32 lineno, const char* msg) const
+	void Logger::log(LogLevel level, const char* file, const char* funcsig, u32 lineno, const char* msg) const
 	{
 		LogMsg logMsg { file, funcsig, msg, lineno, level };
 		log(logMsg);
@@ -52,6 +79,11 @@ namespace logging {
 		}
 	}
 
+	void Logger::AttachConsole(Console* console)
+	{
+		detail::s_stdoutSink.console = console;
+	}
+
 	void Logger::addSink(ISink* sink)
 	{
 		if (m_sinkCount == std::size(m_sinks))
@@ -60,7 +92,21 @@ namespace logging {
 		m_sinks[m_sinkCount++] = sink;
 	}
 
-	void Logger::initialize()
+	void Logger::removeSink(ISink* sink)
+	{
+		for (size_t i = 0; i < m_sinkCount; i++)
+		{
+			if (m_sinks[i] == sink)
+			{
+				m_sinks[i] = m_sinks[m_sinkCount-1];
+				m_sinks[m_sinkCount-1] = nullptr;
+				m_sinkCount--;
+				break;
+			}
+		}
+	}
+
+	void Logger::Init()
 	{
 		detail::s_logger.addSink(&detail::s_stdoutSink);
 	}
@@ -70,7 +116,7 @@ namespace logging {
 		return detail::s_logger;
 	}
 
-	void Logger::log(ISink* sink, LogLevel level, const char* file, const char* funcsig, uint32 lineno, const char* msg)
+	void Logger::log(ISink* sink, LogLevel level, const char* file, const char* funcsig, u32 lineno, const char* msg)
 	{
 	}
 
@@ -78,27 +124,23 @@ namespace logging {
 	{
 	}
 
-	void IConsoleSink::log(const LogMsg& log_msg)
+	void ConsoleSink::log(const LogMsg& log_msg)
 	{
-		auto msgStr = detail::format_log_msg(log_msg);
-#if defined(APEX_CONFIG_DEBUG) || defined(APEX_CONFIG_DEBUGGAME) || defined(APEX_CONFIG_DEVELOPMENT)
-		if (log_msg.level == LogLevel::Trace)
-		{
-			OutputDebugString(msgStr);
+		if (!console)
 			return;
-		}
-#endif
+
+		auto msgStr = detail::format_log_message_ansi(log_msg);
 		if (log_msg.level < LogLevel::Error)
 		{
-			(void)fprintf(stdout, "%s", msgStr);
+			console->Write(msgStr);
 		}
 		else
 		{
-			(void)fprintf(stderr, "%s", msgStr);
+			console->Error(msgStr);
 		}
 	}
 
-	LogMsg::LogMsg(const char* filepath, const char* funcsig, const char* msg, uint32 lineno, LogLevel level)
+	LogMsg::LogMsg(const char* filepath, const char* funcsig, const char* msg, u32 lineno, LogLevel level)
 	: filepath(filepath)
 	, funcsig(funcsig)
 	, msg(msg)

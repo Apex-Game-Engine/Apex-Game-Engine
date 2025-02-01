@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include "Memory/AxManagedClass.h"
 #include "Memory/UniquePtr.h"
 #include "Core/Asserts.h"
@@ -144,8 +144,8 @@ namespace apex {
 
 		iterator insert(iterator const& it, const value_type& value)
 		{
-			axAssertMsg(it.m_ptr, "Invalid iterator");
-			axAssertMsg(this == it.m_list, "Iterator does not belong to this list");
+			axAssertFmt(it.m_ptr, "Invalid iterator");
+			axAssertFmt(this == it.m_list, "Iterator does not belong to this list");
 
 			TODO("Not implemented yet!");
 
@@ -154,8 +154,8 @@ namespace apex {
 
 		iterator remove(iterator const& it)
 		{
-			axAssertMsg(it.m_ptr, "Invalid iterator");
-			axAssertMsg(this == it.m_list, "Iterator does not belong to this list");
+			axAssertFmt(it.m_ptr, "Invalid iterator");
+			axAssertFmt(this == it.m_list, "Iterator does not belong to this list");
 
 			iterator next = it;
 			++next;

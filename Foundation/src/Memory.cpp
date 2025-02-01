@@ -11,7 +11,7 @@ namespace apex {
 
 	void* AxManagedClass::operator new(size_t size)
 	{
-		axAssertMsg(false,
+		axAssertFmt(false,
 			"default new operator called on a AxManagedClass instance!"
 			"\nThis might lead to exceptional conditions.");
 		return malloc(size);
@@ -19,7 +19,7 @@ namespace apex {
 
 	void* AxManagedClass::operator new [](size_t size)
 	{
-		axAssertMsg(false,
+		axAssertFmt(false,
 			"default new[] operator called on a AxManagedClass instance!"
 			"\nThis might lead to exceptional conditions.");
 		return malloc(size);

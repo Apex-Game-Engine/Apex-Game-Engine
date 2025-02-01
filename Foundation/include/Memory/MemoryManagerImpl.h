@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "Core/Asserts.h"
 #include "ArenaAllocator.h"
@@ -48,7 +48,7 @@ namespace memory {
 		inline uint64 align_address(uint64 addr, uint64 align)
 		{
 			const uint64 mask = align - 1;
-			axAssertMsg((align & mask) == 0, "Alignment MUST be a power of 2!");
+			axAssertFmt((align & mask) == 0, "Alignment MUST be a power of 2!");
 			return (addr + mask) & ~mask;
 		}
 

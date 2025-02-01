@@ -1,4 +1,4 @@
-﻿#include "Memory/StackAllocator.h"
+#include "Memory/StackAllocator.h"
 
 #include "Core/Asserts.h"
 
@@ -19,8 +19,8 @@ namespace apex::memory {
 
 	void* StackAllocator::allocate(size_t size)
 	{
-		axAssertMsg(m_pBase != nullptr, "Stack allocator not initialized!");
-		axAssertMsg(m_capacity - m_offset > size, "Stack allocator overflow!");
+		axAssertFmt(m_pBase != nullptr, "Stack allocator not initialized!");
+		axAssertFmt(m_capacity - m_offset > size, "Stack allocator overflow!");
 
 		void* top = &static_cast<uint8*>(m_pBase)[m_offset];
 
