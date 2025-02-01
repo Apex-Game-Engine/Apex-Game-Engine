@@ -7,6 +7,7 @@ file(GLOB_RECURSE SHADER_FILES
         shaders/*.geom
         shaders/*.frag
         shaders/*.comp
+        shaders/*.glsl
 )
 
 message(CHECK_START "Finding glslc")
@@ -24,15 +25,15 @@ group_header_files(${HEADER_FILES})
 group_source_files(${SOURCE_FILES})
 group_shader_files(${SHADER_FILES})
 
-add_library(Graphics STATIC
-    ${HEADER_FILES}
-    ${SOURCE_FILES}
-    ${SHADER_FILES}
-)
+add_library(Graphics STATIC)
 
-target_vulkan_shaders(Graphics
-    SOURCES
-    ${SHADER_FILES}
+target_sources(Graphics
+    PUBLIC
+    ${HEADER_FILES}
+
+    PRIVATE
+    ${SOURCE_FILES}
+    ${APEX_CMAKE_EXTERNAL_LIBS_DIR}/SPIRV-Reflect/spirv_reflect.c
 )
 
 target_compile_definitions(Graphics
@@ -56,6 +57,7 @@ target_include_directories(Graphics
     include
     ${Vulkan_INCLUDE_DIRS}
     ${APEX_CMAKE_EXTERNAL_LIBS_DIR}/vma
+    ${APEX_CMAKE_EXTERNAL_LIBS_DIR}/SPIRV-Reflect
     $<TARGET_PROPERTY:Engine,INTERFACE_INCLUDE_DIRECTORIES>
 
     PRIVATE
@@ -67,3 +69,19 @@ if (MSVC)
     target_compile_options(Graphics PRIVATE /GR-) # Disable RTTI
     target_compile_options(Graphics PRIVATE /EHs-c- /EHc-) # Disable synchronous exceptions and C++ exceptions
 endif()
+
+
+# Shaders
+add_custom_target(Shaders ALL)
+
+target_sources(Shaders
+    PRIVATE
+    ${SHADER_FILES}
+)
+
+target_vulkan_shaders(ShaderBinaries
+    SOURCES
+    ${SHADER_FILES}
+)
+
+
