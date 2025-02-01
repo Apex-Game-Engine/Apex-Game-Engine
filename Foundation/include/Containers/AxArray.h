@@ -257,8 +257,8 @@ namespace apex {
 
 		[[nodiscard]] auto dataMutable() const -> pointer { return const_cast<AxArray * const>(this)->_ConvertToValuePointer(); }
 
-		[[nodiscard]] auto back() -> reference { return m_data[m_size - 1]; }
-		[[nodiscard]] auto back() const -> const_reference { return m_data[m_size - 1]; }
+		[[nodiscard]] auto back() -> reference { return _GetReference(m_size - 1); }
+		[[nodiscard]] auto back() const -> const_reference { return _GetReference(m_size - 1); }
 
 		[[nodiscard]] auto front() -> reference { return m_data[0]; }
 		[[nodiscard]] auto front() const -> const_reference { return m_data[0]; }
@@ -363,6 +363,18 @@ namespace apex {
 			else
 			{
 				return from_managed_adapter<value_type>(m_data);
+			}
+		}
+
+		reference _GetReference(size_t index)
+		{
+			if constexpr (std::same_as<value_type, stored_type>)
+			{
+				return m_data[index];
+			}
+			else
+			{
+				return m_data[index].value();
 			}
 		}
 
@@ -476,10 +488,10 @@ namespace apex {
 	};
 
 	template <typename T>
-	auto make_array_ref(T* data, size_t count) -> AxArrayRef<T>
+	auto make_array_ref(void* data, size_t count) -> AxArrayRef<T>
 	{
 		AxArrayRef<T> ref;
-		ref.data = data;
+		ref.data = static_cast<T*>(data);
 		ref.count = count;
 		return ref;
 	}
