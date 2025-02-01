@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include <memory>
 
 #include "AxHandle.h"
@@ -25,20 +25,13 @@ namespace apex {
 		void* operator new(size_t);
 		void* operator new[](size_t);
 
-		void operator delete(void*);
-		void operator delete[](void*);
-
 		void* operator new(size_t size, void* mem);
 		void* operator new[](size_t size, void* mem);
 
-		void operator delete(void*, void*);
-		void operator delete[](void*, void*);
-
-		void* operator new(size_t size, AxHandle& handle);
-		void* operator new[](size_t size, AxHandle& handle);
-
-		void operator delete(void *ptr, AxHandle& handle);
-		void operator delete[](void *ptr, AxHandle& handle);
+		void* operator new(size_t size, AxHandle handle);
+		void* operator new[](size_t size, AxHandle handle);
+		//void* operator new(size_t size, AxHandle& handle);
+		//void* operator new[](size_t size, AxHandle& handle);
 	};
 
 	struct ExternallyManaged {};
