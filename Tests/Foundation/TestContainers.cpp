@@ -6,7 +6,7 @@
 #include "Containers/AxList.h"
 #include "Containers/AxRange.h"
 #include "Containers/AxSparseMap.h"
-#include "Containers/AxStringRef.h"
+#include "Containers/AxStringView.h"
 #include "Memory/UniquePtr.h"
 #include "Math/Vector3.h"
 #include "Memory/MemoryManager.h"
@@ -49,19 +49,19 @@ namespace apex {
 	public:
 		void SetUp() override
 		{
-			memory::MemoryManager::initialize({ .frameArenaSize = 0, .numFramesInFlight = 0 });
+			mem::MemoryManager::initialize({ .frameArenaSize = 0, .numFramesInFlight = 0 });
 		}
 
 		void TearDown() override
 		{
-			memory::MemoryManager::shutdown();
+			mem::MemoryManager::shutdown();
 		}
 
 		//void floatArray_constructFromMemory(void* mem, size_t mem_size) { floatArray.constructFromMemory(mem, mem_size); }
 		//void nonTrivialArray_constructFromMemory(void* mem, size_t mem_size) { nonTrivialArray.constructFromMemory(mem, mem_size); }
 
 	protected:
-		// AxArray<float32> floatArray;
+		// AxArray<f32> floatArray;
 		// AxArray<const char*> stringArray;
 		// AxArray<TrivialType> trivialArray;
 		// AxArray<NonTrivialType> nonTrivialArray;
@@ -71,7 +71,7 @@ namespace apex {
 	{
 
 		constexpr size_t BUF_SIZE = 8 * sizeof(float);
-		std::array<apex::uint8, BUF_SIZE> arenaBuf { 0 };
+		std::array<apex::u8, BUF_SIZE> arenaBuf { 0 };
 
 		return;
 
@@ -123,7 +123,7 @@ namespace apex {
 	TEST_F(AxArrayTest, TestNonTrivialArrayFromStaticMemory)
 	{
 		constexpr size_t BUF_SIZE = 8 * sizeof(NonTrivialType);
-		std::array<apex::uint8, BUF_SIZE> arenaBuf { 0 };
+		std::array<apex::u8, BUF_SIZE> arenaBuf { 0 };
 
 		return;
 #if 0
@@ -136,7 +136,7 @@ namespace apex {
 
 	TEST_F(AxArrayTest, TestKeepOnlyUniquesSlow)
 	{
-		AxArray<uint32> arr;
+		AxArray<u32> arr;
 		arr.reserve(8);
 		EXPECT_EQ(arr.size(), 0);
 
@@ -160,8 +160,8 @@ namespace apex {
 
 	TEST_F(AxArrayTest, TestExternallyManaged)
 	{
-		AxHandle handle = apex::make_handle<uint32[]>(32);
-		AxArray<uint32, ExternallyManaged> arr(handle);
+		AxHandle handle = apex::make_handle<u32[]>(32);
+		AxArray<u32, ExternallyManaged> arr(handle);
 		arr.resize(32, 21);
 		EXPECT_EQ(arr.size(), 32);
 
@@ -270,12 +270,12 @@ namespace apex {
 		EXPECT_EQ(arr[6], 8);
 		EXPECT_EQ(arr[7], 9);
 
-		EXPECT_DEATH(arr.insert(9, 5), "Assertion Failed! : .*"); // out of bounds
+		EXPECT_DEATH(arr.insert(9, 5), ""); // out of bounds
 	}
 
 	TEST_F(AxArrayTest, TestGrow)
 	{
-		size_t initialSize = memory::MemoryManager::getAllocatedSize();
+		size_t initialSize = mem::MemoryManager::getAllocatedSize();
 
 		using T = std::tuple<float, float, int>;
 		AxArray<T> arr;
@@ -298,8 +298,8 @@ namespace apex {
 		EXPECT_EQ(arr.size(), 20);
 		EXPECT_GE(arr.capacity(), 20);
 
-		EXPECT_GE(memory::MemoryManager::getAllocatedSize() - initialSize, arr.capacity() * sizeof(int));
-		printf("Allocated size: %llu\n", memory::MemoryManager::getAllocatedSize());
+		EXPECT_GE(mem::MemoryManager::getAllocatedSize() - initialSize, arr.capacity() * sizeof(int));
+		printf("Allocated size: %llu\n", mem::MemoryManager::getAllocatedSize());
 	}
 
 	TEST(AxStringRefTest, TestAxStringRef)
@@ -324,10 +324,10 @@ namespace apex {
 
 	TEST(AxSparseMapTest, TestSparseMap)
 	{
-		memory::MemoryManager::initialize({ 0, 0 });
+		mem::MemoryManager::initialize({ 0, 0 });
 
 		{
-			AxSparseMap<uint32, Transform> sparseMap(10);
+			AxSparseMap<u32, Transform> sparseMap(10);
 			EXPECT_GE(sparseMap.capacity(), 10);
 			EXPECT_EQ(sparseMap.count(), 0);
 
@@ -400,12 +400,12 @@ namespace apex {
 			EXPECT_TRUE(element.position == math::Vector3( 11, 22, 33 ));
 		}
 
-		memory::MemoryManager::shutdown();
+		mem::MemoryManager::shutdown();
 	}
 
 	TEST(AxListTest, TestAxList)
 	{
-		memory::MemoryManager::initialize({ 0, 0 });
+		mem::MemoryManager::initialize({ 0, 0 });
 
 		{
 			AxList<int> list;
@@ -432,15 +432,15 @@ namespace apex {
 
 			EXPECT_EQ(list.size(), 2);
 		}
-		EXPECT_EQ(memory::MemoryManager::getAllocatedSize(), 0);
+		EXPECT_EQ(mem::MemoryManager::getAllocatedSize(), 0);
 
-		memory::MemoryManager::shutdown();
+		mem::MemoryManager::shutdown();
 
 	}
 
 	TEST(AxListTest, TestAxListRemoveInsideIteration)
 	{
-		memory::MemoryManager::initialize({ 0, 0 });
+		mem::MemoryManager::initialize({ 0, 0 });
 
 		{
 			AxList<int> list;
@@ -479,14 +479,14 @@ namespace apex {
 			}
 			EXPECT_EQ(i, 100);
 		}
-		EXPECT_EQ(memory::MemoryManager::getAllocatedSize(), 0);
+		EXPECT_EQ(mem::MemoryManager::getAllocatedSize(), 0);
 
-		memory::MemoryManager::shutdown();
+		mem::MemoryManager::shutdown();
 	}
 
 	TEST(AxListTest, TestReverseIteration)
 	{
-		memory::MemoryManager::initialize({ 0, 0 });
+		mem::MemoryManager::initialize({ 0, 0 });
 
 		{
 			AxList<int> list;
@@ -516,9 +516,9 @@ namespace apex {
 			}
 			EXPECT_EQ(i, -1);
 		}
-		EXPECT_EQ(memory::MemoryManager::getAllocatedSize(), 0);
+		EXPECT_EQ(mem::MemoryManager::getAllocatedSize(), 0);
 
-		memory::MemoryManager::shutdown();
+		mem::MemoryManager::shutdown();
 	}
 
 }

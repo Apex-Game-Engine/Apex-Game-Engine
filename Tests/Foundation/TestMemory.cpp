@@ -7,7 +7,7 @@
 #include "Common.h"
 #include "Containers/AxArray.h"
 #include "Containers/AxRange.h"
-#include "Containers/AxStringRef.h"
+#include "Containers/AxStringView.h"
 #include "Core/Types.h"
 #include "Math/Vector3.h"
 #include "Math/Vector4.h"
@@ -20,7 +20,7 @@
 #include "Memory/SharedPtr.h"
 #include "Memory/UniquePtr.h"
 
-namespace apex::memory {
+namespace apex::mem {
 
 	struct SomeClass
 	{
@@ -38,7 +38,7 @@ namespace apex::memory {
 		auto arenaAllocator_offset() const { return arenaAllocator.m_offset; }
 		auto arenaAllocator_capacity() const { return arenaAllocator.m_capacity; }
 	protected:
-		apex::memory::ArenaAllocator arenaAllocator;
+		apex::mem::ArenaAllocator arenaAllocator;
 	};
 
 	TEST_F(ArenaAllocatorTest, TestConstructor)
@@ -51,7 +51,7 @@ namespace apex::memory {
 	TEST_F(ArenaAllocatorTest, TestInitialize)
 	{
 		constexpr size_t BUF_SIZE = 1024ui64 * 1024ui64 * 128ui64;
-		std::vector<apex::uint8> arenaBuf(BUF_SIZE);
+		std::vector<apex::u8> arenaBuf(BUF_SIZE);
 
 		arenaAllocator.initialize(arenaBuf.data(), BUF_SIZE);
 		ASSERT_EQ(arenaAllocator_base(), arenaBuf.data());
@@ -62,7 +62,7 @@ namespace apex::memory {
 	TEST_F(ArenaAllocatorTest, TestReset)
 	{
 		constexpr size_t BUF_SIZE = 1024ui64 * 1024ui64 * 128ui64;
-		std::vector<apex::uint8> arenaBuf(BUF_SIZE);
+		std::vector<apex::u8> arenaBuf(BUF_SIZE);
 
 		arenaAllocator.initialize(arenaBuf.data(), BUF_SIZE);
 		arenaAllocator.reset();
@@ -76,11 +76,11 @@ namespace apex::memory {
 		void *basePtr;
 
 		constexpr size_t BUF_SIZE = 1024ui64 * 1024ui64 * 128ui64;
-		std::vector<apex::uint8> arenaBuf(BUF_SIZE);
+		std::vector<apex::u8> arenaBuf(BUF_SIZE);
 
 
 		{
-			apex::memory::ArenaAllocator arenaAllocator;
+			apex::mem::ArenaAllocator arenaAllocator;
 			arenaAllocator.initialize(arenaBuf.data(), BUF_SIZE);
 			basePtr = arenaAllocator_base();
 		}
@@ -92,7 +92,7 @@ namespace apex::memory {
 	TEST_F(ArenaAllocatorTest, TestAllocate)
 	{
 		constexpr size_t BUF_SIZE = 1024ui64 * 1024ui64 * 128ui64;
-		std::vector<apex::uint8> arenaBuf(BUF_SIZE);
+		std::vector<apex::u8> arenaBuf(BUF_SIZE);
 
 		arenaAllocator.initialize(arenaBuf.data(), BUF_SIZE);
 
@@ -105,7 +105,7 @@ namespace apex::memory {
 	TEST_F(ArenaAllocatorTest, TestAllocateAligned)
 	{
 		constexpr size_t BUF_SIZE = 1024ui64 * 1024ui64 * 128ui64;
-		std::vector<apex::uint8> arenaBuf(BUF_SIZE);
+		std::vector<apex::u8> arenaBuf(BUF_SIZE);
 
 		arenaAllocator.initialize(arenaBuf.data(), BUF_SIZE);
 
@@ -121,7 +121,7 @@ namespace apex::memory {
 	TEST_F(ArenaAllocatorTest, TestAllocateObject)
 	{
 		constexpr size_t BUF_SIZE = 1024ui64 * 1024ui64 * 128ui64;
-		std::vector<apex::uint8> arenaBuf(BUF_SIZE);
+		std::vector<apex::u8> arenaBuf(BUF_SIZE);
 
 		arenaAllocator.initialize(arenaBuf.data(), BUF_SIZE);
 
@@ -138,7 +138,7 @@ namespace apex::memory {
 	TEST_F(ArenaAllocatorTest, TestFree)
 	{
 		constexpr size_t BUF_SIZE = 1024ui64 * 1024ui64 * 128ui64;
-		std::vector<apex::uint8> arenaBuf(BUF_SIZE);
+		std::vector<apex::u8> arenaBuf(BUF_SIZE);
 
 		arenaAllocator.initialize(arenaBuf.data(), BUF_SIZE);
 
@@ -148,7 +148,7 @@ namespace apex::memory {
 	TEST_F(ArenaAllocatorTest, TestFreeAligned)
 	{
 		constexpr size_t BUF_SIZE = 1024ui64 * 1024ui64 * 128ui64;
-		std::vector<apex::uint8> arenaBuf(BUF_SIZE);
+		std::vector<apex::u8> arenaBuf(BUF_SIZE);
 
 		arenaAllocator.initialize(arenaBuf.data(), BUF_SIZE);
 
@@ -173,7 +173,7 @@ namespace apex::memory {
 	{
 		constexpr size_t BLOCK_SIZE = 64;
 		constexpr size_t BUF_SIZE = 5 * BLOCK_SIZE;
-		std::vector<apex::uint8> poolBuf(BUF_SIZE);
+		std::vector<apex::u8> poolBuf(BUF_SIZE);
 
 		poolAllocator.initialize(poolBuf.data(), BUF_SIZE, BLOCK_SIZE);
 
@@ -299,8 +299,8 @@ namespace apex::memory {
 
 	struct StructWithDestructor : public AxManagedClass
 	{
-		inline static int32 s_count = 0;
-		inline static int32 s_numDestroyed = 0;
+		inline static s32 s_count = 0;
+		inline static s32 s_numDestroyed = 0;
 
 		char m_dbgName[64];
 
@@ -362,22 +362,22 @@ namespace apex::memory {
 
 	struct Base : public AxManagedClass
 	{
-		inline static int32 s_count = 0;
+		inline static s32 s_count = 0;
 
 		Base() { ++s_count; }
 		virtual ~Base() { printf("Base::dtor\n"); --s_count; }
 
-		virtual int32 getInt() const { return 42; }
+		virtual s32 getInt() const { return 42; }
 	};
 
 	struct Derived : public Base
 	{
-		inline static int32 s_count = 0;
+		inline static s32 s_count = 0;
 
 		Derived() { ++s_count; }
 		~Derived() override { printf("Derived::dtor\n"); --s_count; }
 
-		int32 getInt() const override { return 213; }
+		s32 getInt() const override { return 213; }
 	};
 
 	TEST_F(MemoryManagerTest, TestUniquePtr)
@@ -450,7 +450,7 @@ namespace apex::memory {
 		EXPECT_EQ(MemoryManager::getAllocatedSize(), 0);
 
 		{
-			AxHandle hArray = make_handle<int32[32]>();
+			AxHandle hArray = make_handle<s32[32]>();
 			EXPECT_EQ(hArray.getBlockSize(), 128);
 
 			auto pArray = unique_from_handle<int[]>(hArray, 32);
@@ -461,14 +461,17 @@ namespace apex::memory {
 
 		{
 			auto pArray = apex::make_unique<int[]>(32);
-			EXPECT_EQ(MemoryManager::getAllocatedSize(), 128);
+			EXPECT_EQ(MemoryManager::getAllocatedSize(), 160);
 		}
 		EXPECT_EQ(MemoryManager::getAllocatedSize(), 0);
 
 		{
 			AxHandle hArray = apex::make_handle<StructWithDestructor[]>(2);
 			EXPECT_EQ(MemoryManager::getAllocatedSize(), 160);
+
+			auto pArray = unique_from_handle<StructWithDestructor[]>(hArray, 2);
 		}
+		EXPECT_EQ(MemoryManager::getAllocatedSize(), 0);
 	}
 
 	TEST_F(MemoryManagerTest, TestDynamicallyAllocatedUniquePtr)
@@ -635,7 +638,7 @@ namespace apex::memory {
 			arr.append({ 1.f, 0.f, 1.f, 1.f });
 			arr.emplace_back( 2.f, 3.f, 0.f, 1.f );
 
-			uint32 i = 0;
+			u32 i = 0;
 			for (auto& element : arr)
 			{
 				if (i == 0) EXPECT_EQ(element, Vector4( 1.f, 0.f, 1.f, 1.f ));
@@ -713,15 +716,15 @@ namespace apex::memory {
 			AxArray<UniquePtr<Int>> arr;
 			arr.reserve(1000);
 
-			EXPECT_GE(memory::MemoryManager::getAllocatedSize(), arr.capacity() * sizeof(UniquePtr<Int>));
+			EXPECT_GE(mem::MemoryManager::getAllocatedSize(), arr.capacity() * sizeof(UniquePtr<Int>));
 		}
-		EXPECT_EQ(memory::MemoryManager::getAllocatedSize(), 0);
+		EXPECT_EQ(mem::MemoryManager::getAllocatedSize(), 0);
 
 		{
 			AxArray<UniquePtr<StructWithDestructor>> arr;
 			arr.reserve(1000);
 
-			EXPECT_GE(memory::MemoryManager::getAllocatedSize(), arr.capacity() * sizeof(UniquePtr<StructWithDestructor>));
+			EXPECT_GE(mem::MemoryManager::getAllocatedSize(), arr.capacity() * sizeof(UniquePtr<StructWithDestructor>));
 
 			for (int i = 0; i < 1000; i++)
 			{
@@ -730,7 +733,7 @@ namespace apex::memory {
 			EXPECT_EQ(StructWithDestructor::s_count, 1000);
 		}
 		EXPECT_EQ(StructWithDestructor::s_count, 0);
-		EXPECT_EQ(memory::MemoryManager::getAllocatedSize(), 0);
+		EXPECT_EQ(mem::MemoryManager::getAllocatedSize(), 0);
 	}
 
 	static_assert(std::ranges::viewable_range<AxArray<int>>);

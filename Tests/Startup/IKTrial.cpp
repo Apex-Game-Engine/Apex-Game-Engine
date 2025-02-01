@@ -14,8 +14,8 @@ namespace math = apex::math;
 
 namespace detail {
 
-	void solveIK_CCD(IKChain& chain, apex::uint32 max_iterations);
-	void solveIK_FABRIK(IKChain& chain, apex::uint32 max_iterations);
+	void solveIK_CCD(IKChain& chain, apex::u32 max_iterations);
+	void solveIK_FABRIK(IKChain& chain, apex::u32 max_iterations);
 
 }
 
@@ -43,22 +43,22 @@ void IKChain::computeBfsOrder()
 	//bfsOrder.reserve(parents.size());
 	//bfsIndex.reserve(parents.size());
 
-	apex::AxArray<apex::uint32> visited;
+	apex::AxArray<apex::u32> visited;
 	visited.resize(parents.size(), 0);
 
 	// TODO: make own deque class using AxArray
-	std::deque<apex::uint32> queue;
+	std::deque<apex::u32> queue;
 
 	queue.push_back(0);
 	visited[0] = 1;
 
 	while (!queue.empty())
 	{
-		apex::uint32 current = queue.front();
+		apex::u32 current = queue.front();
 		queue.pop_front();
 		bfsOrder.append(current);
 
-		for (apex::uint32 i = 0; i < parents.size(); ++i)
+		for (apex::u32 i = 0; i < parents.size(); ++i)
 		{
 			if (visited[i] == 0 && parents[i] == current)
 			{
@@ -68,7 +68,7 @@ void IKChain::computeBfsOrder()
 		}
 	}
 
-	for (apex::uint32 i = 0; i < bfsOrder.size(); ++i)
+	for (apex::u32 i = 0; i < bfsOrder.size(); ++i)
 	{
 		bfsIndex.append(i);
 	}
@@ -123,7 +123,7 @@ void IKChain::solveIK(IKSolverType solver)
 	}
 }
 
-void IKChainBuilder::addJoint(apex::math::Vector3 translation, apex::math::Vector3 euler_angles, apex::uint32 parent_index, bool is_end_effector)
+void IKChainBuilder::addJoint(apex::math::Vector3 translation, apex::math::Vector3 euler_angles, apex::u32 parent_index, bool is_end_effector)
 {
 	joints.emplace_back(translation, euler_angles, parent_index, is_end_effector);
 }
@@ -139,7 +139,7 @@ void IKChainBuilder::build(IKChain& chain)
 {
 	chain.reserve(joints.size());
 
-	for (apex::uint32 i = 0; i < joints.size(); ++i)
+	for (apex::u32 i = 0; i < joints.size(); ++i)
 	{
 		chain.translations.append(joints[i].translation);
 		chain.eulerAngles.append(joints[i].eulerAngles);
@@ -153,7 +153,7 @@ void IKChainBuilder::build(IKChain& chain)
 	chain.updateLocalTransforms();
 	chain.updateGlobalTransforms();
 
-	for (apex::uint32 i = 0; i < chain.endEffectors.size(); i++)
+	for (apex::u32 i = 0; i < chain.endEffectors.size(); i++)
 	{
 		chain.endEffectorTargets.append(chain.jointGlobalTransforms[chain.endEffectors[i]].getTranslation());
 	}
@@ -202,8 +202,8 @@ void IKTrial::update(float deltaTimeMs)
 
 	int width, height;
 	apex::Application::Instance()->getWindow()->getFramebufferSize(width, height);
-	apex::float32 aspect = static_cast<apex::float32>(width) / static_cast<apex::float32>(height);
-	apex::float32 fov = math::radians(60.f);
+	apex::f32 aspect = static_cast<apex::f32>(width) / static_cast<apex::f32>(height);
+	apex::f32 fov = math::radians(60.f);
 	m_camera.projection = math::perspective(fov, aspect, 0.1f, 1000.f);
 	m_camera.projection[1][1] *= -1;
 
@@ -294,24 +294,24 @@ void IKTrial::updateIK(float dt)
 		m_ikchain.updateGlobalTransforms();
 }
 
-void detail::solveIK_CCD(IKChain& chain, apex::uint32 max_iterations)
+void detail::solveIK_CCD(IKChain& chain, apex::u32 max_iterations)
 {
 	const size_t N = chain.length();
 	const int neffectors = chain.endEffectors.size();
 	bool converged = false;
 
-	for (apex::uint32 iter = 0; iter < max_iterations && !converged; iter++)
+	for (apex::u32 iter = 0; iter < max_iterations && !converged; iter++)
 	{
 		int nconverged = 0;
 
 		// for each end effector
-		for (apex::uint32 i = 0; i < chain.endEffectors.size(); i++)
+		for (apex::u32 i = 0; i < chain.endEffectors.size(); i++)
 		{
-			apex::uint32 endEffectorIdx = chain.endEffectors[i];
-			apex::uint32 jointIdx = chain.parents[endEffectorIdx];
-			apex::uint32 parentIdx = chain.parents[jointIdx];
+			apex::u32 endEffectorIdx = chain.endEffectors[i];
+			apex::u32 jointIdx = chain.parents[endEffectorIdx];
+			apex::u32 parentIdx = chain.parents[jointIdx];
 
-			apex::float32 distance = (chain.jointGlobalTransforms[endEffectorIdx].getTranslation() - chain.endEffectorTargets[i]).lengthSquared();
+			apex::f32 distance = (chain.jointGlobalTransforms[endEffectorIdx].getTranslation() - chain.endEffectorTargets[i]).lengthSquared();
 
 			// traverse up the chain
 			while (distance > 0.0001f)
@@ -321,12 +321,12 @@ void detail::solveIK_CCD(IKChain& chain, apex::uint32 max_iterations)
 				// compute the vector from the joint to the target
 				math::Vector3 jointToTarget = (chain.endEffectorTargets[i] - chain.jointGlobalTransforms[jointIdx].getTranslation()).normalize_();
 				// compute the angle between the two vectors
-				apex::float32 cosAngle = math::dot(jointToEnd, jointToTarget); // cos(angle) = a . b when a and b are unit vectors
+				apex::f32 cosAngle = math::dot(jointToEnd, jointToTarget); // cos(angle) = a . b when a and b are unit vectors
 				if (cosAngle < 0.9999f)
 				{
 					math::Vector3 crossProd = math::cross(jointToEnd, jointToTarget);
-					apex::float32 sinAngle = crossProd.length(); // sin(angle) = |a x b| when a and b are unit vectors
-					// apex::float32 angle = atan2(sinAngle, cosAngle);
+					apex::f32 sinAngle = crossProd.length(); // sin(angle) = |a x b| when a and b are unit vectors
+					// apex::f32 angle = atan2(sinAngle, cosAngle);
 
 					// rotate the joint by the angle
 					math::Matrix4x4 localTransform = chain.jointLocalTransforms[jointIdx];
@@ -362,13 +362,13 @@ void detail::solveIK_CCD(IKChain& chain, apex::uint32 max_iterations)
 	}
 }
 
-void detail::solveIK_FABRIK(IKChain& chain, apex::uint32 max_iterations)
+void detail::solveIK_FABRIK(IKChain& chain, apex::u32 max_iterations)
 {
 	const size_t N = chain.length();
 	const int neffectors = chain.endEffectors.size();
 	bool converged = false;
 
-	for (apex::uint32 iter = 0; iter < max_iterations && !converged; iter++)
+	for (apex::u32 iter = 0; iter < max_iterations && !converged; iter++)
 	{
 		int nconverged = 0;
 
@@ -381,15 +381,15 @@ void detail::solveIK_FABRIK(IKChain& chain, apex::uint32 max_iterations)
 				continue;
 			}
 
-			const apex::uint32 endEffectorIdx = chain.endEffectors[i];
-			apex::AxList<apex::uint32> chainIdxs;
-			for (apex::uint32 idx = endEffectorIdx; ; idx = chain.parents[idx])
+			const apex::u32 endEffectorIdx = chain.endEffectors[i];
+			apex::AxList<apex::u32> chainIdxs;
+			for (apex::u32 idx = endEffectorIdx; ; idx = chain.parents[idx])
 			{
 				chainIdxs.append(idx);
 				if (chain.parents[idx] == idx)
 					break;
 			}
-			const apex::uint32 subrootIdx = chainIdxs.back();
+			const apex::u32 subrootIdx = chainIdxs.back();
 			const math::Vector3 subroot = chain.jointGlobalTransforms[subrootIdx].getTranslation();
 
 			math::Vector3 t = target;
@@ -397,7 +397,7 @@ void detail::solveIK_FABRIK(IKChain& chain, apex::uint32 max_iterations)
 			// forward-reaching pass
 			for (auto idx : chainIdxs)
 			{
-				apex::uint32 parentIdx = chain.parents[idx];
+				apex::u32 parentIdx = chain.parents[idx];
 				if (idx == subrootIdx)
 				{
 					chain.jointGlobalTransforms[idx].m_columns[3] = math::Vector4{ t, 1.f };
@@ -405,9 +405,9 @@ void detail::solveIK_FABRIK(IKChain& chain, apex::uint32 max_iterations)
 				else
 				{
 					chain.jointGlobalTransforms[idx].m_columns[3] = math::Vector4{ t, 1.f };
-					apex::float32 d = chain.translations[idx].length();
-					apex::float32 r = (chain.jointGlobalTransforms[idx].getTranslation() - chain.jointGlobalTransforms[parentIdx].getTranslation()).length();
-					apex::float32 lambda = d / r;
+					apex::f32 d = chain.translations[idx].length();
+					apex::f32 r = (chain.jointGlobalTransforms[idx].getTranslation() - chain.jointGlobalTransforms[parentIdx].getTranslation()).length();
+					apex::f32 lambda = d / r;
 
 					t = math::lerp(chain.jointGlobalTransforms[idx].getTranslation(), chain.jointGlobalTransforms[parentIdx].getTranslation(), lambda);
 				}
@@ -418,8 +418,8 @@ void detail::solveIK_FABRIK(IKChain& chain, apex::uint32 max_iterations)
 			// backward-reaching pass
 			for (auto it = chainIdxs.rbegin(); it != chainIdxs.rend(); ++it)
 			{
-				apex::uint32 idx = *it;
-				apex::uint32 childIdx = it.next() != chainIdxs.rend() ? *it.next() : endEffectorIdx;
+				apex::u32 idx = *it;
+				apex::u32 childIdx = it.next() != chainIdxs.rend() ? *it.next() : endEffectorIdx;
 				if (idx == endEffectorIdx)
 				{
 					chain.jointGlobalTransforms[idx].m_columns[3] = math::Vector4{ t, 1.f };
@@ -427,9 +427,9 @@ void detail::solveIK_FABRIK(IKChain& chain, apex::uint32 max_iterations)
 				else
 				{
 					chain.jointGlobalTransforms[idx].m_columns[3] = math::Vector4{ t, 1.f };
-					apex::float32 d = chain.translations[childIdx].length();
-					apex::float32 r = (chain.jointGlobalTransforms[idx].getTranslation() - chain.jointGlobalTransforms[childIdx].getTranslation()).length();
-					apex::float32 lambda = d / r;
+					apex::f32 d = chain.translations[childIdx].length();
+					apex::f32 r = (chain.jointGlobalTransforms[idx].getTranslation() - chain.jointGlobalTransforms[childIdx].getTranslation()).length();
+					apex::f32 lambda = d / r;
 
 					t = math::lerp(chain.jointGlobalTransforms[idx].getTranslation(), chain.jointGlobalTransforms[childIdx].getTranslation(), lambda);
 				}
@@ -445,18 +445,18 @@ void detail::solveIK_FABRIK(IKChain& chain, apex::uint32 max_iterations)
 		if (idx == chain.parents[idx])
 			continue;
 
-		apex::uint32 parentIdx = chain.parents[idx];
+		apex::u32 parentIdx = chain.parents[idx];
 
 		math::Matrix4x4 globalTransform = chain.jointGlobalTransforms[parentIdx];
 		globalTransform.m_columns[3] = math::Vector4::unitW(); // remove translation component
 		math::Vector3 jointToNext = (globalTransform.transpose() * (chain.jointGlobalTransforms[idx].m_columns[3] - chain.jointGlobalTransforms[parentIdx].m_columns[3])).xyz();
-		apex::float32 cosAngle = math::dot(jointToNext, math::Vector3::unitY()); // cos(angle) = a . b when a and b are unit vectors
+		apex::f32 cosAngle = math::dot(jointToNext, math::Vector3::unitY()); // cos(angle) = a . b when a and b are unit vectors
 
 		if (cosAngle < 0.9999f)
 		{
 			math::Vector3 crossProd = math::cross(jointToNext, math::Vector3::unitY());
-			apex::float32 sinAngle = crossProd.length(); // sin(angle) = |a x b| when a and b are unit vectors
-			// apex::float32 angle = atan2(sinAngle, cosAngle);
+			apex::f32 sinAngle = crossProd.length(); // sin(angle) = |a x b| when a and b are unit vectors
+			// apex::f32 angle = atan2(sinAngle, cosAngle);
 
 			// rotate the joint by the angle
 			math::Matrix4x4 localTransform = chain.jointLocalTransforms[parentIdx];

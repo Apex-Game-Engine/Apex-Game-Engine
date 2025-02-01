@@ -11,12 +11,12 @@
 namespace math = apex::math;
 using math::Vector3;
 using math::Matrix4x4;
-using apex::uint32;
-using apex::float32;
+using apex::u32;
+using apex::f32;
 
 struct Cloth
 {
-	struct Spring { uint32 p1, p2; float32 restLength; };
+	struct Spring { u32 p1, p2; f32 restLength; };
 
 	apex::AxArray<Vector3> positions;
 	apex::AxArray<Vector3> velocities;
@@ -72,9 +72,9 @@ struct Cloth
 			//velocities[gridToIndex(i, j)] = Vector3(0.f);
 		}
 
-		const uint32 numSprings = (rows - 1 + rows - 2) * cols + (cols - 1 + cols - 2) * rows + 2 * (rows - 1) * (cols - 1);
+		const u32 numSprings = (rows - 1 + rows - 2) * cols + (cols - 1 + cols - 2) * rows + 2 * (rows - 1) * (cols - 1);
 		springs.reserve(numSprings);
-		uint32 k = 0;
+		u32 k = 0;
 		for (int i = 0; i < rows; i++) for (int j = 0; j < cols; j++)
 		{
 			//printf("i: %d j: %d\n", i, j);
@@ -97,7 +97,7 @@ struct Cloth
 			printf("spring: %d %d %f\n", springs[i].p1, springs[i].p2, springs[i].restLength);
 		}*/
 		
-		axAssertMsg(springs.size() == numSprings, "Invalid number of springs : {}", springs.size());
+		axAssertFmt(springs.size() == numSprings, "Invalid number of springs : {}", springs.size());
 	}
 
 	void simulate(float deltaTime)
@@ -283,8 +283,8 @@ struct Timer
 		currentTime = newTime;
 	}
 
-	[[nodiscard]] float32 getCurrentTime() const { return duration(currentTime.time_since_epoch()).count(); }
-	[[nodiscard]] float32 getDeltaTime() const { return deltaTime; }
+	[[nodiscard]] f32 getCurrentTime() const { return duration(currentTime.time_since_epoch()).count(); }
+	[[nodiscard]] f32 getDeltaTime() const { return deltaTime; }
 };
 
 class ClothSim : public apex::Game
@@ -302,8 +302,8 @@ public:
 
 		int width, height;
 		apex::Application::Instance()->getWindow()->getFramebufferSize(width, height);
-		float32 aspect = static_cast<float32>(width) / static_cast<float32>(height);
-		float32 fov = math::radians(60.f);
+		f32 aspect = static_cast<f32>(width) / static_cast<f32>(height);
+		f32 fov = math::radians(60.f);
 		m_camera.projection = math::perspective(fov, aspect, 0.1f, 1000.f);
 		m_camera.projection[1][1] *= -1;
 
@@ -321,7 +321,7 @@ public:
 
 		{ // Create cloth mesh
 			int numIndices = 6 * (Cloth::rows-1) * (Cloth::cols-1) * 2;
-			apex::AxArray<uint32> indices(numIndices);
+			apex::AxArray<u32> indices(numIndices);
 			indices.resize(numIndices);
 			for (int i = 0; i < Cloth::rows-1; i++) for (int j = 0; j < Cloth::cols-1; j++)
 			{
@@ -343,7 +343,7 @@ public:
 			for (int i = 0; i < Cloth::nParticles; i++)
 			{
 				const math::Vector4 startColor { 1, 0, 0, 1 }, endColor { 0, 1, 0, 1 };
-				vertices[i].color = lerp(startColor, endColor, ((float32)i/(float32)Cloth::rows)/(float32)Cloth::cols);
+				vertices[i].color = lerp(startColor, endColor, ((f32)i/(f32)Cloth::rows)/(f32)Cloth::cols);
 				vertices[i].position = cloth.positions[i];
 			}
 		}
@@ -429,9 +429,9 @@ protected:
 
 	struct PushConstants
 	{
-		uint32 rows, cols, springs;
-		float32 currentTime, deltaTime;
-		float32 kElastic, kDamping;
+		u32 rows, cols, springs;
+		f32 currentTime, deltaTime;
+		f32 kElastic, kDamping;
 	};
 
 	void initializeVulkanObjects()
@@ -467,7 +467,7 @@ protected:
 			};
 
 			VkPipelineLayout pipelineLayout;
-			axVerifyMsg(VK_SUCCESS == vkCreatePipelineLayout(device.logicalDevice, &pipelineLayoutCreateInfo, nullptr, &pipelineLayout),
+			axVerifyFmt(VK_SUCCESS == vkCreatePipelineLayout(device.logicalDevice, &pipelineLayoutCreateInfo, nullptr, &pipelineLayout),
 			            "Failed to create pipeline layout"
 			);
 
@@ -503,7 +503,7 @@ protected:
 				.queueFamilyIndex = device.queueFamilyIndices.computeFamily.value_or(0),
 			};
 
-			axVerifyMsg(VK_SUCCESS == vkCreateCommandPool(device.logicalDevice, &commandPoolCreateInfo, VK_NULL_HANDLE, &m_computeCommandPool),
+			axVerifyFmt(VK_SUCCESS == vkCreateCommandPool(device.logicalDevice, &commandPoolCreateInfo, VK_NULL_HANDLE, &m_computeCommandPool),
 			            "Failed to create compute command pool"
 			);
 
@@ -515,7 +515,7 @@ protected:
 				.commandBufferCount = 1,
 			};
 
-			axVerifyMsg(VK_SUCCESS == vkAllocateCommandBuffers(device.logicalDevice, &commandBufferAllocateInfo, &m_computeCommandBuffer),
+			axVerifyFmt(VK_SUCCESS == vkAllocateCommandBuffers(device.logicalDevice, &commandBufferAllocateInfo, &m_computeCommandBuffer),
 			            "Failed to allocate compute command buffer"
 			);
 		}
@@ -529,7 +529,7 @@ protected:
 				.flags = VK_FENCE_CREATE_SIGNALED_BIT,
 			};
 
-			axVerifyMsg(VK_SUCCESS == vkCreateFence(device.logicalDevice, &fenceCreateInfo, VK_NULL_HANDLE, &m_computeFence),
+			axVerifyFmt(VK_SUCCESS == vkCreateFence(device.logicalDevice, &fenceCreateInfo, VK_NULL_HANDLE, &m_computeFence),
 			            "Failed to create compute fence"
 			);
 		}
@@ -554,11 +554,11 @@ protected:
 			{
 				.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
 				.maxSets = 1,
-				.poolSizeCount = static_cast<uint32>(std::size(poolSizes)),
+				.poolSizeCount = static_cast<u32>(std::size(poolSizes)),
 				.pPoolSizes = poolSizes,
 			};
 
-			axVerifyMsg(VK_SUCCESS == vkCreateDescriptorPool(device.logicalDevice, &descriptorPoolCreateInfo, VK_NULL_HANDLE, &m_computeDescriptorPool),
+			axVerifyFmt(VK_SUCCESS == vkCreateDescriptorPool(device.logicalDevice, &descriptorPoolCreateInfo, VK_NULL_HANDLE, &m_computeDescriptorPool),
 			            "Failed to create compute descriptor pool"
 			);
 		}
@@ -570,7 +570,7 @@ protected:
 		const size_t clothBufferSize = clothSpringsSize + clothVelocitiesSize + clothAccelerationsSize;
 		#pragma region Create spring buffer
 		{ // Create spring buffer
-			uint32 queueFamilyIndices[] = { device.queueFamilyIndices.computeFamily.value() };
+			u32 queueFamilyIndices[] = { device.queueFamilyIndices.computeFamily.value() };
 			clothBuffer.create(device,
 				clothBufferSize,
 				VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
@@ -586,16 +586,16 @@ protected:
 			apex::memcpy_s<Cloth::Spring>(stagingBuffer.getMappedMemory(), stagingBuffer.allocation_info.size / sizeof(Cloth::Spring), cloth.springs.data(), cloth.springs.size());
 
 			{ // Copy velocities
-				void *pData = static_cast<apex::uint8*>(stagingBuffer.getMappedMemory()) + clothSpringsSize;
+				void *pData = static_cast<apex::u8*>(stagingBuffer.getMappedMemory()) + clothSpringsSize;
 				for (auto vel : cloth.velocities)
 				{
 					*static_cast<math::Vector4*>(pData) = { vel.x, vel.y, vel.z, 0 };
-					pData = static_cast<apex::uint8*>(pData) + sizeof(math::Vector4);
+					pData = static_cast<apex::u8*>(pData) + sizeof(math::Vector4);
 				}
 			}
 
 			{ // Copy accelerations
-				void *pData = static_cast<apex::uint8*>(stagingBuffer.getMappedMemory()) + clothSpringsSize + clothVelocitiesSize;
+				void *pData = static_cast<apex::u8*>(stagingBuffer.getMappedMemory()) + clothSpringsSize + clothVelocitiesSize;
 				::memset(pData, 0, clothAccelerationsSize);
 			}
 
@@ -615,7 +615,7 @@ protected:
 				.pSetLayouts = &m_computeDescriptorSetLayout.layout,
 			};
 
-			axVerifyMsg(VK_SUCCESS == vkAllocateDescriptorSets(device.logicalDevice, &alloc_info, &m_computeDescriptorSet),
+			axVerifyFmt(VK_SUCCESS == vkAllocateDescriptorSets(device.logicalDevice, &alloc_info, &m_computeDescriptorSet),
 			            "Failed to allocate descriptor set"
 			);
 
@@ -710,7 +710,7 @@ protected:
 
 		const PushConstants pushConstants
 		{
-			Cloth::rows, Cloth::cols, (uint32)cloth.springs.size() /*(cloth.nStructural + cloth.nShear)*/,
+			Cloth::rows, Cloth::cols, (u32)cloth.springs.size() /*(cloth.nStructural + cloth.nShear)*/,
 			timer.getCurrentTime(), timer.getDeltaTime(),
 			cloth.kElastic, cloth.kDamping
 		};
@@ -739,7 +739,7 @@ protected:
 		acc = apex::min(acc, 0.004f);
 		float dt = 0.0005f;
 
-		// Compute: Initialize accelerations
+		// Compute: CreateContext accelerations
 		cmdDispatchComputeShader(m_computeCommandBuffer, m_comp_initAccelerations, m_computeDescriptorSet, pushConstants, math::ceil(cloth.nParticles, 16));
 		vkCmdPipelineBarrier2(m_computeCommandBuffer, &dependencyInfo);
 
@@ -751,9 +751,9 @@ protected:
 		cmdDispatchComputeShader(m_computeCommandBuffer, m_comp_applyForces, m_computeDescriptorSet, pushConstants, math::ceil(cloth.nParticles, 16));
 		acc -= dt;
 
-		while (acc > dt + apex::constants::float32_EPSILON)
+		while (acc > dt + apex::Constants::float32_EPSILON)
 		{
-			// Compute: Initialize accelerations
+			// Compute: CreateContext accelerations
 			vkCmdPipelineBarrier2(m_computeCommandBuffer, &dependencyInfo);
 			cmdDispatchComputeShader(m_computeCommandBuffer, m_comp_initAccelerations, m_computeDescriptorSet, pushConstants, math::ceil(cloth.nParticles, 16));
 
@@ -787,7 +787,7 @@ protected:
 		};
 
 		VkResult result = vkQueueSubmit2(computeQueue, 1, &submitInfo, m_computeFence);
-		axAssertMsg(result == VK_SUCCESS, "Failed to submit compute command buffer");
+		axAssertFmt(result == VK_SUCCESS, "Failed to submit compute command buffer");
 	}
 
 	static void cmdDispatchComputeShader(VkCommandBuffer command_buffer, apex::vk::VulkanComputePipeline& compute, VkDescriptorSet descriptor_set, PushConstants const& push_constants, int groupCountX)

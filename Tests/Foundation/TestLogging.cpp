@@ -7,34 +7,42 @@ void testDebug()
 	axDebug("Debug message");
 }
 
-TEST(TestLogging, TestConsoleLogger)
+struct DummySink : public apex::logging::ISink
 {
-	testing::internal::CaptureStdout();
+	void log(const apex::logging::LogMsg& log_msg) override
+	{
+		logMsgs.push_back(log_msg);
+	}
 
-	apex::logging::ConsoleSink_st consoleSink;
+	std::vector<apex::logging::LogMsg> logMsgs;
+};
 
-	//apex::logging::Logger::initialize();
-	//apex::logging::Logger::get().m_sinks.push_back(&consoleSink);
-
+TEST(TestLogging, TestLogger)
+{
+	DummySink dummySink;
+	apex::logging::Logger::get().addSink(&dummySink);
 	testDebug();
+	EXPECT_EQ(dummySink.logMsgs.size(), 1);
+	EXPECT_EQ(dummySink.logMsgs[0].level, apex::logging::LogLevel::Debug);
+	EXPECT_EQ(dummySink.logMsgs[0].lineno, 7);
+	EXPECT_STREQ(dummySink.logMsgs[0].filename, "TestLogging.cpp");
+	EXPECT_STREQ(dummySink.logMsgs[0].filepath, __FILE__);
+	EXPECT_STREQ(dummySink.logMsgs[0].msg, "Debug message");
 
-	std::string output = testing::internal::GetCapturedStdout();
-	printf("output: %s\n", output.c_str());
-	ASSERT_TRUE(output == "[C:\\Users\\athan\\source\\repos\\ApexGameEngine-Vulkan\\Tests\\Foundation\\TestLogging.cpp::(testDebug):7] <Debug> :: Debug message\n"
-		|| output == "[TestLogging.cpp::(testDebug):7] <Debug> :: Debug message\n"
-	);
+	apex::logging::Logger::get().removeSink(&dummySink);
 
-	axLogFmt("Hello {}", "World");
-	axDebugFmt("Hello {}", "World");
-	axWarnFmt("Hello {}", "World");
-	axErrorFmt("Hello {}", "World");
+
+	//axLogFmt("Hello {}", "World");
+	//axDebugFmt("Hello {}", "World");
+	//axWarnFmt("Hello {}", "World");
+	//axErrorFmt("Hello {}", "World");
 }
 
 TEST(TestAsserts, TestAssert)
 {
 #ifdef APEX_CONFIG_DEBUG
 	ASSERT_DEATH(axAssert(1 == 0);, ".*");
-	ASSERT_DEATH(axAssertMsg(1 == 0, "Test");, ".*");
+	ASSERT_DEATH(axAssertFmt(1 == 0, "Test");, ".*");
 #endif
 }
 

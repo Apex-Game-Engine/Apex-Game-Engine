@@ -70,6 +70,8 @@ TEST(TestDelegate, TestVoidReturnNonCapturingLambda)
 		delegate(42);
 		EXPECT_EQ(detail::counter, 42);
 	}
+	
+	counter_set(0);
 }
 
 
