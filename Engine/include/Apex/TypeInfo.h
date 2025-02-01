@@ -1,8 +1,8 @@
-#pragma once
+﻿#pragma once
 
 #include <Api.h>
 #include <Containers/AxStaticString.h>
-#include <Containers/AxStringRef.h>
+#include <Containers/AxStringView.h>
 #include <Core/Types.h>
 
 namespace apex {
@@ -90,7 +90,7 @@ namespace core {
 		{
 			constexpr auto cname = internal::TypeName<T>();
 			static auto name = AxStaticString<cname.m_size>{cname.m_str};
-			return AxStringRef{name.data(), name.size()};
+			return AxStringView{name.data(), name.size()};
 		}
 	};
 

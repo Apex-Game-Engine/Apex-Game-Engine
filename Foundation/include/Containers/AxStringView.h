@@ -29,8 +29,16 @@ namespace apex {
 		size_t m_length = static_cast<size_t>(-1);
 	};
 
-	struct AxStringView
+	class AxStringView
 	{
+	public:
+		constexpr AxStringView() : m_str(nullptr), m_size(0) {}
+		constexpr AxStringView(const char* str, size_t size) : m_str(str), m_size(size) {}
+
+		const char* c_str() const { return m_str; }
+		size_t size() { return m_size; }
+
+	private:
 		const char* m_str;
 		size_t m_size;
 	};
