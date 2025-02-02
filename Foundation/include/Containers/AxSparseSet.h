@@ -13,7 +13,7 @@ namespace apex {
 	 * \tparam Key Type of keys that will be stored in the set.
 	 */
 	template <typename Key>
-	class AxSparseSet : public AxManagedClass
+	class AxSparseSet
 	{
 	public:
 		using key_type = Key;
@@ -64,7 +64,7 @@ namespace apex {
 			axAssert(key < capacity());
 			axAssertFmt(!contains(key), "Cannot add element. ID already exists in the set!");
 
-			_Insert(key);
+			Insert(key);
 		}
 
 		/**
@@ -78,7 +78,7 @@ namespace apex {
 
 			if (!contains(key))
 			{
-				_Insert(key);
+				Insert(key);
 				return true;
 			}
 
@@ -94,7 +94,7 @@ namespace apex {
 			axAssert(key < capacity());
 			axAssertFmt(contains(key), "Cannot delete element. ID does not exist!");
 
-			_Remove(key);
+			Remove(key);
 		}
 
 		/**
@@ -108,7 +108,7 @@ namespace apex {
 
 			if (contains(key))
 			{
-				_Remove(key);
+				Remove(key);
 				return true;
 			}
 
@@ -197,13 +197,13 @@ namespace apex {
 		size_t count() const { return m_dense.size(); }
 
 	protected:
-		void _Insert(key_type key)
+		void Insert(key_type key)
 		{
 			m_dense.append(key);
 			m_sparse[key] = m_dense.size() - 1;
 		}
 
-		void _Remove(key_type key)
+		void Remove(key_type key)
 		{
 			auto newCount = m_dense.size() - 1;
 
@@ -215,7 +215,7 @@ namespace apex {
 			m_dense.pop_back();
 		}
 
-		key_type _GetIndex(key_type key) // unsafe operation. Only for internal use
+		key_type GetIndex(key_type key) // unsafe operation. Only for internal use
 		{
 			key_type denseIdx = m_sparse[key];
 			return denseIdx;

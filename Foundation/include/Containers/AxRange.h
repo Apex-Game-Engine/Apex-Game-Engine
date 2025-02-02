@@ -1,7 +1,5 @@
 ﻿#pragma once
 
-#include "Memory/AxManagedClass.h"
-
 namespace apex {
 namespace ranges {
 
@@ -78,7 +76,7 @@ namespace ranges {
 	}
 
 	template <range Range, typename ViewFn, typename RangeIterator = typename AxRange<Range>::iterator>
-	class AxView : public AxManagedClass
+	class AxView
 	{
 	public:
 		using base_iterator = RangeIterator;

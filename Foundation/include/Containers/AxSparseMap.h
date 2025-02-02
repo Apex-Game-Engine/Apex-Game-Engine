@@ -39,19 +39,19 @@ namespace apex {
 
 		void insert(key_type id, Type const& elem)
 		{
-			_Insert(id, elem);
+			Insert(id, elem);
 		}
 
 		void insert(key_type id, Type&& elem)
 		{
-			_Insert(id, std::forward<Type>(elem));
+			Insert(id, std::forward<Type>(elem));
 		}
 
 		bool try_insert(key_type id, Type const& elem)
 		{
 			if (!contains(id))
 			{
-				_Insert(id, elem);
+				Insert(id, elem);
 				return true;
 			}
 
@@ -61,19 +61,19 @@ namespace apex {
 		template <typename... Args>
 		Type& emplace(key_type id, Args&&... args)
 		{
-			return _Emplace(id, std::forward<Args>(args)...);
+			return Emplace(id, std::forward<Args>(args)...);
 		}
 
 		void remove(key_type id)
 		{
-			_Remove(id);
+			Remove(id);
 		}
 
 		bool try_remove(key_type id)
 		{
 			if (contains(id))
 			{
-				_Remove(id);
+				Remove(id);
 				return true;
 			}
 
@@ -152,34 +152,34 @@ namespace apex {
 		size_t count() const { return base_type::count(); }
 
 	protected:
-		void _Insert(key_type id, Type const& elem)
+		void Insert(key_type id, Type const& elem)
 		{
-			base_type::_Insert(id);
-			auto index = base_type::_GetIndex(id);
+			base_type::Insert(id);
+			auto index = base_type::GetIndex(id);
 			m_elements[index] = elem;
 		}
 
-		void _Insert(key_type id, Type&& elem)
+		void Insert(key_type id, Type&& elem)
 		{
-			base_type::_Insert(id);
-			auto index = base_type::_GetIndex(id);
+			base_type::Insert(id);
+			auto index = base_type::GetIndex(id);
 			m_elements[index] = std::move(elem);
 		}
 
 		template <typename... Args>
-		Type& _Emplace(key_type id, Args&&... args)
+		Type& Emplace(key_type id, Args&&... args)
 		{
-			base_type::_Insert(id);
-			auto index = base_type::_GetIndex(id);
+			base_type::Insert(id);
+			auto index = base_type::GetIndex(id);
 			auto pElem = std::construct_at(&m_elements[index], std::forward<Args>(args)...);
 			return *pElem;
 		}
 
-		void _Remove(key_type id)
+		void Remove(key_type id)
 		{
-			auto index = base_type::_GetIndex(id);
+			auto index = base_type::GetIndex(id);
 
-			base_type::_Remove(id);
+			base_type::Remove(id);
 			auto lastIndex = count();
 
 			m_elements[index] = m_elements[lastIndex];
@@ -220,14 +220,14 @@ namespace apex {
 
 		void insert(key_type id, Type const& elem = {})
 		{
-			base_type::_Insert(id);
+			base_type::Insert(id);
 		}
 
 		bool try_insert(key_type id, Type const& elem = {})
 		{
 			if (!contains(id))
 			{
-				base_type::_Insert(id);
+				base_type::Insert(id);
 				return true;
 			}
 
@@ -236,14 +236,14 @@ namespace apex {
 
 		void remove(key_type id)
 		{
-			base_type::_Remove(id);
+			base_type::Remove(id);
 		}
 
 		bool try_remove(key_type id)
 		{
 			if (contains(id))
 			{
-				base_type::_Remove(id);
+				base_type::Remove(id);
 				return true;
 			}
 

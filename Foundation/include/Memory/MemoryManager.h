@@ -76,5 +76,32 @@ namespace mem {
 		constexpr size_t operator""_MiB(size_t x) { return x << 20; }
 	}
 
+	struct GlobalMemoryOperators
+	{
+		static void* OperatorNew(size_t, AxHandle);
+		static void OperatorDelete(void* ptr) noexcept;
+	};
+
 }
 }
+
+void* operator new(size_t size, apex::AxHandle handle);
+void* operator new[](size_t size, apex::AxHandle handle);
+
+void* operator new(size_t size, apex::AxHandle handle, const char* func, const char* file, uint32_t line);
+void* operator new[](size_t size, apex::AxHandle handle, const char* func, const char* file, uint32_t line);
+
+void* operator new(size_t size, const char* func, const char* file, uint32_t line);
+void* operator new[](size_t size, const char* func, const char* file, uint32_t line);
+
+#define APEX_TRACK_ALLOCATIONS 1
+
+#if APEX_TRACK_ALLOCATIONS
+
+#define apex_new(TYPE)    new (apex::make_handle<TYPE>(), __PRETTY_FUNCTION__, __FILE__, __LINE__) TYPE
+
+#else
+
+#define apex_new(TYPE)    new (apex::make_handle<TYPE>()) TYPE
+
+#endif

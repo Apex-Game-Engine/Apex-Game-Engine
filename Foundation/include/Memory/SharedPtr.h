@@ -1,6 +1,5 @@
 ﻿#pragma once
 
-#include "AxManagedClass.h"
 #include <mutex>
 
 #include "UniquePtr.h"
@@ -14,20 +13,20 @@ namespace apex {
 	template <typename T, typename Lock = default_shared_ptr_lock>
 	class SharedPtr;
 
-	template <apex::managed_class T, concurrency::lockable Lock>
-	class SharedPtr<T, Lock> : public AxManagedClass
+	template <typename T, concurrency::lockable Lock>
+	class SharedPtr<T, Lock>
 	{
 		static_assert(!std::is_reference_v<T>);
 
 	public:
-		using underlying_type = apex::remove_managed_adapter_t<T>;
+		using underlying_type = T;
 		using value_type      = underlying_type;
 		using pointer         = value_type*;
 		using reference       = value_type&;
 		using mutex_type      = Lock;
 
 	private:
-		struct SharedPtrData : public AxManagedClass
+		struct SharedPtrData
 		{
 			UniquePtr<T> ptr{ nullptr };
 			size_t       refCount{ 0 };
@@ -46,15 +45,6 @@ namespace apex {
 			_Allocate();
 			// std::lock_guard lock(m_data->mutex);
 			m_data->ptr.reset(ptr);
-			m_data->refCount = 1;
-		}
-
-		template <typename TWrappedPtr = std::enable_if_t<apex::is_managed_adapted_class_v<T>, T>>
-		constexpr explicit SharedPtr(TWrappedPtr* ptr) noexcept : m_data(nullptr)
-		{
-			_Allocate();
-			// std::lock_guard lock(m_data->mutex);
-			m_data->ptr.reset(apex::from_managed_adapter(ptr));
 			m_data->refCount = 1;
 		}
 
@@ -175,8 +165,8 @@ namespace apex {
 		storage_type* m_data;
 	};
 
-	template <apex::managed_class T, cncy::lockable Lock>
-	class SharedPtr<T[], Lock> : public AxManagedClass
+	template <typename T, cncy::lockable Lock>
+	class SharedPtr<T[], Lock>
 	{
 		static_assert(!std::is_reference_v<T>);
 
@@ -187,7 +177,7 @@ namespace apex {
 		using mutex_type   = Lock;
 
 	private:
-		struct SharedPtrData : public AxManagedClass
+		struct SharedPtrData
 		{
 			UniquePtr<T[]> ptr{ nullptr };
 			size_t         refCount{ 0 };
@@ -322,21 +312,14 @@ namespace apex {
 	};
 
 	// make a SharedPtr from a AxHandle
-	template <apex::managed_class T, cncy::lockable Lock = default_shared_ptr_lock, typename... Args> requires (!std::is_array_v<T>) // managed_class , not array
+	template <typename T, cncy::lockable Lock = default_shared_ptr_lock, typename... Args> requires (!std::is_array_v<T>) // not array
 	[[nodiscard]] auto shared_from_handle(apex::AxHandle& handle, Args&&... args) noexcept -> SharedPtr<T, Lock>
 	{
 		return SharedPtr<T, Lock>(new (handle) T(std::forward<Args>(args)...));
 	}
 
 	// make a SharedPtr from a AxHandle
-	template <typename T, cncy::lockable Lock = default_shared_ptr_lock, typename... Args> requires(!apex::managed_class<T> && !std::is_array_v<T>) // not managed_class , not array
-	[[nodiscard]] auto shared_from_handle(apex::AxHandle& handle, Args&&... args) noexcept -> SharedPtr<AxManagedClassAdapter<T>, Lock>
-	{
-		return apex::shared_from_handle<AxManagedClassAdapter<T>, Lock>(handle, std::forward<Args>(args)...);
-	}
-
-	// make a SharedPtr from a AxHandle
-	template <typename T, cncy::lockable Lock = default_shared_ptr_lock> requires (apex::managed_class<std::remove_extent_t<T>> && std::is_array_v<T> && std::extent_v<T> == 0) // managed_class , array
+	template <typename T, cncy::lockable Lock = default_shared_ptr_lock> requires (std::is_array_v<T> && std::extent_v<T> == 0) // array
 	[[nodiscard]] auto shared_from_handle(apex::AxHandle& handle, const size_t size) noexcept -> SharedPtr<T, Lock>
 	{
 		using element_type = std::remove_extent_t<T>;
@@ -346,18 +329,8 @@ namespace apex {
 			return SharedPtr<T, Lock>(new (handle) std::remove_extent_t<T>[size]);
 	}
 
-	// make a SharedPtr from a AxHandle
-	template <typename T, cncy::lockable Lock = default_shared_ptr_lock> requires (!apex::managed_class<std::remove_extent_t<T>> && std::is_array_v<T> && std::extent_v<T> == 0) // managed_class , array
-	[[nodiscard]] auto shared_from_handle(apex::AxHandle& handle, const size_t size) noexcept -> SharedPtr<AxManagedClassAdapter<std::remove_extent_t<T>>[], Lock>
-	{
-		using inner_element_type = std::remove_extent_t<T>;
-		using element_type = AxManagedClassAdapter<inner_element_type>;
-
-		return apex::shared_from_handle<element_type[], Lock>(handle, size);
-	}
-
 	// make a SharedPtr
-	template <apex::managed_class T, cncy::lockable Lock = default_shared_ptr_lock, typename... Args> requires(!std::is_array_v<T>) // managed_class , not array
+	template <typename T, cncy::lockable Lock = default_shared_ptr_lock, typename... Args> requires(!std::is_array_v<T>) // not array
 	[[nodiscard]] auto make_shared(Args&&... args) noexcept -> SharedPtr<T, Lock>
 	{
 		AxHandle handle = make_handle<T>();
@@ -365,28 +338,11 @@ namespace apex {
 	}
 
 	// make a SharedPtr
-	template <typename T, cncy::lockable Lock = default_shared_ptr_lock, typename... Args> requires(!apex::managed_class<T> && !std::is_array_v<T>) // not managed_class , not array
-	[[nodiscard]] auto make_shared(Args&&... args) noexcept -> SharedPtr<AxManagedClassAdapter<T>, Lock>
-	{
-		return apex::make_shared<AxManagedClassAdapter<T>, Lock>(std::forward<Args>(args)...);
-	}
-
-	// make a SharedPtr
-	template <typename T, cncy::lockable Lock = default_shared_ptr_lock> requires (apex::managed_class<std::remove_extent_t<T>> && std::is_array_v<T> && std::extent_v<T> == 0) // managed_class , array
+	template <typename T, cncy::lockable Lock = default_shared_ptr_lock> requires (std::is_array_v<T> && std::extent_v<T> == 0) // managed_class , array
 	[[nodiscard]] auto make_shared(const size_t size) noexcept -> SharedPtr<T, Lock>
 	{
 		AxHandle handle = make_handle<T>(size);
 		return shared_from_handle<T, Lock>(handle, size);
-	}
-
-	// make a SharedPtr
-	template <typename T, cncy::lockable Lock = default_shared_ptr_lock> requires (!apex::managed_class<std::remove_extent_t<T>> && std::is_array_v<T> && std::extent_v<T> == 0) // not managed_class , array
-	[[nodiscard]] auto make_shared(const size_t size) noexcept -> SharedPtr<AxManagedClassAdapter<std::remove_extent_t<T>>[], Lock>
-	{
-		using inner_element_type = std::remove_extent_t<T>;
-		using element_type = AxManagedClassAdapter<inner_element_type>;
-
-		return apex::make_shared<element_type[], Lock>(size);
 	}
 
 }
