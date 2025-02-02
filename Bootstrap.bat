@@ -1,4 +1,6 @@
 @echo off
+call "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvarsall.bat" x64
+
 set arg_toolset=%1
 if "%arg_toolset%" == "msvc" goto MSVC
 if "%arg_toolset%" == "clang" goto CLANG
@@ -24,3 +26,5 @@ cmake -S . -B %build_dir% -G%cmake_gen% -T %cmake_toolset%
 goto end
 
 :end
+
+pause

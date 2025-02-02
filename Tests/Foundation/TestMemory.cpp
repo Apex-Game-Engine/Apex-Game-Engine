@@ -13,7 +13,6 @@
 #include "Math/Vector4.h"
 #include "Memory/ArenaAllocator.h"
 #include "Memory/AxHandle.h"
-#include "Memory/AxManagedClass.h"
 #include "Memory/MemoryManager.h"
 #include "Memory/MemoryManagerImpl.h"
 #include "Memory/PoolAllocator.h"
@@ -255,7 +254,7 @@ namespace apex::mem {
 
 	TEST_F(MemoryManagerTest, TestGetMemoryPoolFromPointer)
 	{
-		struct Data_128bytes : AxManagedClass
+		struct Data_128bytes
 		{
 			byte bytes[128];
 		};
@@ -273,7 +272,7 @@ namespace apex::mem {
 		}
 	}
 
-	struct MyManagedClass : AxManagedClass
+	struct MyManagedClass
 	{
 		char name[1000];
 	};
@@ -284,7 +283,7 @@ namespace apex::mem {
 			AxHandle hManagedClass(sizeof(MyManagedClass));
 			auto pManagedClass = new (hManagedClass) MyManagedClass();
 
-			strcpy_s(pManagedClass->name, "Athang Gupte");
+			strcpy_s(pManagedClass->name, "Apple Gupte");
 
 			delete pManagedClass;
 		}
@@ -297,7 +296,7 @@ namespace apex::mem {
 		EXPECT_EQ(MemoryManager::getAllocatedSize(), 0);
 	}
 
-	struct StructWithDestructor : public AxManagedClass
+	struct StructWithDestructor
 	{
 		inline static s32 s_count = 0;
 		inline static s32 s_numDestroyed = 0;
@@ -360,7 +359,7 @@ namespace apex::mem {
 		EXPECT_EQ(MemoryManager::getAllocatedSize(), 0);
 	}
 
-	struct Base : public AxManagedClass
+	struct Base
 	{
 		inline static s32 s_count = 0;
 
@@ -416,7 +415,7 @@ namespace apex::mem {
 			EXPECT_EQ(h.getBlockSize(), 32);
 			EXPECT_EQ(MemoryManager::getAllocatedSize(), h.getBlockSize());
 
-			auto a = new (h) AxManagedClassAdapter<int>(2);
+			auto a = new (h) int(2);
 			EXPECT_EQ(static_cast<int>(*a), 2);
 			*a = 3;
 			EXPECT_TRUE(*a == 3);
@@ -491,10 +490,9 @@ namespace apex::mem {
 		}
 		EXPECT_EQ(MemoryManager::getAllocatedSize(), 0);
 
-		using Int = AxManagedClassAdapter<int>;
 		{
-			AxHandle handle(sizeof(Int) * 16);
-			auto pInts = handle.getAs<Int>();
+			AxHandle handle(sizeof(int) * 16);
+			auto pInts = handle.getAs<int>();
 			EXPECT_EQ(MemoryManager::getAllocatedSize(), 64); // 16 * 4 = 64
 
 			delete[] pInts;
@@ -612,7 +610,7 @@ namespace apex::mem {
 			AxHandle handle = apex::make_handle<int[32]>();
 			EXPECT_EQ(MemoryManager::getAllocatedSize(), 128);
 
-			auto pAW = new (handle) AxManagedClassAdapter<IntArrayWrapper>(32);
+			auto pAW = new (handle) IntArrayWrapper(32);
 			IntArrayWrapper& aw = *pAW;
 
 			aw.fill(32);
@@ -654,12 +652,12 @@ namespace apex::mem {
 			strArr.reserve(32);
 			EXPECT_EQ(MemoryManager::getAllocatedSize(), 512); // 32 * 16 (sizeof const char* (8) + sizeof size_t (8))
 
-			strArr.append("Athang");
-			strArr.emplace_back("Oishi");
-			strArr[1] = "Oishi Saha";
+			strArr.append("Apple");
+			strArr.emplace_back("Mango");
+			strArr[1] = "Mango";
 
-			EXPECT_STREQ(strArr[0].c_str(), "Athang");
-			EXPECT_STREQ(strArr[1].c_str(), "Oishi Saha");
+			EXPECT_STREQ(strArr[0].c_str(), "Apple");
+			EXPECT_STREQ(strArr[1].c_str(), "Mango");
 
 			for (auto& str : strArr)
 			{
@@ -686,24 +684,24 @@ namespace apex::mem {
 		EXPECT_EQ(MemoryManager::getAllocatedSize(), 0);
 
 		{
-			AxArray<AxStringRef> strArr = { "Athang", "Oishi", "Saumitra" };
+			AxArray<AxStringRef> strArr = { "Apple", "Mango", "Banana" };
 			EXPECT_EQ(MemoryManager::getAllocatedSize(), 48); // 3 * 16 (sizeof const char* (8) + sizeof size_t (8))
 
 			EXPECT_EQ(strArr.size(), 3);
-			EXPECT_STREQ(strArr[0].c_str(), "Athang");
-			EXPECT_STREQ(strArr[1].c_str(), "Oishi");
-			EXPECT_STREQ(strArr[2].c_str(), "Saumitra");
+			EXPECT_STREQ(strArr[0].c_str(), "Apple");
+			EXPECT_STREQ(strArr[1].c_str(), "Mango");
+			EXPECT_STREQ(strArr[2].c_str(), "Banana");
 		}
 		EXPECT_EQ(MemoryManager::getAllocatedSize(), 0);
 
 		{
-			AxArray<const char*> strArr = { "Athang", "Oishi", "Saumitra" };
+			AxArray<const char*> strArr = { "Apple", "Mango", "Banana" };
 			EXPECT_EQ(MemoryManager::getAllocatedSize(), 32); // 3 * 8 (but the closest available size is 32)
 
 			EXPECT_EQ(strArr.size(), 3);
-			EXPECT_STREQ(strArr[0], "Athang");
-			EXPECT_STREQ(strArr[1], "Oishi");
-			EXPECT_STREQ(strArr[2], "Saumitra");
+			EXPECT_STREQ(strArr[0], "Apple");
+			EXPECT_STREQ(strArr[1], "Mango");
+			EXPECT_STREQ(strArr[2], "Banana");
 		}
 		EXPECT_EQ(MemoryManager::getAllocatedSize(), 0);
 	}
@@ -711,7 +709,7 @@ namespace apex::mem {
 	TEST_F(MemoryManagerTest, TestUniquePtrArray)
 	{
 		EXPECT_EQ(MemoryManager::getAllocatedSize(), 0);
-		using Int = AxManagedClassAdapter<int>;
+		using Int = int;
 		{
 			AxArray<UniquePtr<Int>> arr;
 			arr.reserve(1000);

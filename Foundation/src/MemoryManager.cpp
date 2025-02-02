@@ -1,5 +1,4 @@
 ﻿#define APEX_ENABLE_MEMORY_LITERALS
-#include "Memory/AxManagedClass.h"
 #include "Memory/MemoryManager.h"
 #include "Memory/MemoryManagerImpl.h"
 #include "Memory/MemoryPool.h"

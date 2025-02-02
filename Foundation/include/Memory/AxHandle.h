@@ -6,6 +6,7 @@ namespace apex {
 	namespace mem
 	{
 		class MemoryManagerTest;
+		struct GlobalMemoryOperators;
 	}
 
 	class AxHandle
@@ -67,6 +68,7 @@ namespace apex {
 		// u32 m_memoryBlockIdx {};
 
 		friend class mem::MemoryManagerTest;
+		friend struct mem::GlobalMemoryOperators;
 	};
 
 	template <typename T>
@@ -84,5 +86,3 @@ namespace apex {
 			return AxHandle(sizeof(size_t) + sizeof(std::remove_extent_t<T>) * size);
 	}
 }
-
-#define apex_new(TYPE) new (apex::make_handle<TYPE>()) TYPE

@@ -1,5 +1,4 @@
 ﻿#include <cstdio>
-#include <Memory/AxManagedClass.h>
 #include <gtest/gtest.h>
 
 #include <Core/Logging.h>
