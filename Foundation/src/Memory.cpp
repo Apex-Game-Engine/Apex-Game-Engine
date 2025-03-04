@@ -11,6 +11,8 @@ namespace apex::mem {
 
 	void GlobalMemoryOperators::OperatorDelete(void* ptr) noexcept
 	{
+		if (ptr == nullptr)
+			return;
 		if (!MemoryManager::checkManaged(ptr))
 		{
 		#ifndef APEX_ENABLE_TESTS
@@ -60,6 +62,10 @@ void* operator new(size_t size, apex::AxHandle handle, const char* func, const c
 	return apex::mem::GlobalMemoryOperators::OperatorNew(size, handle);
 }
 
+void* operator new[](size_t size, apex::AxHandle handle, const char* func, const char* file, uint32_t line)
+{
+	return apex::mem::GlobalMemoryOperators::OperatorNew(size, handle);
+}
 
 #ifndef APEX_ENABLE_TESTS
 void* operator new(size_t size)
