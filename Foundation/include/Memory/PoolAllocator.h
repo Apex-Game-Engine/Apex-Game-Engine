@@ -8,12 +8,18 @@
 namespace apex {
 namespace mem {
 
-	class PoolAllocator : public IMemoryTracker
+	class PoolAllocator
 	{
 	public:
 		PoolAllocator() = default;
 		PoolAllocator(void* p_begin, size_t size, u32 block_size);
 		~PoolAllocator() = default;
+
+		PoolAllocator(const PoolAllocator& a) = delete;
+		PoolAllocator& operator=(const PoolAllocator& a) = delete;
+
+		PoolAllocator(PoolAllocator&& a) = default;
+		PoolAllocator& operator=(PoolAllocator&& a) = default;
 
 		void initialize(void* p_begin, size_t size, u32 block_size);
 		void reset(); // Potentially EXPENSIVE operation !
@@ -29,9 +35,6 @@ namespace mem {
 
 		bool containsPointer(void* mem) const { return mem >= m_pBase && mem < static_cast<u8*>(m_pBase) + m_numTotalBlocks * m_blockSize; }
 		bool checkManaged(void* mem) const { return containsPointer(mem) && (reinterpret_cast<intptr_t>(mem) - reinterpret_cast<intptr_t>(m_pBase)) % m_blockSize == 0; }
-		
-		[[nodiscard]] size_t getTotalCapacity() const override { return static_cast<size_t>(m_blockSize) * m_numTotalBlocks; }
-		[[nodiscard]] size_t getCurrentUsage() const override { return static_cast<size_t>(m_blockSize) * (m_numTotalBlocks - m_numFreeBlocks); }
 
 	private:
 		void *m_pBase { nullptr };

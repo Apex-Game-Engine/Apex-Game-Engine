@@ -98,7 +98,7 @@ void* operator new[](size_t size, const char* func, const char* file, uint32_t l
 
 #if APEX_TRACK_ALLOCATIONS
 
-#define apex_new(TYPE)    new (apex::make_handle<TYPE>(), __PRETTY_FUNCTION__, __FILE__, __LINE__) TYPE
+#define apex_new(TYPE)    new (apex::make_handle<TYPE>(), __FUNCTION__, __FILE__, __LINE__) TYPE
 
 #else
 
