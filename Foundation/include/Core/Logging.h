@@ -1,9 +1,8 @@
 ﻿#pragma once
 
-#include <vector>
-
 #include "Core/Types.h"
 #include "Concurrency/Concurrency.h"
+#include "Formatting.h"
 
 namespace apex
 {
@@ -70,7 +69,7 @@ namespace logging {
 
 	struct ConsoleSink : public ISink
 	{
-		virtual void log(const LogMsg& log_msg) override;
+		void log(const LogMsg& log_msg) override;
 
 		Console* console;
 	};
@@ -92,7 +91,7 @@ namespace logging {
 
 	struct IRingBufferSink : public ISink
 	{
-		virtual void log(const LogMsg& log_msg) override;
+		void log(const LogMsg& log_msg) override;
 	};
 	using RingBufferSink_st = IRingBufferSink;
 
@@ -112,10 +111,14 @@ namespace logging {
 		Lock_t m_lock;
 	};
 
-}
-}
+	inline bool LogVerifyFailedError(const char *file, const char *funcsig, apex::u32 lineno, const char *msg)
+	{
+		Logger::get().log(LogLevel::Error, file, funcsig, lineno, msg); DEBUG_BREAK();
+		return false;
+	}
 
-#include "Formatting.h"
+}
+}
 
 #define axLogLevel(level, file, funcsig, lineno, msg)          apex::logging::Logger::get().log(level, file, funcsig, lineno, msg)
 #define axLogLevelFmt(level, file, funcsig, lineno, _fmt, ...) axLogLevel(level, file, funcsig, lineno, apex::format(_fmt, ##__VA_ARGS__).data())
@@ -133,3 +136,6 @@ namespace logging {
 #define axWarnFmt(_fmt, ...)     axLogLevelFmt(apex::logging::LogLevel::Warn, __FILE__, __FUNCTION__, __LINE__, _fmt, ##__VA_ARGS__)
 #define axErrorFmt(_fmt, ...)    (axLogLevelFmt(apex::logging::LogLevel::Error, __FILE__, __FUNCTION__, __LINE__, _fmt, ##__VA_ARGS__), DEBUG_BREAK())
 #define axCriticalFmt(_fmt, ...) (axLogLevelFmt(apex::logging::LogLevel::Critical, __FILE__, __FUNCTION__, __LINE__, _fmt, ##__VA_ARGS__), DEBUG_BREAK())
+
+#define axVerifyFailedError(msg)          (apex::logging::LogVerifyFailedError(__FILE__, __FUNCTION__, __LINE__, msg))
+#define axVerifyFailedErrorFmt(_fmt, ...) (apex::logging::LogVerifyFailedError(__FILE__, __FUNCTION__, __LINE__, apex::format(_fmt, ##__VA_ARGS__).data()))

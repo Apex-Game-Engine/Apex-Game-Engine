@@ -41,6 +41,7 @@ namespace apex {
 		void Open(const char* filename, FileAccessMode mode = FileAccessMode::eRead);
 
 		AxArray<char> Read();
+		void Read(AxArray<char>& buf);
 
 	private:
 		FileHandle m_handle {};
