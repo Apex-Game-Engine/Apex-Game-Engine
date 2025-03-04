@@ -3,6 +3,7 @@
 #include "Core/TypeTraits.h"
 #include "Core/Utility.h"
 #include "Memory/AxHandle.h"
+#include "Memory/MemoryManager.h"
 #include "Memory/UniquePtr.h"
 
 namespace apex {
@@ -100,7 +101,7 @@ namespace apex {
 		~AxBaseArray()
 		{
 			DestroyAll();
-			delete m_data;
+			Deallocate();
 		}
 
 		AxBaseArray& operator=(AxBaseArray&& other) noexcept
@@ -229,9 +230,10 @@ namespace apex {
 
 		void reset()
 		{
+			DestroyAll();
+			Deallocate();
 			m_capacity = 0;
 			m_size = 0;
-			DestroyAll();
 		}
 
 		void clear()
@@ -240,7 +242,7 @@ namespace apex {
 			DestroyAll();
 		}
 
-		[[nodiscard]] auto data() -> pointer              { return m_data; }
+		[[nodiscard]] auto data() -> pointer              { return reinterpret_cast<ElemType*>(m_data); }
 		[[nodiscard]] auto data() const -> const_pointer  { return const_cast<AxBaseArray*>(this)->data(); }
 		[[nodiscard]] auto dataMutable() const -> pointer { return const_cast<AxBaseArray*>(this)->data(); }
 
@@ -278,21 +280,28 @@ namespace apex {
 
 		void Allocate(size_t capacity, size_t init_size)
 		{
-			AxHandle newHandle (sizeof(value_type) * capacity);
-			//AxHandle newHandle = apex::make_handle<value_type[]>(capacity);
-			SetDataHandle(newHandle, init_size);
+			AxHandle handle = mem::MemoryManager::allocate(sizeof(T) * capacity);
+			m_capacity = handle.getBlockSize() / sizeof(T);
+			m_size = init_size;
+			m_data = handle.getAs<ElemType>();
+		}
+
+		void Deallocate()
+		{
+			mem::MemoryManager::free(m_data);
+			m_data = nullptr;
 		}
 
 		void ReallocateAndMove(size_t new_capacity)
 		{
-			auto oldData = m_data;
+			auto oldData = (T*)m_data;
 			auto oldSize = m_size;
 			auto oldCapacity = m_capacity;
 
 			Allocate(new_capacity, oldSize);
 
 			if (oldSize > 0)
-				apex::memmove_s<T>(m_data, m_capacity, oldData, oldSize);
+				apex::memmove_s<T>((T*)m_data, m_capacity, oldData, oldSize);
 
 			delete oldData;
 		}
@@ -331,13 +340,6 @@ namespace apex {
 			{
 				ConstructInPlace(ptr, std::forward<Args>(args)...);
 			}
-		}
-
-		void SetDataHandle(AxHandle& handle, size_t init_size)
-		{
-			m_capacity = handle.getBlockSize() / sizeof(value_type);
-			m_size = init_size;
-			m_data = handle.getAs<ElemType>();
 		}
 
 	protected:
@@ -379,13 +381,13 @@ namespace apex {
 	template <typename T>
 	struct AxArrayRef
 	{
-		T* data {};
+		T* _data {};
 		size_t count {};
 
 		[[nodiscard]] auto operator[](size_t index) -> T&
 		{
 			axAssert(index < count);
-			return data[index];
+			return _data[index];
 		}
 
 		[[nodiscard]] auto operator[](size_t index) const -> T const&
@@ -393,23 +395,26 @@ namespace apex {
 			return const_cast<AxArrayRef* const>(this)->operator[](index);
 		}
 
+		[[nodiscard]] auto data() -> T* { return _data; }
+		[[nodiscard]] auto data() const -> T const* { return _data; }
+
 		[[nodiscard]] auto size() const -> size_t { return count; }
 
-		[[nodiscard]] auto begin() -> T* { return data; }
-		[[nodiscard]] auto end() -> T* { return data + count; }
+		[[nodiscard]] auto begin() -> T* { return _data; }
+		[[nodiscard]] auto end() -> T* { return _data + count; }
 
-		[[nodiscard]] auto begin() const -> T const* { return data; }
-		[[nodiscard]] auto end() const -> T const* { return data + count; }
+		[[nodiscard]] auto begin() const -> T const* { return _data; }
+		[[nodiscard]] auto end() const -> T const* { return _data + count; }
 
-		[[nodiscard]] auto cbegin() const -> T const* { return data; }
-		[[nodiscard]] auto cend() const -> T const* { return data + count; }
+		[[nodiscard]] auto cbegin() const -> T const* { return _data; }
+		[[nodiscard]] auto cend() const -> T const* { return _data + count; }
 	};
 
 	template <typename T>
 	auto make_array_ref(void* data, size_t count) -> AxArrayRef<T>
 	{
 		AxArrayRef<T> ref;
-		ref.data = static_cast<T*>(data);
+		ref._data = static_cast<T*>(data);
 		ref.count = count;
 		return ref;
 	}
@@ -418,7 +423,7 @@ namespace apex {
 	auto make_array_ref(T const(&arr)[Size]) -> AxArrayRef<const T>
 	{
 		AxArrayRef<const T> ref;
-		ref.data = arr;
+		ref._data = arr;
 		ref.count = Size;
 		return ref;
 	}
@@ -427,8 +432,26 @@ namespace apex {
 	auto make_array_ref(T (&arr)[Size]) -> AxArrayRef<T>
 	{
 		AxArrayRef<T> ref;
-		ref.data = arr;
+		ref._data = arr;
 		ref.count = Size;
+		return ref;
+	}
+
+	template <typename T>
+	auto make_array_ref(AxArray<T>& arr) -> AxArrayRef<T>
+	{
+		AxArrayRef<T> ref;
+		ref._data = arr.data();
+		ref.count = arr.size();
+		return ref;
+	}
+
+	template <typename T>
+	auto make_array_ref(AxArray<T> const& arr) -> AxArrayRef<const T>
+	{
+		AxArrayRef<const T> ref;
+		ref._data = arr.data();
+		ref.count = arr.size();
 		return ref;
 	}
 
@@ -441,12 +464,12 @@ namespace apex {
 	template <typename T, size_t Size>
 	struct AxStaticArray
 	{
-		T data[Size];
+		T m_data[Size];
 
 		[[nodiscard]] auto operator[](size_t index) -> T&
 		{
 			axAssert(index < Size);
-			return data[index];
+			return m_data[index];
 		}
 
 		[[nodiscard]] auto operator[](size_t index) const -> T const&
@@ -456,23 +479,44 @@ namespace apex {
 
 		[[nodiscard]] auto size() const -> size_t { return Size; }
 
-		[[nodiscard]] auto begin() -> T* { return data; }
-		[[nodiscard]] auto end() -> T* { return data + Size; }
+		[[nodiscard]] auto data() -> T* { return m_data; }
+		[[nodiscard]] auto data() const -> T const* { return m_data; }
 
-		[[nodiscard]] auto begin() const -> T const* { return data; }
-		[[nodiscard]] auto end() const -> T const* { return data + Size; }
+		[[nodiscard]] auto begin() -> T* { return m_data; }
+		[[nodiscard]] auto end() -> T* { return m_data + Size; }
 
-		[[nodiscard]] auto cbegin() const -> T const* { return data; }
-		[[nodiscard]] auto cend() const -> T const* { return data + Size; }
+		[[nodiscard]] auto begin() const -> T const* { return m_data; }
+		[[nodiscard]] auto end() const -> T const* { return m_data + Size; }
+
+		[[nodiscard]] auto cbegin() const -> T const* { return m_data; }
+		[[nodiscard]] auto cend() const -> T const* { return m_data + Size; }
 
 		[[nodiscard]] auto getRef() -> AxArrayRef<T>
 		{
-			return make_array_ref(data, Size);
+			return make_array_ref(m_data, Size);
 		}
 
 		[[nodiscard]] auto getRef() const -> AxArrayRef<const T>
 		{
-			return make_array_ref(data, Size);
+			return make_array_ref(m_data, Size);
 		}
 	};
+
+	template <typename T, size_t Size>
+	auto make_array_ref(AxStaticArray<T, Size>& arr) -> AxArrayRef<T>
+	{
+		AxArrayRef<T> ref;
+		ref._data = arr.data();
+		ref.count = arr.size();
+		return ref;
+	}
+
+	template <typename T, size_t Size>
+	auto make_array_ref(AxStaticArray<T, Size> const& arr) -> AxArrayRef<const T>
+	{
+		AxArrayRef<const T> ref;
+		ref._data = arr.data();
+		ref.count = arr.size();
+		return ref;
+	}
 }
