@@ -76,7 +76,7 @@ TEST_F(TestGraphics, TestVertexAxArrayConvertToFloatAxArray)
 
 	EXPECT_EQ(sizeof(VertexArray::stored_type), 28);
 
-	apex::AxArrayRef<float> varr { .data = reinterpret_cast<float*>(vertices.data()), .count = vertices[0].size() * vertices.size() };
+	apex::AxArrayRef<float> varr { ._data = reinterpret_cast<float*>(vertices.data()), .count = vertices[0].size() * vertices.size() };
 
 	EXPECT_FLOAT_EQ(varr[0], -0.5f);
 	EXPECT_FLOAT_EQ(varr[1], -0.5f);
