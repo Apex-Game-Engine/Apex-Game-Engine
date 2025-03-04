@@ -16,5 +16,10 @@ target_link_libraries(Graphics_test
     Graphics
 )
 
+target_include_directories(Graphics_test
+    PRIVATE
+    "${APEX_CMAKE_EXTERNAL_LIBS_DIR}/tinyobjloader-c"
+)
+
 #include(GoogleTest)
 #gtest_discover_tests(Startup_test)
