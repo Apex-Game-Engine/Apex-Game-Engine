@@ -18,9 +18,9 @@ namespace gfx {
 		constexpr Flags(Flags const& flags) = default;
 		constexpr explicit Flags(MaskType mask) : mask(mask) {}
 
-		constexpr Flags operator & (Flags other) { return Flags(mask & other.mask); }
-		constexpr Flags operator | (Flags other) { return Flags(mask | other.mask); }
-		constexpr Flags operator ^ (Flags other) { return Flags(mask ^ other.mask); }
+		constexpr Flags operator & (Flags other) const { return Flags(mask & other.mask); }
+		constexpr Flags operator | (Flags other) const { return Flags(mask | other.mask); }
+		constexpr Flags operator ^ (Flags other) const { return Flags(mask ^ other.mask); }
 
 		constexpr Flags& operator &= (Flags other) { mask &= other.mask; return *this; }
 		constexpr Flags& operator |= (Flags other) { mask |= other.mask; return *this; }
@@ -75,6 +75,19 @@ namespace gfx {
 	using BufferUsageFlags = Flags<BufferUsageFlagBits>;
 	DEFINE_BITWISE_OPERATORS(BufferUsageFlagBits, BufferUsageFlags);
 
+	enum class ImageUsageFlagBits : u16
+	{
+		TransferSrc = 0x00000001,
+		TransferDst = 0x00000002,
+		Sampled = 0x00000004,
+		Storage = 0x00000008,
+		ColorAttachment = 0x00000010,
+		DepthStencilAttachment = 0x00000020,
+		TransientAttachment = 0x00000040,
+		InputAttachment = 0x00000080,
+	};
+	using ImageUsageFlags = Flags<ImageUsageFlagBits>;
+	DEFINE_BITWISE_OPERATORS(ImageUsageFlagBits, ImageUsageFlags);
 
 	enum class ImageLayout : u32
 	{
@@ -87,6 +100,58 @@ namespace gfx {
 	    TransferSrcOptimal = 6,
 	    TransferDstOptimal = 7,
 		PresentSrcOptimal = 8,
+	};
+
+	enum class ImageType : u32
+	{
+		Image1D,
+		Image2D,
+		Image3D,
+		ImageCube,
+		Image1DArray,
+		Image2DArray,
+		ImageCubeArray,
+	};
+
+	enum class ImageFormat : u32
+	{
+		UNDEFINED,
+		R8_UNORM,
+		R8_SNORM,
+		R8_UINT,
+		R8_SINT,
+		R8_SRGB,
+		R8G8_UNORM,
+		R8G8_SNORM,
+		R8G8_UINT,
+		R8G8_SINT,
+		R8G8_SRGB,
+		R8G8B8_UNORM,
+		R8G8B8_SNORM,
+		R8G8B8_UINT,
+		R8G8B8_SINT,
+		R8G8B8_SRGB,
+		B8G8R8_UNORM,
+		B8G8R8_SNORM,
+		B8G8R8_UINT,
+		B8G8R8_SINT,
+		B8G8R8_SRGB,
+		R8G8B8A8_UNORM,
+		R8G8B8A8_SNORM,
+		R8G8B8A8_UINT,
+		R8G8B8A8_SINT,
+		R8G8B8A8_SRGB,
+		B8G8R8A8_UNORM,
+		B8G8R8A8_SNORM,
+		B8G8R8A8_UINT,
+		B8G8R8A8_SINT,
+		B8G8R8A8_SRGB,
+		
+		D16_UNORM,
+	    D32_SFLOAT,
+	    S8_UINT,
+	    D16_UNORM_S8_UINT,
+	    D24_UNORM_S8_UINT,
 	};
 
 	enum class AccessFlagBits : u32
@@ -111,6 +176,7 @@ namespace gfx {
 	    MemoryWrite                 = 0x00010000,
 	};
 	using AccessFlags = Flags<AccessFlagBits>;
+	DEFINE_BITWISE_OPERATORS(AccessFlagBits, AccessFlags);
 
 	enum class PipelineStageFlagBits : u32
 	{
@@ -134,46 +200,7 @@ namespace gfx {
 	    AllCommands                  = 0x00010000,
 	};
 	using PipelineStageFlags = Flags<PipelineStageFlagBits>;
-
-	struct CommandBufferCreateDesc;
-
-	struct BufferCreateDesc
-	{
-		size_t              size;
-		BufferUsageFlags    usageFlags;
-		MemoryPropertyFlags requiredFlags;
-		MemoryPropertyFlags preferredFlags;
-		MemoryAllocateFlags memoryFlags;
-		bool                createMapped;
-		u32                 alignment;
-		const void*         pInitialData;
-	};
-
-	struct ImageCreateDesc
-	{
-		MemoryPropertyFlags requiredFlags;
-		MemoryPropertyFlags preferredFlags;
-		MemoryAllocateFlags memoryFlags;
-		bool                createMapped;
-		const void*         pInitialData;
-	};
-
-	struct GraphicsPipelineShaderStagesDesc
-	{
-		ShaderModule* vertexShader;
-		ShaderModule* fragmentShader;
-		// TODO: Add other shader stages as required
-	};
-
-	struct GraphicsPipelineCreateDesc
-	{
-		GraphicsPipelineShaderStagesDesc shaderStages;
-	};
-
-	struct ComputePipelineCreateDesc
-	{
-		
-	};
+	DEFINE_BITWISE_OPERATORS(PipelineStageFlagBits, PipelineStageFlags);
 
 	struct Viewport
 	{
@@ -195,9 +222,66 @@ namespace gfx {
 
 	struct Dim2D
 	{
-		u32 width;
-		u32 height;
+		u32 width {1};
+		u32 height {1};
 	};
+
+	struct Dim3D
+	{
+		u32 width {1};
+		u32 height {1};
+		u32 depth {1};
+	};
+
+	struct CommandBufferCreateDesc;
+
+	struct BufferCreateDesc
+	{
+		size_t              size;
+		BufferUsageFlags    usageFlags;
+		MemoryPropertyFlags requiredFlags;
+		MemoryPropertyFlags preferredFlags;
+		MemoryAllocateFlags memoryFlags;
+		bool                createMapped;
+		u32                 alignment;
+		const void*         pInitialData;
+	};
+
+	struct ImageCreateDesc
+	{
+		ImageType           imageType;
+		ImageFormat         format;
+		ImageUsageFlags     usageFlags;
+		Dim3D               dimensions;
+		MemoryPropertyFlags requiredFlags;
+		MemoryPropertyFlags preferredFlags;
+		MemoryAllocateFlags memoryFlags;
+		bool                createMapped;
+		const void*         pInitialData;
+	};
+
+	struct ImageViewCreateDesc
+	{
+		
+	};
+
+	struct GraphicsPipelineShaderStagesDesc
+	{
+		ShaderModule* vertexShader;
+		ShaderModule* fragmentShader;
+		// TODO: Add other shader stages as required
+	};
+
+	struct GraphicsPipelineCreateDesc
+	{
+		GraphicsPipelineShaderStagesDesc shaderStages;
+	};
+
+	struct ComputePipelineCreateDesc
+	{
+		
+	};
+
 
 } // namespace gfx
 } // namespace apex

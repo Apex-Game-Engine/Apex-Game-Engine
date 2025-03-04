@@ -1,6 +1,7 @@
 #include "Graphics/GraphicsContext.h"
 
 #include "Graphics/Vulkan/VulkanContext.h"
+#include "Memory/MemoryManager.h"
 
 namespace apex::gfx {
 
@@ -14,8 +15,7 @@ namespace apex::gfx {
 			break;
 		case ContextApi::Vulkan:
 		{
-			AxHandle handle = apex::make_handle<VulkanContext>();
-			instance = new (handle) VulkanContext;
+			instance = apex_new(VulkanContext);
 			break;
 		}
 		case ContextApi::D3D12:

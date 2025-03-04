@@ -9,6 +9,7 @@ file(GLOB_RECURSE SHADER_FILES
         shaders/*.comp
         shaders/*.glsl
 )
+file(GLOB_RECURSE SHADER_INCLUDES shaders/*.glh)
 
 message(CHECK_START "Finding glslc")
 
@@ -25,13 +26,8 @@ group_header_files(${HEADER_FILES})
 group_source_files(${SOURCE_FILES})
 group_shader_files(${SHADER_FILES})
 
-add_library(Graphics STATIC)
-
-target_sources(Graphics
-    PUBLIC
+add_library(Graphics STATIC
     ${HEADER_FILES}
-
-    PRIVATE
     ${SOURCE_FILES}
     ${APEX_CMAKE_EXTERNAL_LIBS_DIR}/SPIRV-Reflect/spirv_reflect.c
 )
@@ -77,11 +73,14 @@ add_custom_target(Shaders ALL)
 target_sources(Shaders
     PRIVATE
     ${SHADER_FILES}
+    ${SHADER_INCLUDES}
 )
 
 target_vulkan_shaders(ShaderBinaries
     SOURCES
     ${SHADER_FILES}
+    INCLUDES
+    ${SHADER_INCLUDES}
 )
 
 

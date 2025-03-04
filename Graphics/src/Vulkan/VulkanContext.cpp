@@ -6,8 +6,8 @@
 #include "Core/Asserts.h"
 #include "Core/Files.h"
 #include "Memory/AxHandle.h"
-#include "Memory/AxManagedClass.h"
 #include "Graphics/Factory.h"
+#include "Memory/MemoryManager.h"
 
 namespace apex::gfx {
 
@@ -16,7 +16,6 @@ namespace apex::gfx {
 		PFN_vkCreateDebugUtilsMessengerEXT CreateDebugUtilsMessengerEXT;
 		PFN_vkDestroyDebugUtilsMessengerEXT DestroyDebugUtilsMessengerEXT;
 		PFN_vkSetDebugUtilsObjectNameEXT SetDebugUtilsObjectNameEXT;
-
 	}
 
 	struct VulkanSwapchainSupportDetails
@@ -26,7 +25,7 @@ namespace apex::gfx {
 		AxArray<VkPresentModeKHR> presentModes;
 	};
 
-	class VulkanContextImpl : public AxManagedClass
+	class VulkanContextImpl
 	{
 		friend class VulkanContext;
 
@@ -41,7 +40,7 @@ namespace apex::gfx {
 	#if APEX_PLATFORM_WIN32
 		void CreateSurface(HINSTANCE hinstance, HWND hwnd);
 	#endif
-		VkPhysicalDevice SelectPhysicalDevice() const;
+		VkPhysicalDevice SelectPhysicalDevice(VulkanPhysicalDeviceFeatures const& required_device_features) const;
 
 		bool ResizeWindow(u32 width, u32 height) const;
 
@@ -132,24 +131,17 @@ namespace apex::gfx {
 			&& device_properties.properties.properties.apiVersion >= VK_API_VERSION_1_3;
 	}
 
-	static AxArrayRef<const VkBool32> GetFeaturesArray(VkPhysicalDeviceFeatures const& features)
+	template <typename Features>
+	AxArrayRef<const VkBool32> GetFeaturesArray(Features const& features)
 	{
-		return { .data = &features.robustBufferAccess, .count = (sizeof(VkPhysicalDeviceFeatures) - offsetof(VkPhysicalDeviceFeatures, robustBufferAccess)) / sizeof(VkBool32) };
+		const size_t offset = offsetof(Features, pNext) + sizeof(void*);
+		return { ._data = reinterpret_cast<const VkBool32*>(reinterpret_cast<const char*>(&features) + offset), .count = (sizeof(Features) - offset) / sizeof(VkBool32) };
 	}
 
-	static AxArrayRef<const VkBool32> GetFeaturesArray(VkPhysicalDeviceVulkan11Features const& features)
+	template <>
+	AxArrayRef<const VkBool32> GetFeaturesArray(VkPhysicalDeviceFeatures const& features)
 	{
-		return { .data = &features.storageBuffer16BitAccess, .count = (sizeof(VkPhysicalDeviceVulkan11Features) - offsetof(VkPhysicalDeviceVulkan11Features, storageBuffer16BitAccess)) / sizeof(VkBool32) };
-	}
-
-	static AxArrayRef<const VkBool32> GetFeaturesArray(VkPhysicalDeviceVulkan12Features const& features)
-	{
-		return { .data = &features.samplerMirrorClampToEdge, .count = (sizeof(VkPhysicalDeviceVulkan12Features) - offsetof(VkPhysicalDeviceVulkan12Features, samplerMirrorClampToEdge)) / sizeof(VkBool32) };
-	}
-
-	static AxArrayRef<const VkBool32> GetFeaturesArray(VkPhysicalDeviceVulkan13Features const& features)
-	{
-		return { .data = &features.robustImageAccess, .count = (sizeof(VkPhysicalDeviceVulkan13Features) - offsetof(VkPhysicalDeviceVulkan13Features, robustImageAccess)) / sizeof(VkBool32) };
+		return { ._data = &features.robustBufferAccess, .count = (sizeof(VkPhysicalDeviceFeatures) - offsetof(VkPhysicalDeviceFeatures, robustBufferAccess)) / sizeof(VkBool32) };
 	}
 
 	static bool CheckFeaturesArray(AxArrayRef<const VkBool32> required, AxArrayRef<const VkBool32> actual)
@@ -179,7 +171,22 @@ namespace apex::gfx {
 		return CheckFeaturesArray(requiredFeatures10, deviceFeatures10)
 			&& CheckFeaturesArray(requiredFeatures11, deviceFeatures11)
 			&& CheckFeaturesArray(requiredFeatures12, deviceFeatures12)
-			&& CheckFeaturesArray(requiredFeatures13, deviceFeatures13);
+			&& CheckFeaturesArray(requiredFeatures13, deviceFeatures13)
+		;
+	}
+
+	template <typename Tin>
+	static const void* FindInStructureChain(VkStructureType sType, Tin const* in)
+	{
+		while (in)
+		{
+			if (in->sType == sType)
+			{
+				break;
+			}
+			in = static_cast<Tin const*>(in->pNext);
+		}
+		return in;
 	}
 
 	static bool IsPhysicalDeviceSuitable(VkPhysicalDevice physical_device, VkSurfaceKHR surface, VulkanPhysicalDeviceFeatures const& required_features)
@@ -292,6 +299,18 @@ namespace apex::gfx {
 		vkGetPhysicalDeviceSurfacePresentModesKHR(physical_device, surface, &presentModesCount, swapchain_support.presentModes.dataMutable());
 	}
 
+	static void SetObjectName(VkDevice device, VkObjectType type, void* handle, const char* name)
+	{
+		const VkDebugUtilsObjectNameInfoEXT objectNameInfo {
+			.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT,
+			.objectType = type,
+			.objectHandle = reinterpret_cast<u64>(handle),
+			.pObjectName = name,
+		};
+
+		vk::SetDebugUtilsObjectNameEXT(device, &objectNameInfo);
+	}
+
 	constexpr static VkMemoryPropertyFlags ConvertToVkMemoryPropertyFlags(MemoryPropertyFlags flags)
 	{
 		VkMemoryPropertyFlags vkFlags = 0;
@@ -382,6 +401,44 @@ namespace apex::gfx {
 		return vkFlags;
 	}
 
+	constexpr static VkImageUsageFlags ConvertToVkImageUsageFlags(ImageUsageFlags flags)
+	{
+		VkImageUsageFlags vkFlags = 0;
+		if (flags & ImageUsageFlagBits::TransferSrc)
+		{
+			vkFlags |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+		}
+		if (flags & ImageUsageFlagBits::TransferDst)
+		{
+			vkFlags |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+		}
+		if (flags & ImageUsageFlagBits::Sampled)
+		{
+			vkFlags |= VK_IMAGE_USAGE_SAMPLED_BIT;
+		}
+		if (flags & ImageUsageFlagBits::Storage)
+		{
+			vkFlags |= VK_IMAGE_USAGE_STORAGE_BIT;
+		}
+		if (flags & ImageUsageFlagBits::ColorAttachment)
+		{
+			vkFlags |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+		}
+		if (flags & ImageUsageFlagBits::DepthStencilAttachment)
+		{
+			vkFlags |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+		}
+		if (flags & ImageUsageFlagBits::TransientAttachment)
+		{
+			vkFlags |= VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT;
+		}
+		if (flags & ImageUsageFlagBits::InputAttachment)
+		{
+			vkFlags |= VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
+		}
+		return vkFlags;
+	}
+
 	constexpr static VkImageLayout ConvertToVkImageLayout(ImageLayout layout)
 	{
 		switch (layout)
@@ -400,6 +457,91 @@ namespace apex::gfx {
 	constexpr static VkPipelineStageFlags ConvertToVkPipelineStageFlags(PipelineStageFlags flags)
 	{
 		return static_cast<VkPipelineStageFlags>(flags);
+	}
+
+	constexpr static VkExtent2D ConvertToVkExtent2D(Dim2D dim)
+	{
+		return VkExtent2D { dim.width, dim.height };
+	}
+
+	constexpr static VkExtent3D ConvertToVkExtent3D(Dim3D dim)
+	{
+		return VkExtent3D { dim.width, dim.height, dim.depth };
+	}
+
+	constexpr static VkImageType ConvertToVkImageType(ImageType type)
+	{
+		switch (type)
+		{
+		case ImageType::Image1D:
+		case ImageType::Image1DArray:
+			return VK_IMAGE_TYPE_1D;
+		case ImageType::Image2D:
+		case ImageType::Image2DArray:
+		case ImageType::ImageCube:
+		case ImageType::ImageCubeArray:
+			return VK_IMAGE_TYPE_2D;
+		case ImageType::Image3D:
+			return VK_IMAGE_TYPE_3D;
+		}
+	}
+
+	constexpr static VkImageViewType  ConvertToVkImageViewType(ImageType type)
+	{
+		switch (type)
+		{
+		case ImageType::Image1D: return        VK_IMAGE_VIEW_TYPE_1D;
+		case ImageType::Image2D: return        VK_IMAGE_VIEW_TYPE_2D;
+		case ImageType::Image3D: return        VK_IMAGE_VIEW_TYPE_3D;
+		case ImageType::ImageCube: return      VK_IMAGE_VIEW_TYPE_CUBE;
+		case ImageType::Image1DArray: return   VK_IMAGE_VIEW_TYPE_1D_ARRAY;
+		case ImageType::Image2DArray: return   VK_IMAGE_VIEW_TYPE_2D_ARRAY;
+		case ImageType::ImageCubeArray: return VK_IMAGE_VIEW_TYPE_CUBE_ARRAY;
+		}
+	}
+
+	constexpr static VkFormat ConvertToVkFormat(ImageFormat format)
+	{
+		switch (format)
+		{
+		case ImageFormat::R8_UNORM:          return VK_FORMAT_R8_UNORM;
+		case ImageFormat::R8_SNORM:          return VK_FORMAT_R8_SNORM;
+		case ImageFormat::R8_UINT:           return VK_FORMAT_R8_UINT;
+		case ImageFormat::R8_SINT:           return VK_FORMAT_R8_SINT;
+		case ImageFormat::R8_SRGB:           return VK_FORMAT_R8_SRGB;
+		case ImageFormat::R8G8_UNORM:        return VK_FORMAT_R8G8_UNORM;
+		case ImageFormat::R8G8_SNORM:        return VK_FORMAT_R8G8_SNORM;
+		case ImageFormat::R8G8_UINT:         return VK_FORMAT_R8G8_UINT;
+		case ImageFormat::R8G8_SINT:         return VK_FORMAT_R8G8_SINT;
+		case ImageFormat::R8G8_SRGB:         return VK_FORMAT_R8G8_SRGB;
+		case ImageFormat::R8G8B8_UNORM:      return VK_FORMAT_R8G8B8_UNORM;
+		case ImageFormat::R8G8B8_SNORM:      return VK_FORMAT_R8G8B8_SNORM;
+		case ImageFormat::R8G8B8_UINT:       return VK_FORMAT_R8G8B8_UINT;
+		case ImageFormat::R8G8B8_SINT:       return VK_FORMAT_R8G8B8_SINT;
+		case ImageFormat::R8G8B8_SRGB:       return VK_FORMAT_R8G8B8_SRGB;
+		case ImageFormat::B8G8R8_UNORM:      return VK_FORMAT_B8G8R8_UNORM;
+		case ImageFormat::B8G8R8_SNORM:      return VK_FORMAT_B8G8R8_SNORM;
+		case ImageFormat::B8G8R8_UINT:       return VK_FORMAT_B8G8R8_UINT;
+		case ImageFormat::B8G8R8_SINT:       return VK_FORMAT_B8G8R8_SINT;
+		case ImageFormat::B8G8R8_SRGB:       return VK_FORMAT_B8G8R8_SRGB;
+		case ImageFormat::R8G8B8A8_UNORM:    return VK_FORMAT_R8G8B8A8_UNORM;
+		case ImageFormat::R8G8B8A8_SNORM:    return VK_FORMAT_R8G8B8A8_SNORM;
+		case ImageFormat::R8G8B8A8_UINT:     return VK_FORMAT_R8G8B8A8_UINT;
+		case ImageFormat::R8G8B8A8_SINT:     return VK_FORMAT_R8G8B8A8_SINT;
+		case ImageFormat::R8G8B8A8_SRGB:     return VK_FORMAT_R8G8B8A8_SRGB;
+		case ImageFormat::B8G8R8A8_UNORM:    return VK_FORMAT_B8G8R8A8_UNORM;
+		case ImageFormat::B8G8R8A8_SNORM:    return VK_FORMAT_B8G8R8A8_SNORM;
+		case ImageFormat::B8G8R8A8_UINT:     return VK_FORMAT_B8G8R8A8_UINT;
+		case ImageFormat::B8G8R8A8_SINT:     return VK_FORMAT_B8G8R8A8_SINT;
+		case ImageFormat::B8G8R8A8_SRGB:     return VK_FORMAT_B8G8R8A8_SRGB;
+		case ImageFormat::D16_UNORM:         return VK_FORMAT_D16_UNORM;
+		case ImageFormat::D32_SFLOAT:        return VK_FORMAT_D32_SFLOAT;
+		case ImageFormat::S8_UINT:           return VK_FORMAT_S8_UINT;
+		case ImageFormat::D16_UNORM_S8_UINT: return VK_FORMAT_D16_UNORM_S8_UINT;
+		case ImageFormat::D24_UNORM_S8_UINT: return VK_FORMAT_D24_UNORM_S8_UINT;
+		case ImageFormat::UNDEFINED:      ;
+		}
+		return VK_FORMAT_UNDEFINED;
 	}
 
 	constexpr static VkDescriptorType ConvertToVkDescriptorType(DescriptorType type)
@@ -571,6 +713,23 @@ namespace apex::gfx {
 		return 0;
 	}
 
+	constexpr static bool IsDepthFormat(VkFormat format)
+	{
+		switch (format)
+		{
+		case VK_FORMAT_D16_UNORM:
+		case VK_FORMAT_X8_D24_UNORM_PACK32:
+		case VK_FORMAT_D32_SFLOAT:
+		case VK_FORMAT_S8_UINT:
+		case VK_FORMAT_D16_UNORM_S8_UINT:
+		case VK_FORMAT_D24_UNORM_S8_UINT:
+		case VK_FORMAT_D32_SFLOAT_S8_UINT:
+			return true;
+		default: ;
+		}
+		return false;
+	}
+
 	static void PopulateVertexInputBindingDescriptionFromSpirv(SpvReflectShaderModule const& reflect, VkVertexInputBindingDescription& out_vertex_binding, AxArray<VkVertexInputAttributeDescription>& out_vertex_attributes)
 	{
 		out_vertex_binding = {
@@ -609,12 +768,13 @@ namespace apex::gfx {
 		}
 	}
 
-	VulkanDevice::VulkanDevice(VulkanContextImpl& context, VkPhysicalDevice physical_device)
+	VulkanDevice::VulkanDevice(VulkanContextImpl& context, VkPhysicalDevice physical_device, VulkanPhysicalDeviceFeatures const& enabled_device_features)
 	{
 		m_physicalDevice = physical_device;
 
 		// Store physical device properties
-		m_physicalDeviceProperties.SetupChain();
+		VkPhysicalDeviceDescriptorIndexingProperties descriptorIndexingProperties { .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_PROPERTIES };
+		m_physicalDeviceProperties.SetupChain(&descriptorIndexingProperties);
 		vkGetPhysicalDeviceProperties2(m_physicalDevice, &m_physicalDeviceProperties.properties);
 
 		// Store physical device features
@@ -661,7 +821,7 @@ namespace apex::gfx {
 
 		const VkDeviceCreateInfo deviceCreateInfo {
 			.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
-			.pNext = &m_physicalDeviceFeatures.features,
+			.pNext = &enabled_device_features,
 			.queueCreateInfoCount = numQueues,
 			.pQueueCreateInfos = queueCreateInfos,
 			.enabledLayerCount = 1,
@@ -691,27 +851,19 @@ namespace apex::gfx {
 					"Failed to create Vulkan Memory Allocator!"
 		);
 
-		const VkDescriptorPoolSize poolSizes[] = {
-			{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 2 },
-			{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 2 },
-			{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 2 },
-		};
-
-		const VkDescriptorPoolCreateInfo descriptorPoolCreateInfo {
-			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
-			.flags = 0, //VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT,
-			.maxSets = 16,
-			.poolSizeCount = std::size(poolSizes),
-			.pPoolSizes = poolSizes,
-		};
-
-		axVerifyFmt(VK_SUCCESS == vkCreateDescriptorPool(m_logicalDevice, &descriptorPoolCreateInfo, VK_NULL_HANDLE, &m_descriptorPool),
-			"Failed to create descriptor pool!"
-		);
+		CreateBindlessDescriptorResources();
 	}
 
 	VulkanDevice::~VulkanDevice()
 	{
+		vkDestroySampler(m_logicalDevice, m_defaultNearestSampler, VK_NULL_HANDLE);
+	#if GFX_USE_BINDLESS_DESCRIPTORS
+		vkDestroyPipelineLayout(m_logicalDevice, m_bindlessPipelineLayout, VK_NULL_HANDLE);
+		for (VkDescriptorSetLayout descriptorSetLayout : m_bindlessDescriptorSetLayouts)
+		{
+			vkDestroyDescriptorSetLayout(m_logicalDevice, descriptorSetLayout, VK_NULL_HANDLE);
+		}
+	#endif
 		vkDestroyDescriptorPool(m_logicalDevice, m_descriptorPool, VK_NULL_HANDLE);
 		DestroyPerFrameData();
 		DestroySwapchain();
@@ -890,6 +1042,9 @@ namespace apex::gfx {
 
 	AxArray<DescriptorSet> VulkanDevice::AllocateDescriptorSets(GraphicsPipeline* pipeline) const
 	{
+	#if GFX_USE_BINDLESS_DESCRIPTORS
+		return {};
+	#else
 		const VulkanGraphicsPipeline* vkpipeline = static_cast<VulkanGraphicsPipeline*>(pipeline);
 
 		const VkDescriptorSetAllocateInfo allocateInfo {
@@ -910,6 +1065,7 @@ namespace apex::gfx {
 		}
 
 		return descriptorSets;
+	#endif
 	}
 
 	void VulkanDevice::UpdateDescriptorSet(DescriptorSet const& descriptor_set) const
@@ -1072,7 +1228,15 @@ namespace apex::gfx {
 
 		const VkPipelineDepthStencilStateCreateInfo depthStencilStateCreateInfo {
 			.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
-			.depthCompareOp = VK_COMPARE_OP_ALWAYS,
+			.depthTestEnable = VK_TRUE,
+			.depthWriteEnable = VK_TRUE,
+			.depthCompareOp = VK_COMPARE_OP_GREATER_OR_EQUAL,
+			.depthBoundsTestEnable = VK_FALSE,
+			.stencilTestEnable = VK_FALSE,
+			.front = {},
+			.back = {},
+			.minDepthBounds = 0.f,
+			.maxDepthBounds = 1.f,
 		};
 
 		const VkPipelineColorBlendAttachmentState colorBlendAttachment {
@@ -1103,16 +1267,29 @@ namespace apex::gfx {
 			.pDynamicStates = dynamicStates,
 		};
 
+	#if GFX_USE_BINDLESS_DESCRIPTORS
+		VkPipelineLayout pipelineLayout = m_bindlessPipelineLayout;
+	#else
 		AxArray<VkDescriptorSetLayout> descriptorSetLayouts;
-		descriptorSetLayouts.reserve(vertexModule->m_reflect.descriptor_set_count + fragmentModule->m_reflect.descriptor_set_count);
+		descriptorSetLayouts.reserve(1 + vertexModule->m_reflect.descriptor_set_count + fragmentModule->m_reflect.descriptor_set_count);
 		for (u32 i = 0; i < vertexModule->m_reflect.descriptor_set_count; i++)
 		{
-			descriptorSetLayouts.append(CreateDescriptorSetLayoutFromShader(vertexModule, i));
+			if (vertexModule->m_reflect.descriptor_sets[i].set == 0)
+				continue;
+
+			if (VkDescriptorSetLayout layout = CreateDescriptorSetLayoutFromShader(vertexModule, i))
+				descriptorSetLayouts.append(layout);
 		}
 		for (u32 i = 0; i < fragmentModule->m_reflect.descriptor_set_count; i++)
 		{
-			descriptorSetLayouts.append(CreateDescriptorSetLayoutFromShader(fragmentModule, i));
+			if (fragmentModule->m_reflect.descriptor_sets[i].set == 0)
+				continue;
+
+			if (VkDescriptorSetLayout layout = CreateDescriptorSetLayoutFromShader(fragmentModule, i))
+				descriptorSetLayouts.append(layout);
 		}
+
+		axDebugFmt("Pipeline {}: # descriptor sets : {}", name, descriptorSetLayouts.size());
 
 		AxArray<VkPushConstantRange> pushConstantRanges;
 		pushConstantRanges.reserve(vertexModule->m_reflect.push_constant_block_count + fragmentModule->m_reflect.push_constant_block_count);
@@ -1138,12 +1315,14 @@ namespace apex::gfx {
 		axVerifyFmt(VK_SUCCESS == vkCreatePipelineLayout(m_logicalDevice, &layoutCreateInfo, VK_NULL_HANDLE, &pipelineLayout),
 			"Failed to create pipeline layout!"
 		);
+	#endif // GFX_USE_BINDLESS_DESCRIPTORS
 
 		const VkPipelineRenderingCreateInfo pipelineRenderingCreateInfo {
 			.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
 			// TODO: Change this to use the user defined attachments
 			.colorAttachmentCount = 1,
 			.pColorAttachmentFormats = &m_swapchain.surfaceFormat.format,
+			.depthAttachmentFormat = VK_FORMAT_D32_SFLOAT,
 		};
 
 		const VkGraphicsPipelineCreateInfo pipelineCreateInfo {
@@ -1180,10 +1359,15 @@ namespace apex::gfx {
 
 		vk::SetDebugUtilsObjectNameEXT(m_logicalDevice, &nameInfo);
 
-		return apex_new (VulkanGraphicsPipeline)(this, pipeline, pipelineLayout, descriptorSetLayouts);
+		return apex_new (VulkanGraphicsPipeline)(this, pipeline, pipelineLayout
+	#if GFX_USE_BINDLESS_DESCRIPTORS
+	#else
+			, descriptorSetLayouts
+	#endif
+			);
 	}
 
-	Buffer* VulkanDevice::CreateBuffer(const char* name, BufferCreateDesc const& desc) const
+	Buffer* VulkanDevice::CreateBuffer(const char* name, BufferCreateDesc const& desc)
 	{
 		u32 queueFamilyIndices[] = { m_queueInfos[VulkanQueueFamily::Graphics].familyIndex, m_queueInfos[VulkanQueueFamily::Transfer].familyIndex };
 
@@ -1212,7 +1396,7 @@ namespace apex::gfx {
 		axVerifyFmt(VK_SUCCESS == vmaCreateBuffer(m_allocator, &bufferCreateInfo, &allocationCreateInfo, &buffer, &allocation, &allocationInfo),
 			"Failed to create Vulkan Buffer!"
 		);
-
+		
 		const VkDebugUtilsObjectNameInfoEXT nameInfo {
 			.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT,
 			.objectType = VK_OBJECT_TYPE_BUFFER,
@@ -1222,10 +1406,40 @@ namespace apex::gfx {
 
 		vk::SetDebugUtilsObjectNameEXT(m_logicalDevice, &nameInfo);
 
+		// Add to the bindless descriptors
+		if (desc.usageFlags & (BufferUsageFlagBits::Uniform | BufferUsageFlagBits::Storage))
+		{
+			const u32 bufferIndex = static_cast<u32>(m_buffers.size());
+			m_buffers.append(buffer);
+
+			const VkDescriptorBufferInfo bufferInfo { 
+				.buffer = buffer,
+				.offset = 0,
+				.range = VK_WHOLE_SIZE,
+			};
+
+			const BindlessDescriptorType bindlessType = (desc.usageFlags & BufferUsageFlagBits::Uniform) ? BindlessDescriptorType::eUniformBuffer : BindlessDescriptorType::eStorageBuffer;
+			const VkDescriptorType descriptorType = (desc.usageFlags & BufferUsageFlagBits::Uniform) ? VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER : VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+
+			const VkWriteDescriptorSet writes[] = {
+				{
+					.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+					.dstSet = m_bindlessDescriptorSets[bindlessType],
+					.dstBinding = 0,
+					.dstArrayElement = bufferIndex,
+					.descriptorCount = 1,
+					.descriptorType = descriptorType,
+					.pBufferInfo = &bufferInfo,
+				}
+			};
+
+			vkUpdateDescriptorSets(m_logicalDevice, 1, writes, 0, nullptr);
+		}
+
 		return apex_new (VulkanBuffer)(this, buffer, allocation, allocationInfo);
 	}
 
-	Buffer* VulkanDevice::CreateVertexBuffer(const char* name, size_t size, const void* initial_data) const
+	Buffer* VulkanDevice::CreateVertexBuffer(const char* name, size_t size, const void* initial_data)
 	{
 		const BufferCreateDesc desc {
 			.size = size,
@@ -1241,7 +1455,7 @@ namespace apex::gfx {
 		return CreateBuffer(name, desc);
 	}
 
-	Buffer* VulkanDevice::CreateIndexBuffer(const char* name, size_t size, const void* initial_data) const
+	Buffer* VulkanDevice::CreateIndexBuffer(const char* name, size_t size, const void* initial_data)
 	{
 		const BufferCreateDesc desc {
 			.size = size,
@@ -1257,21 +1471,119 @@ namespace apex::gfx {
 		return CreateBuffer(name, desc);
 	}
 
-	Buffer* VulkanDevice::CreateStagingBuffer(size_t size) const
+	Buffer* VulkanDevice::CreateStagingBuffer(const char* name, size_t size)
 	{
 		const BufferCreateDesc desc {
 			.size = size,
 			.usageFlags = BufferUsageFlagBits::TransferSrc,
-			.requiredFlags = MemoryPropertyFlagBits::DeviceLocal | MemoryPropertyFlagBits::HostCoherent,
-			.preferredFlags = MemoryPropertyFlagBits::None,
+			.requiredFlags = MemoryPropertyFlagBits::HostCoherent,
+			.preferredFlags = MemoryPropertyFlagBits::DeviceLocal,
 			.memoryFlags = MemoryAllocateFlagBits::HostAccessSequential,
 			.createMapped = true,
 		};
 
-		return CreateBuffer("staging", desc);
+		return CreateBuffer(name, desc);
+	}
+
+	Image* VulkanDevice::CreateImage(const char* name, ImageCreateDesc const& desc) const
+	{
+		u32 queueFamilyIndices[] = { m_queueInfos[VulkanQueueFamily::Graphics].familyIndex, m_queueInfos[VulkanQueueFamily::Transfer].familyIndex };
+
+		const VkImageCreateInfo imageCreateInfo {
+			.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+			.flags = 0, // CUBE_COMPATIBLE_BIT for cubemap
+		    .imageType = ConvertToVkImageType(desc.imageType),
+		    .format = ConvertToVkFormat(desc.format),
+			.extent = ConvertToVkExtent3D(desc.dimensions),
+		    .mipLevels = 1,
+		    .arrayLayers = 1,
+		    .samples = VK_SAMPLE_COUNT_1_BIT,
+		    .tiling = VK_IMAGE_TILING_OPTIMAL,
+		    .usage = ConvertToVkImageUsageFlags(desc.usageFlags),
+		    .sharingMode = VK_SHARING_MODE_CONCURRENT,
+		    .queueFamilyIndexCount =  static_cast<u32>(std::size(queueFamilyIndices)),
+		    .pQueueFamilyIndices = queueFamilyIndices,
+		    .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+		};
+
+		const VmaAllocationCreateInfo allocationCreateInfo {
+			.flags = ConvertToVmaAllocationCreateFlags(desc.memoryFlags) | (~(desc.createMapped - 1) & VMA_ALLOCATION_CREATE_MAPPED_BIT),
+			.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
+			.requiredFlags = ConvertToVkMemoryPropertyFlags(desc.requiredFlags),
+			.preferredFlags = ConvertToVkMemoryPropertyFlags(desc.preferredFlags),
+			.memoryTypeBits = 0,
+		};
+
+		VkImage image;
+		VkImageView imageView;
+		VmaAllocation allocation;
+		VmaAllocationInfo allocationInfo;
+
+		axVerifyFmt(VK_SUCCESS == vmaCreateImage(m_allocator, &imageCreateInfo, &allocationCreateInfo, &image, &allocation, &allocationInfo),
+			"Failed to create Vulkan Image!"
+		);
+
+		SetObjectName(m_logicalDevice, VK_OBJECT_TYPE_IMAGE, image, name);
+
+		const VkImageViewCreateInfo imageViewCreateInfo {
+			.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+			.image = image,
+		    .viewType = ConvertToVkImageViewType(desc.imageType),
+		    .format = ConvertToVkFormat(desc.format),
+		    .components = {
+				.r = VK_COMPONENT_SWIZZLE_IDENTITY,
+				.g = VK_COMPONENT_SWIZZLE_IDENTITY,
+				.b = VK_COMPONENT_SWIZZLE_IDENTITY,
+				.a = VK_COMPONENT_SWIZZLE_IDENTITY,
+			},
+			.subresourceRange = {
+				.aspectMask = (VkImageAspectFlags)(desc.format >= ImageFormat::D16_UNORM ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT),
+				.baseMipLevel = 0,
+				.levelCount = 1,
+				.baseArrayLayer = 0,
+				.layerCount = 1,
+			},
+		};
+
+		axVerifyFmt(VK_SUCCESS == vkCreateImageView(m_logicalDevice, &imageViewCreateInfo, nullptr, &imageView),
+			"Failed to create Vulkan Image View!"
+		);
+
+		SetObjectName(m_logicalDevice, VK_OBJECT_TYPE_IMAGE_VIEW, imageView, name);
+
+		// Add to bindless descriptors
+		if (desc.usageFlags & ImageUsageFlagBits::Sampled)
+		{
+			const VkDescriptorImageInfo imageInfo { 
+				.sampler = m_defaultNearestSampler,
+				.imageView = imageView,
+				.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+			};
+
+			const VkWriteDescriptorSet writes[] = {
+				{
+					.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+					.dstSet = m_bindlessDescriptorSets[BindlessDescriptorType::eSampledImage],
+					.dstBinding = 0,
+					.dstArrayElement = 0,
+					.descriptorCount = 1,
+					.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
+					.pImageInfo = &imageInfo,
+				}
+			};
+
+			vkUpdateDescriptorSets(m_logicalDevice, 1, writes, 0, nullptr); // TODO: Buffer multiple descriptor writes and update at once
+		}
+		
+		return apex_new (VulkanImage)(this, image, imageCreateInfo, allocation, allocationInfo, imageView);
 	}
 
 	ImageView* VulkanDevice::CreateImageView(const char* name, Image const* image) const
+	{
+		return nullptr;
+	}
+
+	ImageView* VulkanDevice::CreateImageView(const char* name, ImageViewCreateDesc const& desc) const
 	{
 		return nullptr;
 	}
@@ -1286,18 +1598,24 @@ namespace apex::gfx {
 	void VulkanDevice::DestroyPipeline(GraphicsPipeline* pipeline) const
 	{
 		VulkanGraphicsPipeline* vkpipeline = static_cast<VulkanGraphicsPipeline*>(pipeline);
+	#if GFX_USE_BINDLESS_DESCRIPTORS
+	#else
 		for (VkDescriptorSetLayout& descriptorSetLayout : vkpipeline->m_descriptorSetLayouts)
 		{
 			vkDestroyDescriptorSetLayout(m_logicalDevice, descriptorSetLayout, VK_NULL_HANDLE);
 		}
 		vkDestroyPipelineLayout(m_logicalDevice, vkpipeline->m_pipelineLayout, VK_NULL_HANDLE);
+	#endif
 		vkDestroyPipeline(m_logicalDevice, vkpipeline->m_pipeline, VK_NULL_HANDLE);
 	}
 
 	void VulkanDevice::DestroyPipeline(ComputePipeline* pipeline) const
 	{
 		VulkanComputePipeline* vkpipeline = static_cast<VulkanComputePipeline*>(pipeline);
+	#if GFX_USE_BINDLESS_DESCRIPTORS
+	#else
 		vkDestroyPipelineLayout(m_logicalDevice, vkpipeline->m_pipelineLayout, VK_NULL_HANDLE);
+	#endif
 		vkDestroyPipeline(m_logicalDevice, vkpipeline->m_pipeline, VK_NULL_HANDLE);
 	}
 
@@ -1305,6 +1623,19 @@ namespace apex::gfx {
 	{
 		VulkanBuffer* vkbuffer = static_cast<VulkanBuffer*>(buffer);
 		vmaDestroyBuffer(m_allocator, vkbuffer->m_buffer, vkbuffer->m_allocation);
+	}
+
+	void VulkanDevice::DestroyImage(Image* image) const
+	{
+		VulkanImage* vkimage = static_cast<VulkanImage*>(image);
+		if (vkimage->m_allocation)
+			vmaDestroyImage(m_allocator, vkimage->m_image, vkimage->m_allocation);
+	}
+
+	void VulkanDevice::DestroyImageView(ImageView* view) const
+	{
+		VulkanImageView* vkview = static_cast<VulkanImageView*>(view);
+		vkDestroyImageView(m_logicalDevice, vkview->m_view, VK_NULL_HANDLE);
 	}
 
 	void VulkanDevice::CreateSwapchain(VkSurfaceKHR surface, u32 width, u32 height)
@@ -1403,8 +1734,7 @@ namespace apex::gfx {
 		vkGetSwapchainImagesKHR(m_logicalDevice, m_swapchain.handle, &imageCount, images.data());
 
 		// Create image views
-		AxArray<VkImageView> imageViews;
-		imageViews.resize(imageCount);
+		m_swapchainImages.reserve(imageCount);
 
 		for (u32 i = 0; i < imageCount; i++)
 		{
@@ -1428,15 +1758,13 @@ namespace apex::gfx {
 				},
 			};
 
-			axVerifyFmt(VK_SUCCESS == vkCreateImageView(m_logicalDevice, &imageViewCreateInfo, VK_NULL_HANDLE, &imageViews[i]),
+			VkImageView imageView;
+
+			axVerifyFmt(VK_SUCCESS == vkCreateImageView(m_logicalDevice, &imageViewCreateInfo, VK_NULL_HANDLE, &imageView),
 				"Failed to create swapchain image view!"
 			);
-		}
 
-		m_swapchainImages.reserve(imageCount);
-		for (u32 i = 0; i < imageCount; i++)
-		{
-			m_swapchainImages.emplace_back(this, images[i], imageViews[i]);
+			m_swapchainImages.emplace_back(this, images[i], imageView, VkExtent3D{ m_swapchain.extent.width, m_swapchain.extent.height, 1 }, m_swapchain.surfaceFormat.format);
 		}
 
 		m_swapchainImageCount = imageCount;
@@ -1446,12 +1774,189 @@ namespace apex::gfx {
 
 	void VulkanDevice::DestroySwapchain()
 	{
-		for (VulkanImage& image : m_swapchainImages)
-		{
-			vkDestroyImageView(m_logicalDevice, image.m_view->m_view, VK_NULL_HANDLE);
-		}
-		m_swapchainImages.clear();
+		m_swapchainImages.reset();
 		vkDestroySwapchainKHR(m_logicalDevice, m_swapchain.handle, VK_NULL_HANDLE);
+	}
+
+	void VulkanDevice::CreateBindlessDescriptorResources()
+	{
+		const VkPhysicalDeviceDescriptorIndexingProperties* descriptorIndexingProperties = 
+			static_cast<const VkPhysicalDeviceDescriptorIndexingProperties*>(FindInStructureChain(
+				VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_PROPERTIES,
+				&m_physicalDeviceProperties.properties));
+
+		axAssertFmt(descriptorIndexingProperties, "VkPhysicalDeviceDescriptorIndexingProperties not found in VkPhysicalDeviceProperties!");
+
+		const u32 totalSampledImageDescriptors = std::min(2048u, descriptorIndexingProperties->maxDescriptorSetUpdateAfterBindSampledImages);
+		const u32 totalUniformBufferDescriptors = std::min(2048u, descriptorIndexingProperties->maxDescriptorSetUpdateAfterBindUniformBuffers);
+		const u32 totalStorageImageDescriptors = std::min(2048u, descriptorIndexingProperties->maxDescriptorSetUpdateAfterBindStorageImages);
+		const u32 totalStorageBufferDescriptors = std::min(2048u, descriptorIndexingProperties->maxDescriptorSetUpdateAfterBindStorageBuffers);
+
+		axAssert(totalSampledImageDescriptors > 16);
+		axAssert(totalStorageImageDescriptors > 16);
+		axAssert(totalUniformBufferDescriptors > 16);
+		axAssert(totalStorageBufferDescriptors > 16);
+
+		axDebugFmt("Total Sampled Image Descriptors: {}", totalSampledImageDescriptors);
+		axDebugFmt("Total Storage Image Descriptors: {}", totalStorageImageDescriptors);
+		axDebugFmt("Total Uniform Buffer Descriptors: {}", totalUniformBufferDescriptors);
+		axDebugFmt("Total Storage Buffer Descriptors: {}", totalStorageBufferDescriptors);
+
+		const VkDescriptorPoolSize poolSizes[] = {
+			{ VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, totalSampledImageDescriptors },
+			{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, totalStorageImageDescriptors },
+			{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, totalUniformBufferDescriptors },
+			{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, totalStorageBufferDescriptors },
+			{ VK_DESCRIPTOR_TYPE_SAMPLER, 4 }, // TODO: Collect immutable samplers
+		};
+
+		const VkDescriptorPoolCreateInfo descriptorPoolCreateInfo {
+			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+			.flags = VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT, //VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT,
+			.maxSets = 16,
+			.poolSizeCount = std::size(poolSizes),
+			.pPoolSizes = poolSizes,
+		};
+
+		axVerifyFmt(VK_SUCCESS == vkCreateDescriptorPool(m_logicalDevice, &descriptorPoolCreateInfo, VK_NULL_HANDLE, &m_descriptorPool),
+			"Failed to create descriptor pool!"
+		);
+
+		{
+			const VkDescriptorBindingFlags flags {
+				VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT
+					| VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT
+					| VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT,
+			};
+
+			const VkDescriptorSetLayoutBindingFlagsCreateInfo bindingFlagsCreateInfo {
+				.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO,
+				.bindingCount = 1,
+				.pBindingFlags = &flags,
+			};
+
+			for (u32 i = 0; i < 4; i++)
+			{
+				const VkDescriptorSetLayoutBinding binding {
+					.binding = 0,
+					.descriptorType = poolSizes[i].type,
+					.descriptorCount = poolSizes[i].descriptorCount,
+					.stageFlags = VK_SHADER_STAGE_ALL,
+				};
+
+				const VkDescriptorSetLayoutCreateInfo descriptorSetLayoutCreateInfo {
+					.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+					.pNext = &bindingFlagsCreateInfo,
+					.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT,
+					.bindingCount = 1,
+					.pBindings = &binding,
+				};
+
+				axVerifyFmt(VK_SUCCESS == vkCreateDescriptorSetLayout(m_logicalDevice, &descriptorSetLayoutCreateInfo, VK_NULL_HANDLE, &m_bindlessDescriptorSetLayouts[i]),
+					"Failed to create bindless descriptor set layout!"
+				);
+			}
+
+			// Create Immutable samplers
+			{
+				const VkSamplerCreateInfo samplerCreateInfo {
+					.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
+					.magFilter = VK_FILTER_NEAREST,
+					.minFilter = VK_FILTER_NEAREST,
+				};
+
+				axVerifyFmt(VK_SUCCESS == vkCreateSampler(m_logicalDevice, &samplerCreateInfo, VK_NULL_HANDLE, &m_defaultNearestSampler),
+					"Failed to create Default Nearest Sampler!"
+				);
+
+				const VkSampler immutableSamplers[] = {
+					m_defaultNearestSampler,
+					//m_defaultLinearSampler,
+					//m_defaultBilinearSampler,
+				};
+
+				const VkDescriptorSetLayoutBinding binding {
+					.binding = 0,
+					.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER,
+					.descriptorCount = std::size(immutableSamplers),
+					.stageFlags = VK_SHADER_STAGE_ALL,
+					.pImmutableSamplers = immutableSamplers
+				};
+
+				const VkDescriptorSetLayoutCreateInfo descriptorSetLayoutCreateInfo {
+					.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+					.pNext = nullptr,
+					.flags = 0,
+					.bindingCount = 1,
+					.pBindings = &binding,
+				};
+
+				axVerifyFmt(VK_SUCCESS == vkCreateDescriptorSetLayout(m_logicalDevice, &descriptorSetLayoutCreateInfo, VK_NULL_HANDLE, &m_bindlessDescriptorSetLayouts[BindlessDescriptorType::eSampler]),
+					"Failed to create bindless descriptor set layout!"
+				);
+			}
+
+			/*VkPushConstantRange pushConstantRanges[] = {
+				{
+					.stageFlags = VK_SHADER_STAGE_ALL,
+					.offset = 
+				}
+			};*/
+
+			const VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo {
+				.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+				.setLayoutCount = static_cast<u32>(m_bindlessDescriptorSetLayouts.size()),
+				.pSetLayouts = m_bindlessDescriptorSetLayouts.data(),
+				.pushConstantRangeCount = 0,
+				.pPushConstantRanges = nullptr, // TODO: Add push constant ranges
+			};
+
+			axVerifyFmt(VK_SUCCESS == vkCreatePipelineLayout(m_logicalDevice, &pipelineLayoutCreateInfo, VK_NULL_HANDLE, &m_bindlessPipelineLayout),
+				"Failed to create a pipeline layout!"
+			);
+
+			const u32 descriptorSetDescriptorCounts[] = {
+				poolSizes[0].descriptorCount,
+				poolSizes[1].descriptorCount,
+				poolSizes[2].descriptorCount,
+				poolSizes[3].descriptorCount,
+			};
+
+			const VkDescriptorSetVariableDescriptorCountAllocateInfo variableDescriptorCountAllocateInfo {
+				.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_VARIABLE_DESCRIPTOR_COUNT_ALLOCATE_INFO,
+				.descriptorSetCount = static_cast<u32>(m_bindlessDescriptorSetLayouts.size()) - 1,
+				.pDescriptorCounts = descriptorSetDescriptorCounts,
+			};
+
+			const VkDescriptorSetAllocateInfo descriptorSetAllocateInfo {
+				.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+				.pNext = &variableDescriptorCountAllocateInfo,
+				.descriptorPool = m_descriptorPool,
+				.descriptorSetCount = static_cast<u32>(m_bindlessDescriptorSetLayouts.size()) - 1,
+				.pSetLayouts = m_bindlessDescriptorSetLayouts.data(),
+			};
+
+			axVerifyFmt(VK_SUCCESS == vkAllocateDescriptorSets(m_logicalDevice, &descriptorSetAllocateInfo, m_bindlessDescriptorSets.data()),
+				"Failed to allocate bindless descriptor set!"
+			);
+
+			{
+				const VkDescriptorSetAllocateInfo samplerDescriptorSetAllocateInfo {
+					.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+					.pNext = nullptr,
+					.descriptorPool = m_descriptorPool,
+					.descriptorSetCount = 1,
+					.pSetLayouts = &m_bindlessDescriptorSetLayouts[BindlessDescriptorType::eSampler],
+				};
+
+				axVerifyFmt(VK_SUCCESS == vkAllocateDescriptorSets(m_logicalDevice, &samplerDescriptorSetAllocateInfo, &m_bindlessDescriptorSets[BindlessDescriptorType::eSampler]),
+					"Failed to allocate bindless sampler descriptor set!"
+				);
+			}
+		}
+
+		m_buffers.reserve(std::max(totalUniformBufferDescriptors, totalStorageBufferDescriptors));
+		m_textures.reserve(std::max(totalSampledImageDescriptors, totalStorageImageDescriptors));
 	}
 
 	void VulkanDevice::CreatePerFrameData()
@@ -1562,18 +2067,31 @@ namespace apex::gfx {
 		AxArray<VkDescriptorSetLayoutBinding> layoutBindings;
 		layoutBindings.resize(reflectSet.binding_count);
 
+		axDebugFmt("Shader descriptor set : {} [{}]", reflect.source_file ? reflect.source_file : string_VkShaderStageFlagBits(static_cast<VkShaderStageFlagBits>(reflect.shader_stage)), reflectSet.set);
+
 		for (u32 bindingIdx = 0; bindingIdx < reflectSet.binding_count; bindingIdx++)
 		{
 			const SpvReflectDescriptorBinding& reflectBinding = *reflectSet.bindings[bindingIdx];
+			if (std::ranges::find_if(layoutBindings,
+			                         [binding=reflectBinding.binding](VkDescriptorSetLayoutBinding const& layoutBinding) -> bool
+			                         {
+				                         return layoutBinding.binding == binding;
+			                         })
+				!= layoutBindings.end())
+			{
+				continue;
+			}
 
 			VkDescriptorSetLayoutBinding& layoutBinding = layoutBindings[bindingIdx];
-			
+
 			layoutBinding = {
 				.binding = reflectBinding.binding,
 				.descriptorType = static_cast<VkDescriptorType>(reflectBinding.descriptor_type),
 				.descriptorCount = 1,
 				.stageFlags = static_cast<VkShaderStageFlags>(reflect.shader_stage),
 			};
+
+			axDebugFmt("    [{}] Binding #{}: {}", bindingIdx, layoutBinding.binding, string_VkDescriptorType(layoutBinding.descriptorType));
 
 			for (u32 dimIdx = 0; dimIdx < reflectBinding.array.dims_count; dimIdx++)
 			{
@@ -1671,16 +2189,27 @@ namespace apex::gfx {
 		);
 	}
 
-	void VulkanCommandBuffer::BeginRenderPass(ImageView const* color_image_view)
+	void VulkanCommandBuffer::BeginRendering(ImageView const* color_image_view, ImageView const* depth_stencil_image_view)
 	{
 		const VkRenderingAttachmentInfo colorAttachmentInfo {
 			.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
 			.imageView = static_cast<const VulkanImageView*>(color_image_view)->GetNativeHandle(),
-			.imageLayout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL,
+			.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
 			.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
 			.storeOp = VK_ATTACHMENT_STORE_OP_STORE,
 			.clearValue = {
 				.color = { 0.01f, 0.01f, 0.01f, 1.0f },
+			}
+		};
+
+		const VkRenderingAttachmentInfo depthStencilAttachmentInfo {
+			.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+			.imageView = static_cast<const VulkanImageView*>(depth_stencil_image_view)->GetNativeHandle(),
+			.imageLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
+			.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+			.storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+			.clearValue = {
+				.depthStencil = { .depth = 0.0, .stencil = 0 }
 			}
 		};
 
@@ -1690,21 +2219,31 @@ namespace apex::gfx {
 			.layerCount = 1,
 			.colorAttachmentCount = 1,
 			.pColorAttachments = &colorAttachmentInfo,
-			.pDepthAttachment = nullptr,
+			.pDepthAttachment = &depthStencilAttachmentInfo,
 			.pStencilAttachment = nullptr,
 		};
 
 		vkCmdBeginRendering(m_commandBuffer, &renderingInfo);
+
+		auto bindlessDescriptorSets = m_device->GetBindlessDescriptorSets();
+
+		vkCmdBindDescriptorSets(m_commandBuffer,
+			VK_PIPELINE_BIND_POINT_GRAPHICS,
+			m_device->GetBindlessPipelineLayout(),
+			0, bindlessDescriptorSets.count, bindlessDescriptorSets._data,
+			0 , nullptr);
 	}
 
-	void VulkanCommandBuffer::EndRenderPass()
+	void VulkanCommandBuffer::EndRendering()
 	{
 		vkCmdEndRendering(m_commandBuffer);
 	}
 
 	void VulkanCommandBuffer::BindGraphicsPipeline(GraphicsPipeline const* pipeline)
 	{
-		vkCmdBindPipeline(m_commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, static_cast<VulkanGraphicsPipeline const*>(pipeline)->GetNativeHandle());
+		VulkanGraphicsPipeline const* vkPipeline = static_cast<VulkanGraphicsPipeline const*>(pipeline);
+
+		vkCmdBindPipeline(m_commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vkPipeline->GetNativeHandle());
 	}
 
 	void VulkanCommandBuffer::BindDescriptorSet(DescriptorSet const& descriptor_set, GraphicsPipeline const* pipeline)
@@ -1713,7 +2252,7 @@ namespace apex::gfx {
 
 		vkCmdBindDescriptorSets(m_commandBuffer,
 			VK_PIPELINE_BIND_POINT_GRAPHICS,
-			static_cast<VulkanGraphicsPipeline const*>(pipeline)->GetLayout(),
+			static_cast<VulkanGraphicsPipeline const*>(pipeline)->GetPipelineLayout(),
 			0, 1, vkDescriptorSets,
 			0, nullptr);
 	}
@@ -1773,6 +2312,8 @@ namespace apex::gfx {
 	void VulkanCommandBuffer::TransitionImage(const Image* image, ImageLayout old_layout, ImageLayout new_layout,
 	                                          AccessFlags src_access_flags, AccessFlags dst_access_flags, PipelineStageFlags src_stage_flags, PipelineStageFlags dst_stage_flags)
 	{
+		VkImageAspectFlags aspectMask = IsDepthFormat(static_cast<VulkanImage const*>(image)->GetFormat()) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
+
 		const VkImageMemoryBarrier barrier {
 			.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
 			.srcAccessMask = ConvertToVkAccessFlags(src_access_flags),
@@ -1783,7 +2324,7 @@ namespace apex::gfx {
 			.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
 			.image = static_cast<const VulkanImage*>(image)->GetNativeHandle(),
 			.subresourceRange = {
-				.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+				.aspectMask = aspectMask,
 				.baseMipLevel = 0,
 				.levelCount = VK_REMAINING_MIP_LEVELS,
 				.baseArrayLayer = 0,
@@ -1797,13 +2338,39 @@ namespace apex::gfx {
 
 	void VulkanCommandBuffer::CopyBuffer(const Buffer* dst, const Buffer* src)
 	{
+		const VulkanBuffer* vkdst = static_cast<const VulkanBuffer*>(dst);
+		const VulkanBuffer* vksrc = static_cast<const VulkanBuffer*>(src);
+
 		const VkBufferCopy copyRegion {
 			.srcOffset = 0,
 			.dstOffset = 0,
-			.size = min(static_cast<const VulkanBuffer*>(dst)->GetSize(), static_cast<const VulkanBuffer*>(src)->GetSize())
+			.size = min(vkdst->GetSize(), vksrc->GetSize())
 		};
 
-		vkCmdCopyBuffer(m_commandBuffer, static_cast<const VulkanBuffer*>(src)->GetNativeHandle(), static_cast<const VulkanBuffer*>(dst)->GetNativeHandle(), 1, &copyRegion);
+		vkCmdCopyBuffer(m_commandBuffer, vksrc->GetNativeHandle(), vkdst->GetNativeHandle(), 1, &copyRegion);
+	}
+
+	void VulkanCommandBuffer::CopyBufferToImage(const Image* dst, const Buffer* src, ImageLayout layout)
+	{
+		const VulkanImage* vkdst = static_cast<const VulkanImage*>(dst);
+		const VulkanBuffer* vksrc = static_cast<const VulkanBuffer*>(src);
+
+		const VkBufferImageCopy copyRegion {
+			.bufferOffset = 0,
+			.bufferRowLength = 0,
+			.bufferImageHeight = 0,
+
+			.imageSubresource = {
+				.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+				.mipLevel = 0,
+				.baseArrayLayer = 0,
+				.layerCount = 1,
+			},
+			.imageOffset = { 0, 0, 0 },
+			.imageExtent = vkdst->GetExtent()
+		};
+
+		vkCmdCopyBufferToImage(m_commandBuffer, vksrc->GetNativeHandle(), vkdst->GetNativeHandle(), ConvertToVkImageLayout(layout), 1, &copyRegion);
 	}
 
 	// Vulkan Buffer
@@ -1812,18 +2379,24 @@ namespace apex::gfx {
 		m_device->DestroyBuffer(this);
 	}
 
-	// Vulkan Image
-	VulkanImage::VulkanImage(VulkanDevice const* device, VkImage image, VkImageView view)
-	: m_device(device), m_image(image), m_allocation(nullptr), m_allocationInfo(), m_view(apex_new(VulkanImageView)(view, this))
+	VulkanImage::VulkanImage(VulkanDevice const* device, VkImage image, VkImageView view, VkExtent3D extent, VkFormat format)
+	: m_device(device), m_image(image), m_allocation(nullptr), m_allocationInfo(), m_view(apex_new(VulkanImageView)(view, this)), m_extent(extent), m_format(format)
 	{
 	}
 
-	VulkanImage::VulkanImage(VulkanDevice const* device, VkImage image, VmaAllocation allocation, VmaAllocationInfo const& allocation_info, VkImageView view)
-	: m_device(device), m_image(image), m_allocation(allocation), m_allocationInfo(allocation_info), m_view(apex_new(VulkanImageView)(view, this))
+	// Vulkan Image
+	VulkanImage::VulkanImage(VulkanDevice const* device, VkImage image, VkImageCreateInfo const& create_info, VkImageView view)
+	: m_device(device), m_image(image), m_allocation(nullptr), m_allocationInfo(), m_view(apex_new(VulkanImageView)(view, this)), m_extent(create_info.extent), m_format(create_info.format)
+	{
+	}
+
+	VulkanImage::VulkanImage(VulkanDevice const* device, VkImage image, VkImageCreateInfo const& create_info, VmaAllocation allocation, VmaAllocationInfo const& allocation_info, VkImageView view)
+	: m_device(device), m_image(image), m_allocation(allocation), m_allocationInfo(allocation_info), m_view(apex_new(VulkanImageView)(view, this)), m_extent(create_info.extent), m_format(create_info.format)
 	{}
 
 	VulkanImage::~VulkanImage()
 	{
+		delete m_view;
 		m_device->DestroyImage(this);
 	}
 
@@ -1943,15 +2516,43 @@ namespace apex::gfx {
 		axDebug("Vulkan Win32 surface created");
 	#endif
 
-		VkPhysicalDevice physicalDevice = SelectPhysicalDevice();
+		VulkanPhysicalDeviceFeatures requiredDeviceFeatures {};
+		// Vulkan 1.2 features
+		requiredDeviceFeatures.features12.bufferDeviceAddress = true;
+		requiredDeviceFeatures.features12.descriptorIndexing = true;
+		requiredDeviceFeatures.features12.descriptorBindingPartiallyBound = true;
+		requiredDeviceFeatures.features12.descriptorBindingVariableDescriptorCount = true;
+		// shader resource arrays non-uniform indexing
+		requiredDeviceFeatures.features12.shaderUniformBufferArrayNonUniformIndexing = true;
+		requiredDeviceFeatures.features12.shaderSampledImageArrayNonUniformIndexing = true;
+		requiredDeviceFeatures.features12.shaderStorageImageArrayNonUniformIndexing = true;
+		requiredDeviceFeatures.features12.shaderStorageBufferArrayNonUniformIndexing = true;
+		// descriptor bindings update after bind
+		requiredDeviceFeatures.features12.descriptorBindingUniformBufferUpdateAfterBind = true;
+		requiredDeviceFeatures.features12.descriptorBindingSampledImageUpdateAfterBind = true;
+		requiredDeviceFeatures.features12.descriptorBindingStorageImageUpdateAfterBind = true;
+		requiredDeviceFeatures.features12.descriptorBindingStorageBufferUpdateAfterBind = true;
+		// Vulkan 1.3 features
+		requiredDeviceFeatures.features13.synchronization2 = true;
+		requiredDeviceFeatures.features13.dynamicRendering = true;
+		requiredDeviceFeatures.features13.maintenance4 = true;
 
-		m_device = apex::make_unique<VulkanDevice>(*this, physicalDevice);
+		VkPhysicalDeviceShaderAtomicFloatFeaturesEXT atomicFloatFeatures {
+			.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_ATOMIC_FLOAT_FEATURES_EXT,
+			.pNext = nullptr,
+			.shaderBufferFloat32AtomicAdd = VK_TRUE,
+		};
+		requiredDeviceFeatures.SetupChain(&atomicFloatFeatures);
+
+		VkPhysicalDevice physicalDevice = SelectPhysicalDevice(requiredDeviceFeatures);
+
+		m_device = apex::make_unique<VulkanDevice>(*this, physicalDevice, requiredDeviceFeatures);
 
 	#if APEX_PLATFORM_WIN32
 		RECT rect;
 		GetClientRect(hwnd, &rect);
-		u32 width = rect.right - rect.left;
-		u32 height = rect.bottom - rect.top;
+		const u32 width = rect.right - rect.left;
+		const u32 height = rect.bottom - rect.top;
 	#endif
 		m_device->CreateSwapchain(m_surface, width, height);
 		m_device->CreateCommandPools();
@@ -1972,7 +2573,7 @@ namespace apex::gfx {
 #if APEX_PLATFORM_WIN32
 	void VulkanContextImpl::CreateSurface(HINSTANCE hinstance, HWND hwnd)
 	{
-		VkWin32SurfaceCreateInfoKHR surfaceCreateInfo {
+		const VkWin32SurfaceCreateInfoKHR surfaceCreateInfo {
 			.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR,
 			.hinstance = hinstance,
 			.hwnd = hwnd
@@ -1983,7 +2584,7 @@ namespace apex::gfx {
 		);
 	}
 
-	VkPhysicalDevice VulkanContextImpl::SelectPhysicalDevice() const
+	VkPhysicalDevice VulkanContextImpl::SelectPhysicalDevice(VulkanPhysicalDeviceFeatures const& required_device_features) const
 	{
 		u32 physicalDeviceCount;
 		vkEnumeratePhysicalDevices(m_instance, &physicalDeviceCount, nullptr);
@@ -1995,23 +2596,10 @@ namespace apex::gfx {
 		vkEnumeratePhysicalDevices(m_instance, &physicalDeviceCount, devices.data());
 
 		VkPhysicalDevice physicalDevice {};
-		VulkanPhysicalDeviceFeatures requiredFeatures {};
-		requiredFeatures.features12.bufferDeviceAddress = true;
-		requiredFeatures.features12.descriptorIndexing = true;
-		requiredFeatures.features13.synchronization2 = true;
-		requiredFeatures.features13.dynamicRendering = true;
-		requiredFeatures.features13.maintenance4 = true;
-
-		VkPhysicalDeviceShaderAtomicFloatFeaturesEXT atomicFloatFeatures {
-			.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_ATOMIC_FLOAT_FEATURES_EXT,
-			.pNext = nullptr,
-			.shaderBufferFloat32AtomicAdd = VK_TRUE,
-		};
-		requiredFeatures.SetupChain(&atomicFloatFeatures);
 
 		for (VkPhysicalDevice device : devices)
 		{
-			if (IsPhysicalDeviceSuitable(device, m_surface, requiredFeatures))
+			if (IsPhysicalDeviceSuitable(device, m_surface, required_device_features))
 			{
 				physicalDevice = device;
 				break;

@@ -6,7 +6,6 @@
 // ApexCore includes
 #include "Core/Types.h"
 #include "Core/Utility.h"
-#include "Memory/AxManagedClass.h"
 
 // ApexGraphics includes
 #include "Factory.h"
@@ -43,7 +42,7 @@ namespace gfx {
 		WebGpu,
 	};
 
-	class ContextBase : public AxManagedClass
+	class ContextBase
 	{
 	public:
 		virtual ~ContextBase() = default;
@@ -109,7 +108,7 @@ namespace gfx {
 		constexpr bool operator == (Value val) const { return value == val; }
 	};
 
-	class Device : public AxManagedClass
+	class Device
 	{
 	public:
 		virtual ~Device() = default;
@@ -135,15 +134,16 @@ namespace gfx {
 		virtual ShaderModule* CreateShaderModule(const char* name, const char* filepath) const = 0;
 		virtual GraphicsPipeline* CreateGraphicsPipeline(const char* name, GraphicsPipelineCreateDesc const& desc) const = 0;
 
-		virtual Buffer* CreateBuffer(const char* name, BufferCreateDesc const& desc) const = 0;
-		virtual Buffer* CreateVertexBuffer(const char* name, size_t size, const void* initial_data) const = 0;
-		virtual Buffer* CreateIndexBuffer(const char* name, size_t size, const void* initial_data) const = 0;
-		virtual Buffer* CreateStagingBuffer(size_t size) const = 0;
+		virtual Buffer* CreateBuffer(const char* name, BufferCreateDesc const& desc) = 0;
+		virtual Buffer* CreateVertexBuffer(const char* name, size_t size, const void* initial_data) = 0;
+		virtual Buffer* CreateIndexBuffer(const char* name, size_t size, const void* initial_data) = 0;
+		virtual Buffer* CreateStagingBuffer(const char* name, size_t size) = 0;
 
-		//virtual Image* CreateImage(const char* name, ImageCreateDesc const& desc) const = 0;
+		virtual Image* CreateImage(const char* name, ImageCreateDesc const& desc) const = 0;
+		virtual ImageView* CreateImageView(const char* name, ImageViewCreateDesc const& desc) const = 0;
 	};
 
-	class CommandBuffer : public AxManagedClass
+	class CommandBuffer
 	{
 	public:
 		CommandBuffer() = default;
@@ -155,8 +155,8 @@ namespace gfx {
 		virtual void End() = 0;
 
 		// Graphics Commands
-		virtual void BeginRenderPass(ImageView const* color_image_view) = 0;
-		virtual void EndRenderPass() = 0;
+		virtual void BeginRendering(const ImageView* color_image_view, ImageView const* depth_stencil_image_view) = 0;
+		virtual void EndRendering() = 0;
 		virtual void BindGraphicsPipeline(GraphicsPipeline const* pipeline) = 0;
 		virtual void BindDescriptorSet(DescriptorSet const& descriptor_set, GraphicsPipeline const* pipeline) = 0;
 		virtual void BindDescriptorSet(DescriptorSet const* descriptor_set, ComputePipeline const* pipeline) = 0;
@@ -183,12 +183,12 @@ namespace gfx {
 		virtual void CopyBuffer(Buffer const* dst, Buffer const* src) = 0;
 		virtual void CopyImageToBuffer(Buffer const* dst, Image const* src) = 0;
 		virtual void CopyImage(Image const* dst, Image const* src) = 0;
-		virtual void CopyBufferToImage(Image const* dst, Buffer const* src) = 0;
+		virtual void CopyBufferToImage(const Image* dst, const Buffer* src, ImageLayout layout) = 0;
 		virtual void CopyQueryResults() = 0;
 	};
 
 	// Resources
-	class Resource : public AxManagedClass
+	class Resource
 	{
 	public:
 		Resource() = default;
@@ -293,7 +293,7 @@ namespace gfx {
 	class UniformBuffer : public Descriptor {};
 	class StorageBuffer : public Descriptor {};*/
 
-	class DescriptorSet : public AxManagedClass
+	class DescriptorSet
 	{
 	public:
 		constexpr DescriptorSet(void* handle) : m_handle(handle) {}
@@ -322,13 +322,13 @@ namespace gfx {
 
 
 	// Pipeline
-	class ShaderModule : public AxManagedClass
+	class ShaderModule
 	{
 	public:
 		virtual ~ShaderModule() = default;
 	};
 
-	class Pipeline : public AxManagedClass
+	class Pipeline
 	{
 	public:
 		virtual ~Pipeline() = default;
