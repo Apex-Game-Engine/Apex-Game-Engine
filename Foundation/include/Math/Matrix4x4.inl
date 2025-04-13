@@ -313,10 +313,10 @@ namespace math {
 		f32 z_range = far_z - near_z;
 
 		Matrix4x4 Proj { row_major{},
-			recip_tan_fov_by_2 / aspect_ratio,          0        ,              0              ,             0                ,
-			              0                  , recip_tan_fov_by_2,              0              ,             0                ,
-			              0                  ,          0        , -(near_z + far_z) / z_range , -2 * near_z * far_z / z_range,
-			              0                  ,          0        ,             -1              ,             0
+			recip_tan_fov_by_2 / aspect_ratio,           0          ,           0            ,             0                ,
+			              0                  ,  recip_tan_fov_by_2  ,           0            ,             0                ,
+			              0                  ,           0          ,     far_z / z_range    , - near_z * far_z / z_range   ,
+			              0                  ,           0          ,          -1            ,             0
 		};
 
 		return Proj;

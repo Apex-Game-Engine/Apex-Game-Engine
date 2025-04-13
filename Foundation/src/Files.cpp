@@ -97,13 +97,18 @@ namespace apex {
 
 	AxArray<char> File::Read()
 	{
-		AxArray<char> fileBuf;
+		AxArray<char> buf;
+		Read(buf);
+		return buf;
+	}
 
+	void File::Read(AxArray<char>& buf)
+	{
 	#ifdef APEX_PLATFORM_WIN32
-		fileBuf.resize(m_size);
+		buf.resize(m_size);
 		OVERLAPPED ol {};
 		DWORD dwBytesRead;
-		if (FALSE == ::ReadFile(m_handle, fileBuf.data(), static_cast<DWORD>(m_size), &dwBytesRead, &ol))
+		if (FALSE == ::ReadFile(m_handle, buf.data(), static_cast<DWORD>(m_size), &dwBytesRead, &ol))
 		{
 		#if APEX_CONFIG_DEBUG
 			axAssertFmt(false, "Could not read file : {}", m_filename);
@@ -111,9 +116,9 @@ namespace apex {
 			axAssertFmt(false, "Could not read file!");
 		#endif
 		}
-		return fileBuf;
 	#else
 		#error Not implemented!
-	#endif
+	#endif	
 	}
+
 }

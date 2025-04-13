@@ -1,11 +1,10 @@
 ﻿#pragma once
 #include "Core/Types.h"
 #include "Memory/AxHandle.h"
-#include "Memory/AxManagedClass.h"
 
 namespace apex {
 
-	class AxString : public AxManagedClass
+	class AxString
 	{
 	public:
 		constexpr AxString() = default;
@@ -22,7 +21,7 @@ namespace apex {
 			}
 			else
 			{
-				_Allocate(len);
+				Allocate(len);
 				m_storage.NonSSO.m_isSSO = false;
 				m_storage.NonSSO.m_size = len;
 				memcpy_s(m_storage.NonSSO.m_str, m_storage.NonSSO.m_capacity-1, str, len);
@@ -40,7 +39,7 @@ namespace apex {
 			}
 			else
 			{
-				_Allocate(capacity);
+				Allocate(capacity);
 				m_storage.NonSSO.m_isSSO = false;
 				m_storage.NonSSO.m_size = 0;
 				m_storage.NonSSO.m_str[0] = '\0';
@@ -61,7 +60,7 @@ namespace apex {
 		size_t size() const { return m_storage.SSO.m_isSSO ? m_storage.SSO.m_size : m_storage.NonSSO.m_size; }
 
 	private:
-		void _Allocate(size_t capacity)
+		void Allocate(size_t capacity)
 		{
 			capacity += capacity & 1;
 			AxHandle handle (capacity);

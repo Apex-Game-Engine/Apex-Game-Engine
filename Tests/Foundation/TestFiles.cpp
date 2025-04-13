@@ -7,7 +7,6 @@ TEST(TestFiles, TestReadFile)
 {
 	apex::mem::MemoryManager::initialize({});
 
-	auto filebuf = apex::readFile("D:\\Repos\\ApexGameEngine-Vulkan\\README.md");
-
-	
+	apex::File file = apex::File::OpenExisting(R"(D:\Repos\ApexGameEngine-Vulkan\README.md)");
+	auto filebuf = file.Read();
 }

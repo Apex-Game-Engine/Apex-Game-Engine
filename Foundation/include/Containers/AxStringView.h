@@ -1,5 +1,4 @@
 ﻿#pragma once
-#include "Memory/AxManagedClass.h"
 
 namespace apex {
 
@@ -7,7 +6,7 @@ namespace apex {
 	 * \brief Non-owning null-terminated string reference. 
 	 * A simple wrapper class over const char*. 
 	 */
-	class AxStringRef : public AxManagedClass
+	class AxStringRef
 	{
 	public:
 		enum : size_t { npos = static_cast<size_t>(-1) };

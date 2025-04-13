@@ -1,4 +1,3 @@
-#include "Memory/AxManagedClass.h"
 #include "Core/Logging.h"
 
 #include <cstdlib>
@@ -7,102 +6,78 @@
 #include "Memory/AxHandle.h"
 #include "Memory/MemoryManager.h"
 
-namespace apex {
 
-	void* AxManagedClass::operator new(size_t size)
-	{
-		axAssertFmt(false,
-			"default new operator called on a AxManagedClass instance!"
-			"\nThis might lead to exceptional conditions.");
-		return malloc(size);
-	}
+namespace apex::mem {
 
-	void* AxManagedClass::operator new [](size_t size)
+	void GlobalMemoryOperators::OperatorDelete(void* ptr) noexcept
 	{
-		axAssertFmt(false,
-			"default new[] operator called on a AxManagedClass instance!"
-			"\nThis might lead to exceptional conditions.");
-		return malloc(size);
-	}
-
-	void* AxManagedClass::operator new(size_t size, void* mem)
-	{
-		return mem;
-	}
-
-	void* AxManagedClass::operator new [](size_t size, void* mem)
-	{
-		return mem;
-	}
-
-	void* AxManagedClass::operator new(size_t size, AxHandle handle)
-	{
-		// TODO: Please change this to something smarter!
-		if (handle.isValid())
+		if (ptr == nullptr)
+			return;
+		if (!MemoryManager::checkManaged(ptr))
 		{
-			axAssert(handle.getBlockSize() >= size);
+		#ifndef APEX_ENABLE_TESTS
+			axWarn("Calling ::free on a pointer!");
+		#endif
+			free(ptr);
+			return;
 		}
-		else
+		axVerifyFmt(MemoryManager::canFree(ptr), "Attempting to delete an address within an allocation!");
+		MemoryManager::free(ptr);
+	}
+
+	void* GlobalMemoryOperators::OperatorNew(size_t size, AxHandle handle)
+	{
+		if (!handle.isValid())
 		{
 			handle.allocate(size);
 		}
+		axAssert(handle.getBlockSize() >= size);
 		return handle.getAs<void>();
 	}
+}
 
-	void* AxManagedClass::operator new [](size_t size, AxHandle handle)
-	{
-		if (handle.isValid())
-		{
-			axAssert(handle.getBlockSize() >= size);
-		}
-		else
-		{
-			handle.allocate(size);
-		}
-		return handle.getAs<void>();
-	}
 
+void operator delete(void* ptr) noexcept
+{
+	apex::mem::GlobalMemoryOperators::OperatorDelete(ptr);
+}
+
+void operator delete[](void* ptr) noexcept
+{
+	apex::mem::GlobalMemoryOperators::OperatorDelete(ptr);
+}
+
+void* operator new(size_t size, apex::AxHandle handle)
+{
+	return apex::mem::GlobalMemoryOperators::OperatorNew(size, handle);
+}
+
+void* operator new[](size_t size, apex::AxHandle handle)
+{
+	return apex::mem::GlobalMemoryOperators::OperatorNew(size, handle);
+}
+
+void* operator new(size_t size, apex::AxHandle handle, const char* func, const char* file, uint32_t line)
+{
+	return apex::mem::GlobalMemoryOperators::OperatorNew(size, handle);
+}
+
+void* operator new[](size_t size, apex::AxHandle handle, const char* func, const char* file, uint32_t line)
+{
+	return apex::mem::GlobalMemoryOperators::OperatorNew(size, handle);
 }
 
 #ifndef APEX_ENABLE_TESTS
 void* operator new(size_t size)
 {
-	//axLog("new ()");
+	axError("Using naked new!");
 	return malloc(size);
 }
 
-void* operator new [](size_t size)
+void* operator new[](size_t size)
 {
-	//axLog("new[] ()");
+	axError("Using naked new[]!");
 	return malloc(size);
 }
 #endif
-
-void operator delete(void* ptr) noexcept
-{
-	using namespace apex;
-	if (mem::MemoryManager::checkManaged(ptr))
-	{
-		if (mem::MemoryManager::canFree(ptr))
-			mem::MemoryManager::free(ptr);
-	}
-	else
-	{
-		free(ptr);
-	}
-}
-
-void operator delete [](void* ptr) noexcept
-{
-	using namespace apex;
-	if (mem::MemoryManager::checkManaged(ptr))
-	{
-		if (mem::MemoryManager::canFree(ptr))
-			mem::MemoryManager::free(ptr);
-	}
-	else
-	{
-		free(ptr);
-	}
-}
 

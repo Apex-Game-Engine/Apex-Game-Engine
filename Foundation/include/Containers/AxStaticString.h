@@ -1,7 +1,7 @@
 ﻿#pragma once
 #include <string_view>
 
-#include "AxStringRef.h"
+#include "AxStringView.h"
 #include "Core/Types.h"
 
 namespace apex {
@@ -11,7 +11,7 @@ namespace apex {
 	{
 	public:
 		constexpr explicit AxStaticString(AxStringView str) noexcept
-		: AxStaticString{str.m_str, std::make_integer_sequence<u16, N>{}}
+		: AxStaticString{str.c_str(), std::make_integer_sequence<u16, N>{}}
 		{}
 
 		constexpr explicit AxStaticString(std::string_view str) noexcept

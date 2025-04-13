@@ -1,5 +1,4 @@
 #pragma once
-#include "Memory/AxManagedClass.h"
 #include "Memory/UniquePtr.h"
 #include "Core/Asserts.h"
 
@@ -10,14 +9,14 @@ namespace apex {
 	 * \tparam T Type of the elements stored in the list
 	 */
 	template <typename T>
-	class AxList : public AxManagedClass
+	class AxList
 	{
 	public:
 		using underlying_type = T;
 
 	private:
 
-		class IListNode : public AxManagedClass
+		class IListNode
 		{
 		public:
 			virtual ~IListNode() = default;
@@ -126,20 +125,20 @@ namespace apex {
 		void append(const value_type& value)
 		{
 			node_ptr_t node = std::move(apex::make_unique<ListNode>(value));
-			_AppendNode(std::move(node));
+			AppendNode(std::move(node));
 		}
 
 		void append(value_type&& value)
 		{
 			node_ptr_t node = std::move(apex::make_unique<ListNode>(std::forward<value_type>(value)));
-			_AppendNode(std::move(node));
+			AppendNode(std::move(node));
 		}
 
 		template <typename... Args>
 		void emplace_back(Args&&... args) requires std::is_constructible_v<underlying_type, Args...>
 		{
 			node_ptr_t node = apex::make_unique<ListNode>(std::forward<Args>(args)...);
-			_AppendNode(std::move(node));
+			AppendNode(std::move(node));
 		}
 
 		iterator insert(iterator const& it, const value_type& value)
@@ -159,7 +158,7 @@ namespace apex {
 
 			iterator next = it;
 			++next;
-			_RemoveNode(it.m_ptr);
+			RemoveNode(it.m_ptr);
 			return next;
 		}
 
@@ -193,7 +192,7 @@ namespace apex {
 	#pragma endregion
 
 	private:
-		void _AppendNode(node_ptr_t&& node)
+		void AppendNode(node_ptr_t&& node)
 		{
 			if (!m_head)
 			{
@@ -203,12 +202,12 @@ namespace apex {
 			}
 			else
 			{
-				_InsertNode(std::move(node), m_tail);
+				InsertNode(std::move(node), m_tail);
 				m_tail = m_tail->next().get();
 			}
 		}
 
-		void _InsertNode(node_ptr_t&& node, node_t* prev)
+		void InsertNode(node_ptr_t&& node, node_t* prev)
 		{
 			node->prev(prev);
 			if (prev->next())
@@ -220,7 +219,7 @@ namespace apex {
 			++m_size;
 		}
 
-		void _RemoveNode(node_t* node)
+		void RemoveNode(node_t* node)
 		{
 			if (node->next())
 			{

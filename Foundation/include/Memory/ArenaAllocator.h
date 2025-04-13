@@ -5,16 +5,8 @@ namespace apex {
 namespace mem {
 
 	class ArenaAllocator
-#ifdef APEX_ENABLE_MEMORY_TRACKING
-	: public IMemoryTracker
 	{
 	public:
-		[[nodiscard]] size_t getTotalCapacity() const override { return m_capacity; }
-		[[nodiscard]] size_t getCurrentUsage() const override { return m_offset; }
-#else
-	{
-	public:
-#endif
 		void initialize(void* p_begin, size_t size);
 		[[nodiscard]] void* allocate(size_t size);
 		[[nodiscard]] void* allocate(size_t size, size_t align);
