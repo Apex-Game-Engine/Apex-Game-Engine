@@ -1,5 +1,7 @@
 enable_testing()
 
+project(ApexTests LANGUAGES C CXX)
+
 if(APEX_COMPILER_TOOLSET_CLANG_CL)
     FetchContent_Declare(
         googletest
@@ -17,7 +19,6 @@ endif()
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
-
 set_target_properties(gtest PROPERTIES FOLDER "GoogleTest")
 set_target_properties(gtest_main PROPERTIES FOLDER "GoogleTest")
 set_target_properties(gmock PROPERTIES FOLDER "GoogleTest")
@@ -25,13 +26,12 @@ set_target_properties(gmock_main PROPERTIES FOLDER "GoogleTest")
 
 set(test_common_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/Common")
 
-add_subdirectory(Foundation)
-add_subdirectory(Engine)
-add_subdirectory(Graphics)
-add_subdirectory(Startup)
 
-# Set the tests to be in the "Tests" folder in Visual Studio
-set_target_properties(Foundation_test PROPERTIES FOLDER "Tests")
-set_target_properties(Engine_test PROPERTIES FOLDER "Tests")
-set_target_properties(Graphics_test PROPERTIES FOLDER "Tests")
-set_target_properties(Startup_test PROPERTIES FOLDER "Tests")
+set(CMAKE_FOLDER "Tests")
+
+add_subdirectory(Foundation)
+add_subdirectory(Platform)
+add_subdirectory(Graphics)
+#add_subdirectory(Startup)
+
+unset(CMAKE_FOLDER)

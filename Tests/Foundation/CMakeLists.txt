@@ -2,25 +2,25 @@ enable_testing()
 
 file(GLOB SOURCES *.cpp *.h)
 
-add_executable(Foundation_test
+add_executable(FoundationTest
     ${SOURCES}
 )
 
-target_link_libraries(Foundation_test
+target_link_libraries(FoundationTest
     PRIVATE
-    Foundation
+    ApexFoundation
     GTest::gtest
 )
 
-target_include_directories(Foundation_test
+target_include_directories(FoundationTest
     PRIVATE
     ${test_common_INCLUDE_DIR}
 )
 
-target_compile_definitions(Foundation_test
+target_compile_definitions(FoundationTest
     PRIVATE
     APEX_ENABLE_TESTS
 )
 
 include(GoogleTest)
-gtest_discover_tests(Foundation_test)
+gtest_discover_tests(FoundationTest)

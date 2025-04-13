@@ -1,5 +1,9 @@
 @echo off
-call "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvarsall.bat" x64
+if not defined DevEnvDir (
+    call "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvarsall.bat" x64
+)
+
+for /f "tokens=1,* delims= " %%a in ("%*") do set ALL_BUT_FIRST=%%b
 
 set arg_toolset=%1
 if "%arg_toolset%" == "msvc" goto MSVC
@@ -22,8 +26,7 @@ echo Unrecognized toolset "%arg_toolset%". Supported toolsets are msvc and clang
 goto end
 
 :CMAKE
-cmake -S . -B %build_dir% -G%cmake_gen% -T %cmake_toolset%
-goto end
+cmake -S . -B %build_dir% -G%cmake_gen% -T %cmake_toolset% %ALL_BUT_FIRST%
 
 :end
 

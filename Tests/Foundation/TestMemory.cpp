@@ -196,7 +196,7 @@ namespace apex::mem {
 		}
 
 		PoolAllocator& getMemoryPool(size_t size) { return MemoryManager::getImplInstance().getMemoryPoolForSize(size); }
-		size_t getPoolCapacity(size_t alloc_size) { return getMemoryPool(alloc_size).getTotalCapacity(); }
+		size_t getPoolCapacity(size_t alloc_size) { auto& pool = getMemoryPool(alloc_size); return pool.getTotalBlocks() * pool.getBlockSize(); }
 		size_t getPoolSize(size_t alloc_size) { return getMemoryPool(alloc_size).getTotalBlocks(); }
 
 		auto handle_getMemoryPoolIndex(AxHandle& handle) { return handle.m_memoryPoolIdx; }

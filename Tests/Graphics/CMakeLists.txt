@@ -6,19 +6,23 @@ if (WIN32)
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /SUBSYSTEM:WINDOWS")
 endif()
 
-add_executable(Graphics_test
+add_executable(GraphicsTest
     ${SOURCES}
 )
 
-target_link_libraries(Graphics_test
+target_link_libraries(GraphicsTest
     PUBLIC
-    Foundation
-    Graphics
+    ApexFoundation
+    ApexGraphics
+    ApexModel
+    PRIVATE
+    Tracy::TracyClient
 )
 
-target_include_directories(Graphics_test
+add_dependencies(GraphicsTest ShaderBinaries)
+
+target_include_directories(GraphicsTest
     PRIVATE
-    "${APEX_CMAKE_EXTERNAL_LIBS_DIR}/tinyobjloader-c"
 )
 
 #include(GoogleTest)

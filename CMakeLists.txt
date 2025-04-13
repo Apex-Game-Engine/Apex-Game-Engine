@@ -1,24 +1,12 @@
 cmake_minimum_required(VERSION 3.19)
 
+project(Apex VERSION 0.2.0)
+
 include(FetchContent)
 
 set(CMAKE_CXX_EXCEPTIONS Off)
 set(CMAKE_CXX_RTTI Off)
 set(CMAKE_CXX_STANDARD 20)
-
-# FetchContent_Declare(
-#     glfw
-#     GIT_REPOSITORY https://github.com/glfw/glfw
-#     GIT_TAG 8f470597d625ae28758c16b4293dd42d63e8a83a
-# )
-# 
-# FetchContent_MakeAvailable(glfw)
-
-
-project(ApexGameEngine
-        VERSION 0.2.0
-        LANGUAGES C CXX
-    )
 
 
 # Similar to Unreal Engine
@@ -34,6 +22,9 @@ if(CMAKE_CONFIGURATION_TYPES)
         DebugGame
         Development
         Release
+
+        Debug_Profile
+        Release_Profile
         #Shipping
         #Test
     )
@@ -43,28 +34,35 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 include(utility.cmake)
 
-set(CMAKE_CXX_FLAGS_DEBUGGAME   ${CMAKE_CXX_FLAGS_DEBUG})
-set(CMAKE_CXX_FLAGS_DEVELOPMENT ${CMAKE_CXX_FLAGS_RELWITHDEBINFO})
+set(CMAKE_CXX_FLAGS_DEBUGGAME                 ${CMAKE_CXX_FLAGS_DEBUG})
+set(CMAKE_CXX_FLAGS_DEVELOPMENT               ${CMAKE_CXX_FLAGS_RELWITHDEBINFO})
+set(CMAKE_CXX_FLAGS_DEBUG_PROFILE             ${CMAKE_CXX_FLAGS_DEBUG})
+set(CMAKE_CXX_FLAGS_RELEASE_PROFILE           ${CMAKE_CXX_FLAGS_RELEASE})
 
-set(CMAKE_EXE_LINKER_FLAGS_DEBUGGAME   ${CMAKE_EXE_LINKER_FLAGS_DEBUG})
-set(CMAKE_EXE_LINKER_FLAGS_DEVELOPMENT ${CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO})
+set(CMAKE_EXE_LINKER_FLAGS_DEBUGGAME          ${CMAKE_EXE_LINKER_FLAGS_DEBUG})
+set(CMAKE_EXE_LINKER_FLAGS_DEVELOPMENT        ${CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO})
+set(CMAKE_EXE_LINKER_FLAGS_DEBUG_PROFILE      ${CMAKE_EXE_LINKER_FLAGS_DEBUG})
+set(CMAKE_EXE_LINKER_FLAGS_RELEASE_PROFILE    ${CMAKE_EXE_LINKER_FLAGS_RELEASE})
 
-set(CMAKE_SHARED_LINKER_FLAGS_DEBUGGAME   ${CMAKE_SHARED_LINKER_FLAGS_DEBUG})
-set(CMAKE_SHARED_LINKER_FLAGS_DEVELOPMENT ${CMAKE_SHARED_LINKER_FLAGS_RELWITHDEBINFO})
+set(CMAKE_SHARED_LINKER_FLAGS_DEBUGGAME       ${CMAKE_SHARED_LINKER_FLAGS_DEBUG})
+set(CMAKE_SHARED_LINKER_FLAGS_DEVELOPMENT     ${CMAKE_SHARED_LINKER_FLAGS_RELWITHDEBINFO})
+set(CMAKE_SHARED_LINKER_FLAGS_DEBUG_PROFILE   ${CMAKE_SHARED_LINKER_FLAGS_DEBUG})
+set(CMAKE_SHARED_LINKER_FLAGS_RELEASE_PROFILE ${CMAKE_SHARED_LINKER_FLAGS_RELEASE})
 
-#set(APEX_ENABLES
-#    # APEX_ENABLE_ASSERTS
-#    "$<$<CONFIG:Debug>:APEX_ENABLE_ASSERTS=2>"
-#    "$<$<CONFIG:DebugGame,Development>:APEX_ENABLE_ASSERTS=1>"
-#    "$<$<CONFIG:Release>:APEX_ENABLE_ASSERTS=0>"
-#)
+set(CMAKE_MODULE_LINKER_FLAGS_DEBUGGAME       ${CMAKE_MODULE_LINKER_FLAGS_DEBUG})
+set(CMAKE_MODULE_LINKER_FLAGS_DEVELOPMENT     ${CMAKE_MODULE_LINKER_FLAGS_RELWITHDEBINFO})
+set(CMAKE_MODULE_LINKER_FLAGS_DEBUG_PROFILE   ${CMAKE_MODULE_LINKER_FLAGS_DEBUG})
+set(CMAKE_MODULE_LINKER_FLAGS_RELEASE_PROFILE ${CMAKE_MODULE_LINKER_FLAGS_RELEASE})
 
 add_compile_definitions(
-    $<$<CONFIG:Debug>:APEX_CONFIG_DEBUG>
+    $<$<CONFIG:Debug,Debug_Profile>:APEX_CONFIG_DEBUG>
     $<$<CONFIG:DebugGame>:APEX_CONFIG_DEBUGGAME>
     $<$<CONFIG:Development>:APEX_CONFIG_DEVELOPMENT>
-    $<$<CONFIG:Release>:APEX_CONFIG_RELEASE>
-    
+    $<$<CONFIG:Release,Release_Profile>:APEX_CONFIG_RELEASE>
+
+    $<$<CONFIG:Debug_Profile,Release_Profile>:APEX_PROFILE>
+    $<$<CONFIG:Debug_Profile,Release_Profile>:TRACY_ENABLE>
+
     $<$<CONFIG:Debug>:APEX_ENABLE_ASSERTS=2>
     $<$<CONFIG:DebugGame,Development>:APEX_ENABLE_ASSERTS=1>
     $<$<CONFIG:Release>:APEX_ENABLE_ASSERTS=0>
@@ -77,18 +75,19 @@ if(WIN32)
 else()
 endif()
 
-set(APEX_CMAKE_EXTERNAL_LIBS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/ExternalLibraries)
+if(MSVC)
+    add_compile_options(/GR-) # Disable RTTI
+    add_compile_options(/EHs-c- /EHc-) # Disable synchronous exceptions and C++ exceptions
+endif()
 
-add_subdirectory(ExternalLibraries)
+set(APEX_THIRDPARTY_DIR ${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty)
+set(APEX_APEX_DIR ${CMAKE_CURRENT_SOURCE_DIR}/Apex)
+set(APEX_TOOLS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/Tools)
 
-add_subdirectory(Foundation)
-add_subdirectory(Graphics)
-add_subdirectory(Engine)
-# add_subdirectory(Runtime)
-# add_subdirectory(Editor)
-
-# Unit Tests
+add_subdirectory(ThirdParty)
+add_subdirectory(Apex)
 add_subdirectory(Tests)
+add_subdirectory(Tools)
 
 # Examples
-# add_subdirectory(examples)
+# add_subdirectory(Examples)

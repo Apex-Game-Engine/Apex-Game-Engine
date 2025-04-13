@@ -1,0 +1,24 @@
+{
+    "install": [
+        {
+            "name": "Vulkan SDK",
+            "version": "1.3.236.0",
+            "url": "https://sdk.lunarg.com/sdk/download/1.3.236.0/windows/VulkanSDK-1.3.236.0-Installer.exe",
+            "description": "Installer for Vulkan SDK by LunarG",
+            "envvar": "VULKAN_SDK"
+        },
+        {
+            "name": "FBX SDK",
+            "version": "2020.3.1",
+            "url": "https://www.autodesk.com/content/dam/autodesk/www/adn/fbx/2020-3-1/fbx202031_fbxsdk_vs2019_win.exe",
+            "description": "Installer for FBX SDK by Autodesk",
+            "envvar": "FBX_SDK_PATH"
+        },
+        {
+            "name": "FBX PDB",
+            "version": "2020.3.1",
+            "url": "https://www.autodesk.com/content/dam/autodesk/www/adn/fbx/2020-3-1/fbx202031_fbxsdk_vs2019_pdbs.exe",
+            "description": "Visual Studio PDB files containing debugging symbols for FBX SDK"
+        }
+    ]
+}

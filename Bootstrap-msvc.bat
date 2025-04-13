@@ -1,1 +1,1 @@
-call "Bootstrap.bat" msvc
+call "Bootstrap.bat" msvc %*

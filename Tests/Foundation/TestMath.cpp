@@ -2,6 +2,7 @@
 
 #include "Math/Math.h"
 #include "Math/Matrix4x4.h"
+#include "Math/Quaternion.h"
 
 namespace apex::math {
 
@@ -183,6 +184,30 @@ namespace apex::math {
 			EXPECT_TRUE(euler == eulerres);
 
 			printf("euler (%0.2f, %0.2f, %0.2f) | eulerres (%0.2f, %0.2f, %0.2f)\n", euler.x, euler.y, euler.z, eulerres.x, eulerres.y, eulerres.z);
+		}
+	}
+
+	TEST(TestQuat, TestHamiltonianProduct)
+	{
+		{
+			Quat q1;
+			Quat qrot = q1.fromAxisAngle(Vector3::unitX(), radians(90)); // 90 deg rotation about x-axis
+			Quat q2 = qrot * q1;
+			Quat q3 = qrot * q2;
+
+			printf("q1 (%0.3f, %0.3f, %0.3f, %0.3f) | qrot (%0.3f, %0.3f, %0.3f, %0.3f) | q2 (%0.3f, %0.3f, %0.3f, %0.3f) | q3 (%0.3f, %0.3f, %0.3f, %0.3f)", q1.w, q1.x, q1.y, q1.z, qrot.w, qrot.x, qrot.y, qrot.z, q2.w, q2.x, q2.y, q2.z, q3.w, q3.x, q3.y, q3.z);
+		}
+	}
+
+	TEST(TestQuat, TestApplyToVector)
+	{
+		{
+			Vector3 pos { 0, 0, -1 };
+			Quat q1 = Quat::fromAxisAngle({1, 0, 0}, radians(90));
+
+			q1.applyToVector(pos);
+
+			printf("pos (%0.3f, %0.3f, %0.3f)", pos.x, pos.y, pos.z);
 		}
 	}
 

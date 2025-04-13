@@ -4,7 +4,6 @@
 #pragma comment(lib, "Xinput.lib")
 
 #include "Containers/AxArray.h"
-#include "Containers/AxStringView.h"
 #include "Core/Console.h"
 #include "Core/Logging.h"
 #include "Core/Files.h"
@@ -14,10 +13,13 @@
 #include "Math/Vector3.h"
 
 #include <charconv>
-#include <vk_mem_alloc.h>
 
-#include "ObjLoader.h"
+#include "MeshSerializer.h"
+#include "Graphics/DebugRenderer.h"
 #include "Math/Matrix4x4.h"
+#include "Math/Quaternion.h"
+
+#include "tracy/Tracy.hpp"
 
 #define WNDCLASSNAME "Graphics_Test"
 #define APPNAME      "ApexGraphics-Test"
@@ -77,8 +79,8 @@ void PollEvents(HWND hwnd)
 
 struct CameraMovement
 {
-	apex::math::Vector3 targetPosition;
-	apex::math::Vector3 targetRotation;
+	apex::math::Vector3 deltaPosition;
+	apex::math::Quat targetRotation;
 };
 
 void ProcessGamepadInput(CameraMovement& camera_movement, float dt)
@@ -148,29 +150,33 @@ void ProcessGamepadInput(CameraMovement& camera_movement, float dt)
 		{
 			//axInfoFmt("Gamepad : Left Thumb X : {}", state.Gamepad.sThumbLX);
 			float fThumbLX = static_cast<float>(state.Gamepad.sThumbLX) / static_cast<float>(32767);
-			camera_movement.targetPosition.x += fThumbLX * dt * 0.001f;
+			camera_movement.deltaPosition.x += fThumbLX * dt * 0.5f;
 		}
 		if (state.Gamepad.sThumbLY > XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE || state.Gamepad.sThumbLY < -XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE)
 		{
 			// axInfoFmt("Gamepad : Left Thumb Y : {}", state.Gamepad.sThumbLY);
 			float fThumbLY = static_cast<float>(state.Gamepad.sThumbLY) / static_cast<float>(32767);
-			camera_movement.targetPosition.z += fThumbLY * dt * 0.001f;
+			camera_movement.deltaPosition.z -= fThumbLY * dt * 0.5f;
 		}
 		if (state.Gamepad.sThumbRX > XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE || state.Gamepad.sThumbRX < -XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE)
 		{
-			axInfoFmt("Gamepad : Right Thumb X : {}", state.Gamepad.sThumbRX);
+			// axInfoFmt("Gamepad : RIGHT Thumb X : {}", state.Gamepad.sThumbRX);
+			float fThumbRX = static_cast<float>(state.Gamepad.sThumbRX) / static_cast<float>(32767);
+			camera_movement.targetRotation *= apex::math::Quat::fromAxisAngle(apex::math::Vector3::unitY(), fThumbRX * dt * 0.1f).normalized(); // * camera_movement.targetRotation;
 		}
 		if (state.Gamepad.sThumbRY > XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE || state.Gamepad.sThumbRY < -XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE)
 		{
-			axInfoFmt("Gamepad : Right Thumb Y : {}", state.Gamepad.sThumbRY);
+			// axInfoFmt("Gamepad : Right Thumb Y : {}", state.Gamepad.sThumbRY);
+			float fThumbRY = static_cast<float>(state.Gamepad.sThumbRY) / static_cast<float>(32767);
+			camera_movement.targetRotation = apex::math::Quat::fromAxisAngle(apex::math::Vector3::unitX(), -fThumbRY * dt * 0.1f).normalized() * camera_movement.targetRotation;
 		}
 		if (state.Gamepad.bLeftTrigger > XINPUT_GAMEPAD_TRIGGER_THRESHOLD)
 		{
-			axInfoFmt("Gamepad : Left Trigger : {}", state.Gamepad.bLeftTrigger);
+			// axInfoFmt("Gamepad : Left Trigger : {}", state.Gamepad.bLeftTrigger);
 		}
 		if (state.Gamepad.bRightTrigger > XINPUT_GAMEPAD_TRIGGER_THRESHOLD)
 		{
-			axInfoFmt("Gamepad : Right Trigger : {}", state.Gamepad.bRightTrigger);
+			// axInfoFmt("Gamepad : Right Trigger : {}", state.Gamepad.bRightTrigger);
 		}
 	}
 }
@@ -197,6 +203,137 @@ void ProcessGamepadRumble(float rumble_left, float rumble_right)
 struct Vertex { apex::math::Vector3 position; };
 struct MeshCPU { apex::AxArrayRef<float> vertices; apex::AxArrayRef<apex::u32> indices; };
 struct MeshGPU { apex::gfx::BufferRef vertexBuffer; apex::gfx::BufferRef indexBuffer; };
+struct AABB
+{
+	apex::math::Vector3 bmin { +apex::Constants::f32_MAX }, bmax { -apex::Constants::f32_MAX };
+	apex::math::Vector3 GetCenter() const { return (bmin + bmax) / 2.f; }
+	apex::math::Vector3 GetExtent() const { return bmax - bmin; }
+};
+struct Frustum
+{
+	apex::math::Vector4 planes[6];
+	//apex::math::Vector3 points[8];
+};
+
+AABB operator*(apex::math::Matrix4x4 const& m, AABB const& aabb)
+{
+	ZoneScoped;
+	apex::math::Vector3 bmin(apex::Constants::f32_MAX);
+	apex::math::Vector3 bmax(-apex::Constants::f32_MAX);
+
+	for (int i = 0; i < 3; i++)
+	{
+		ZoneScopedN("AABB Transform - 1st for loop");
+		bmin[i] = bmax[i] = m[3][i];
+		for (int j = 0; j < 3; j++)
+		{
+			ZoneScopedN("AABB Transform - 2nd for loop");
+			float e = m[i][j] * aabb.bmin[j];
+			float f = m[i][j] * aabb.bmax[j];
+			if (e < f)
+			{
+				bmin[i] += e;
+				bmax[i] += f;
+			}
+			else
+			{
+				bmin[i] += f;
+				bmax[i] += e;
+			}
+		}
+	}
+
+	return { bmin, bmax };
+}
+
+// This function assumes that the position is the first attribute in the first stream of the mesh
+AABB CalculateBoundingBox(AxMeshData const& mesh)
+{
+	AABB bbox;
+	float* vertices = static_cast<float*>(mesh.pVertices);
+	apex::u32 stride = mesh.vertexStride / sizeof(float);
+	for (apex::u32 i = 0; i < mesh.vertexCount; i++)
+	{
+		const apex::u32 idx = stride * i;
+		float x = vertices[idx];
+		float y = vertices[idx + 1];
+		float z = vertices[idx + 2];
+		apex::math::Vector3 vertex { x, y, z };
+
+		bbox.bmin = min(bbox.bmin, vertex);
+		bbox.bmax = max(bbox.bmax, vertex);
+	}
+	return bbox;
+}
+
+bool CheckFrustumVisibility(Frustum const& frustum, AABB const& bbox)
+{
+	apex::math::Vector4 corners[] = {
+		{ bbox.bmin.x, bbox.bmin.y, bbox.bmin.z, 1.0f },
+		{ bbox.bmin.x, bbox.bmin.y, bbox.bmax.z, 1.0f },
+		{ bbox.bmin.x, bbox.bmax.y, bbox.bmin.z, 1.0f },
+		{ bbox.bmin.x, bbox.bmax.y, bbox.bmax.z, 1.0f },
+		{ bbox.bmax.x, bbox.bmin.y, bbox.bmin.z, 1.0f },
+		{ bbox.bmax.x, bbox.bmin.y, bbox.bmax.z, 1.0f },
+		{ bbox.bmax.x, bbox.bmax.y, bbox.bmin.z, 1.0f },
+		{ bbox.bmax.x, bbox.bmax.y, bbox.bmax.z, 1.0f },
+	};
+
+	bool visible = false;
+	for (int i = 0; i < 6; i++)
+	{
+		for (int c = 0; c < 8; c++)
+		{
+			visible = visible || (dot(frustum.planes[i], corners[c]) > 0.0f);
+		}
+		if (!visible) return false;
+	}
+	return true;
+}
+
+struct Camera
+{
+	apex::math::Vector3 position;
+	apex::math::Quat rotation;
+	float fov = apex::math::radians(60.f);
+	float nearZ = 0.1f;
+	float farZ = 10000.f;
+};
+
+struct CameraMatrices
+{
+	apex::math::Matrix4x4 view;
+	apex::math::Matrix4x4 projection;
+	apex::math::Matrix4x4 inverseView;
+};
+
+void UpdateCamera(CameraMatrices &camera_data, apex::gfx::Dim2D dims, Camera const& camera)
+{
+	apex::math::Matrix4x4 cameraTransform = camera.rotation.matrix();
+	cameraTransform.setTranslation(camera.position);
+	camera_data.inverseView = cameraTransform;
+	camera_data.view = cameraTransform.inverse();
+	// Can precompute the projection matrix. But its okay for the demo.
+	camera_data.projection = apex::math::perspective(camera.fov, static_cast<float>(dims.width) / static_cast<float>(dims.height), camera.farZ, camera.nearZ);
+	camera_data.projection[1][1] *= -1;
+}
+
+void MakeViewSpaceFrustum(Frustum& frustum, CameraMatrices const& camera)
+{
+	apex::math::Matrix4x4 VP = (camera.projection * camera.view).transpose();
+	frustum.planes[0] = VP[3] + VP[0];
+	frustum.planes[1] = VP[3] - VP[0];
+	frustum.planes[2] = VP[3] + VP[1];
+	frustum.planes[3] = VP[3] - VP[1];
+	frustum.planes[4] = VP[3] + VP[2];
+	frustum.planes[5] = VP[3] - VP[2];
+
+	// Normalize the planes
+	for (int i = 0; i < 6; i++)
+	{
+		frustum.planes[i] /= frustum.planes[i].xyz().length();
+	}
+}
 
 MeshCPU LoadMesh(const char* filename, apex::AxArray<float>& vertices, apex::AxArray<apex::u32>& indices)
 {
@@ -336,21 +473,6 @@ MeshGPU UploadMeshToGpu(apex::gfx::Context& gfx, MeshCPU const& mesh)
 	return { vertexBuffer, indexBuffer };
 }
 
-
-struct Camera
-{
-	apex::math::Matrix4x4 view;
-	apex::math::Matrix4x4 projection;
-};
-
-void UpdateCamera(Camera &camera, apex::gfx::Dim2D dims, apex::math::Matrix4x4 const& camera_transform)
-{
-	camera.view = apex::math::lookAt(camera_transform.getTranslation(), { 0.f, 0.f, 0.f }, apex::math::Vector3::unitY());
-	camera.projection = apex::math::perspective(apex::math::radians(60.f), static_cast<float>(dims.width) / static_cast<float>(dims.height), 10000.f, 0.1f);
-	camera.projection[1][1] *= -1;
-}
-
-
 int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR pCmdLine, int nCmdShow)
 {
 	using namespace apex;
@@ -370,46 +492,58 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR pCmdLine
 		// Rendering code
 		{
 			// MeshCPU meshCpu = LoadMesh(R"(X:\ApexGameEngine-Vulkan\Templates\Assets\cube.axmesh)");
-			ObjLoader objLoader(R"(X:\ApexGameEngine-Vulkan\Templates\Assets\FinalBaseMesh.obj)");
 
-			MeshCPU meshCpu { .vertices = objLoader.GetVertexBufferData(), .indices = objLoader.GetIndexBufferData() };
+			// ObjLoader objLoader(R"(X:\ApexGameEngine-Vulkan\Templates\Assets\FinalBaseMesh.obj)");
+			// MeshCPU meshCpu { .vertices = objLoader.GetVertexBufferData(), .indices = objLoader.GetIndexBufferData() };
+
+			AxMeshData* mesh = axMeshLoadFile("X:\\Tests\\Capsule.axmesh", {});
+			//AxMeshData* mesh = axMeshLoadFile("X:\\ApexGameEngine-Vulkan\\Tools\\PythonTools\\ExamplePlane.axmesh", {});
+			AABB aabb = CalculateBoundingBox(*mesh);
+
+			MeshCPU meshCpu { .vertices = { (float*)mesh->pVertices, mesh->vertexCount * mesh->vertexStride / sizeof(float) }, .indices = { mesh->pIndices, mesh->indexCount } };
+
 			MeshGPU meshGpu = UploadMeshToGpu(gfx, meshCpu);
 
-			gfx::Buffer* cameraBuffer = gfx.GetDevice()->CreateBuffer("Camera Uniform Buffer",
+			gfx::Buffer* cameraBuffer = gfx.GetDevice()->CreateBuffer("CameraMatrices Uniform Buffer",
 			                                                          {
-				                                                          .size = sizeof(Camera),
-				                                                          .usageFlags = gfx::BufferUsageFlagBits::Uniform,
-				                                                          .requiredFlags = gfx::MemoryPropertyFlagBits::DeviceLocal |
+				                                                          .size = sizeof(CameraMatrices),
+				                                                          .usageFlags =
+				                                                          gfx::BufferUsageFlagBits::Uniform,
+				                                                          .requiredFlags =
+				                                                          gfx::MemoryPropertyFlagBits::DeviceLocal |
 				                                                          gfx::MemoryPropertyFlagBits::HostVisible |
 				                                                          gfx::MemoryPropertyFlagBits::HostCoherent,
-				                                                          .memoryFlags = gfx::MemoryAllocateFlagBits::HostAccessSequential,
+				                                                          .memoryFlags =
+				                                                          gfx::MemoryAllocateFlagBits::HostAccessSequential,
 				                                                          .createMapped = true,
 			                                                          });
+
+			gfx::Buffer* transformBuffer = gfx.GetDevice()->CreateBuffer("Model Transforms Buffer",
+			                                                             {
+				                                                             .size = sizeof(math::Matrix4x4) * 1000,
+				                                                             .usageFlags =
+				                                                             gfx::BufferUsageFlagBits::Storage,
+				                                                             .requiredFlags =
+				                                                             gfx::MemoryPropertyFlagBits::DeviceLocal |
+				                                                             gfx::MemoryPropertyFlagBits::HostVisible |
+				                                                             gfx::MemoryPropertyFlagBits::HostCoherent,
+				                                                             .memoryFlags =
+				                                                             gfx::MemoryAllocateFlagBits::HostAccessSequential,
+				                                                             .createMapped = true,
+			                                                             });
 
 			gfx::Image* depthTexture = gfx.GetDevice()->CreateImage("Depth",
 			                                                        {
 				                                                        .imageType = gfx::ImageType::Image2D,
 				                                                        .format = gfx::ImageFormat::D32_SFLOAT,
 				                                                        .usageFlags = gfx::ImageUsageFlagBits::DepthStencilAttachment,
-				                                                        .dimensions = { gfx.GetDevice()->GetSurfaceDim().width, gfx.GetDevice()->GetSurfaceDim().height },
+				                                                        .dimensions = {
+					                                                        gfx.GetDevice()->GetSurfaceDim().width,
+					                                                        gfx.GetDevice()->GetSurfaceDim().height
+				                                                        },
 				                                                        .requiredFlags = gfx::MemoryPropertyFlagBits::DeviceLocal,
 				                                                        .createMapped = false
 			                                                        });
-
-			{
-				constexpr gfx::DeviceQueue queue = gfx::DeviceQueue::Graphics;
-				gfx::CommandBuffer* commands = gfx.GetDevice()->AllocateCommandBuffer(queue, 0, 0);
-				commands->Begin();
-				commands->TransitionImage(depthTexture,
-				                          gfx::ImageLayout::Undefined, gfx::ImageLayout::DepthStencilAttachmentOptimal,
-				                          gfx::AccessFlagBits::None, gfx::AccessFlagBits::DepthStencilAttachmentWrite,
-				                          gfx::PipelineStageFlagBits::None, gfx::PipelineStageFlagBits::EarlyFragmentTests
-				                          );
-				commands->End();
-				gfx.GetDevice()->SubmitImmediateCommandBuffer(queue, commands);
-				gfx.GetDevice()->WaitForQueueIdle(queue);
-				delete commands;
-			}
 
 			gfx::Image* texture = gfx.GetDevice()->CreateImage("Texture",
 			                                                   {
@@ -423,21 +557,36 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR pCmdLine
 				                                                   .createMapped = false,
 			                                                   });
 
+			u32 visible = 0;
+			AxArray<math::Vector3> positions(1000); positions.resize(1000);
 			{
-				u32 data[4] = { 0, 0xFFFFFFFF, 0xFFFFFFFF, 0 };
-				size_t dataSize = sizeof(data);
-				gfx::Buffer* uploadBuffer = gfx.GetDevice()->CreateStagingBuffer("Staging-Texture", dataSize);
-				memcpy(uploadBuffer->GetMappedPointer(), data, dataSize);
+				u32 textureData[4] = { 0, 0xFFFFFFFF, 0xFFFFFFFF, 0 };
+				size_t textureDataSize = sizeof(textureData);
+				gfx::Buffer* stagingTexture = gfx.GetDevice()->CreateStagingBuffer("Staging-Texture", textureDataSize);
+				memcpy(stagingTexture->GetMappedPointer(), textureData, textureDataSize);
+
+				AxArrayRef transforms { (math::Matrix4x4*)transformBuffer->GetMappedPointer(), 1000 };
+				for (int i = 0; i < 10; i++) for (int j = 0; j < 10; j++) for (int k = 0; k < 10; k++)
+				{
+					int idx = i * 100 + j * 10 + k;
+					math::Vector3 position = { ((float)i / 10.f - 0.5f) * 40.f, ((float)j / 10.f - 0.5f) * 40.f, ((float)k / 10.f) * 40.f };
+					positions[idx] = position;
+					transforms[idx] = translate(math::Matrix4x4::identity(), position);
+				}
 
 				constexpr gfx::DeviceQueue queue = gfx::DeviceQueue::Graphics;
 
 				gfx::CommandBuffer* commands = gfx.GetDevice()->AllocateCommandBuffer(queue, 0, 0);
 				commands->Begin();
+				commands->TransitionImage(depthTexture,
+				                          gfx::ImageLayout::Undefined, gfx::ImageLayout::DepthStencilAttachmentOptimal,
+				                          gfx::AccessFlagBits::None, gfx::AccessFlagBits::DepthStencilAttachmentWrite,
+				                          gfx::PipelineStageFlagBits::None, gfx::PipelineStageFlagBits::EarlyFragmentTests);
 				commands->TransitionImage(texture,
 				                          gfx::ImageLayout::Undefined, gfx::ImageLayout::TransferDstOptimal,
 				                          gfx::AccessFlagBits::None, gfx::AccessFlagBits::TransferWrite,
 				                          gfx::PipelineStageFlagBits::TopOfPipe, gfx::PipelineStageFlagBits::Transfer);
-				commands->CopyBufferToImage(texture, uploadBuffer, gfx::ImageLayout::TransferDstOptimal);
+				commands->CopyBufferToImage(texture, stagingTexture, gfx::ImageLayout::TransferDstOptimal);
 				commands->TransitionImage(texture,
 				                          gfx::ImageLayout::TransferDstOptimal, gfx::ImageLayout::ShaderReadOnlyOptimal,
 				                          gfx::AccessFlagBits::TransferWrite, gfx::AccessFlagBits::ShaderRead,
@@ -447,12 +596,14 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR pCmdLine
 				gfx.GetDevice()->SubmitImmediateCommandBuffer(queue, commands);
 				gfx.GetDevice()->WaitForQueueIdle(queue);
 
-				delete uploadBuffer;
+				delete stagingTexture;
 				delete commands;
 			}
 
-			gfx::ShaderModule* vertexShader = gfx.GetDevice()->CreateShaderModule("standard_phong.vert", R"(X:\ApexGameEngine-Vulkan\build-msvc\Graphics\spv\standard_phong.vert.spv)");
-			gfx::ShaderModule* fragmentShader = gfx.GetDevice()->CreateShaderModule("standard_phong.frag", R"(X:\ApexGameEngine-Vulkan\build-msvc\Graphics\spv\standard_phong.frag.spv)");
+			gfx::DebugRenderer* debugRenderer = gfx::DebugRenderer::Create(gfx.GetDevice(), { .maxVertexCount = 16 * 1024 });
+
+			gfx::ShaderModule* vertexShader = gfx.GetDevice()->CreateShaderModule("standard_phong.vert", R"(X:\ApexGameEngine-Vulkan\build-msvc\Apex\Graphics\spv\standard_phong.vert.spv)");
+			gfx::ShaderModule* fragmentShader = gfx.GetDevice()->CreateShaderModule("standard_phong.frag", R"(X:\ApexGameEngine-Vulkan\build-msvc\Apex\Graphics\spv\standard_phong.frag.spv)");
 			gfx::GraphicsPipeline* pipeline = gfx.GetDevice()->CreateGraphicsPipeline("StandardPhongPipeline",
 			{
 				.shaderStages = {
@@ -460,12 +611,11 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR pCmdLine
 					.fragmentShader = fragmentShader
 				},
 			});
+			delete vertexShader;
+			delete fragmentShader;
 
-			math::Matrix4x4 cameraTransform = translate(math::Matrix4x4::identity(), { 0.0, 2.0, 4.0 });
-			UpdateCamera(*static_cast<Camera*>(cameraBuffer->GetMappedPointer()), gfx.GetDevice()->GetSurfaceDim(), cameraTransform);
-
-			// apex::gfx::DescriptorSet* cameraDescriptorSet = gfx.GetDevice()->CreateDescriptorSet();
-
+			Camera camera { .position = { 0, 0, 5 } };
+			
 			const u32 framesInFlight = gfx.GetDevice()->GetFramesInFlight();
 
 			AxArray<gfx::CommandBuffer*> cmdbufs;
@@ -475,25 +625,34 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR pCmdLine
 				cmdbufs[i] = gfx.GetDevice()->AllocateCommandBuffer(gfx::DeviceQueue::Graphics, i, 0);
 
 			LARGE_INTEGER liFrequency;
-			LARGE_INTEGER liStartTime, liPrevEndTime, liEndTime, liElapsedMicroseconds, liDeltaSeconds;
+			LARGE_INTEGER liStartTime, liPrevEndTime, liEndTime, liElapsedMicroseconds, liDeltaMicroseconds;
 
 			QueryPerformanceFrequency(&liFrequency);
 			QueryPerformanceCounter(&liStartTime);
 			liPrevEndTime = liStartTime;
 
+			axDebugFmt("Timer Frequency: {} counts / second", liFrequency.QuadPart);
+
+			s64 frameCount = 0;
+
 			while (g_running)
 			{
+				ZoneScopedN("Game Loop");
+
 				QueryPerformanceCounter(&liEndTime);
 				liElapsedMicroseconds.QuadPart = liEndTime.QuadPart - liStartTime.QuadPart;
-				liElapsedMicroseconds.QuadPart *= 1000000;
+				liElapsedMicroseconds.QuadPart *= 1000'000;
 				liElapsedMicroseconds.QuadPart /= liFrequency.QuadPart;
 				float elapsedTime = static_cast<float>(liElapsedMicroseconds.QuadPart);
 
-				liDeltaSeconds.QuadPart = liEndTime.QuadPart - liPrevEndTime.QuadPart;
-				liDeltaSeconds.QuadPart /= liFrequency.QuadPart;
-				float deltaTime = static_cast<float>(liDeltaSeconds.QuadPart);
+				liDeltaMicroseconds.QuadPart = liEndTime.QuadPart - liPrevEndTime.QuadPart;
+				float deltaTime = static_cast<float>(liDeltaMicroseconds.QuadPart) / 1e6f;
+
+				liPrevEndTime.QuadPart = liEndTime.QuadPart;
 
 				PollEvents(hwnd);
+
+				//if (frameCount++ % 1000) axDebugFmt("DeltaTime (us) : {}", deltaTime);
 
 				if (!g_running)
 				{
@@ -510,57 +669,115 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR pCmdLine
 					continue;
 				}
 
+				debugRenderer->BeginFrame();
+				CameraMatrices cameraMatrices;
 				{
-					CameraMovement cam {};
+					ZoneScopedN("Update Camera");
+					CameraMovement cam { .targetRotation = camera.rotation };
 					ProcessGamepadInput(cam, deltaTime);
+					camera.rotation = cam.targetRotation;
+					camera.position += camera.rotation.applyToVector(cam.deltaPosition);
+					UpdateCamera(cameraMatrices, gfx.GetDevice()->GetSurfaceDim(), camera);
+					memcpy_s(cameraBuffer->GetMappedPointer(), cameraBuffer->GetSize(), &cameraMatrices, sizeof(CameraMatrices));
+				}
 
-					math::Vector3 forward = normalize(-cameraTransform.getTranslation()); // target - eye
-					math::Vector3 up = math::Vector3::unitY();
-					math::Vector3 right = normalize(cross(forward, up));
+				{
+					ZoneScopedN("Update Transforms");
+					visible = 0;
+					Frustum frustum;
+					MakeViewSpaceFrustum(frustum, cameraMatrices);
+					math::Quat q = math::Quat::fromAxisAngle(math::Vector3{ 1.0, 1.0, 0.0 }.normalize(), elapsedTime * 0.000002f);
+					math::Matrix4x4 r = q.matrix();
 
-					math::Vector3 displacement = cam.targetPosition.z * forward + cam.targetPosition.x * right;
-					if (!displacement.isNearZero())
+					AxArrayRef transforms { (math::Matrix4x4*)transformBuffer->GetMappedPointer(), 1000 };
+					for (int i = 0; i < 1000; i++)
 					{
-						cameraTransform = translate(cameraTransform, displacement);
-						UpdateCamera(*static_cast<Camera*>(cameraBuffer->GetMappedPointer()), gfx.GetDevice()->GetSurfaceDim(), cameraTransform);
+						ZoneScopedN("Update Transforms - for loop");
+						math::Matrix4x4 transform;
+						{
+							ZoneScopedN("Update Single Transform");
+							transform = r;
+							transform.setTranslation(positions[i]);
+						}
+						AABB bbox;
+						{
+							ZoneScopedN("Transform AABB");
+							bbox = transform * aabb;
+						}
+						if (CheckFrustumVisibility(frustum, bbox))
+						{
+							{
+								ZoneScopedN("Debug Render - Cube");
+								debugRenderer->Cube(bbox.GetCenter(), bbox.GetExtent());
+							}
+							ZoneScopedN("Store Single Transform");
+							transforms[visible++] = transform;
+						}
 					}
 				}
 
-				const gfx::Dim2D dims = gfx.GetDevice()->GetSurfaceDim();
+				{
+					ZoneScopedN("Render");
+					const gfx::Dim2D dims = gfx.GetDevice()->GetSurfaceDim();
 
-				const gfx::Image* swapchainImage = gfx.GetDevice()->AcquireNextImage();
+					const gfx::Image* swapchainImage;
+					{
+						ZoneScopedN("AcquireNextImage");
+						swapchainImage = gfx.GetDevice()->AcquireNextImage();
+					}
 
-				const u32 currentFrameIndex = gfx.GetDevice()->GetCurrentFrameIndex();
+					const u32 currentFrameIndex = gfx.GetDevice()->GetCurrentFrameIndex();
 
-				gfx::CommandBuffer* cmdbuf = cmdbufs[currentFrameIndex];
-				cmdbuf->Begin();
+					gfx::CommandBuffer* cmdbuf = cmdbufs[currentFrameIndex];
+					{
+						ZoneScopedN("Create Command Buffer");
+						cmdbuf->Begin();
 
-				cmdbuf->TransitionImage(swapchainImage, gfx::ImageLayout::Undefined, gfx::ImageLayout::ColorAttachmentOptimal,
-				                        gfx::AccessFlagBits::None, gfx::AccessFlagBits::ColorAttachmentWrite,
-				                        gfx::PipelineStageFlagBits::TopOfPipe, gfx::PipelineStageFlagBits::ColorAttachmentOutput);
+						cmdbuf->TransitionImage(swapchainImage, gfx::ImageLayout::Undefined, gfx::ImageLayout::ColorAttachmentOptimal,
+						                        gfx::AccessFlagBits::None, gfx::AccessFlagBits::ColorAttachmentWrite,
+						                        gfx::PipelineStageFlagBits::TopOfPipe, gfx::PipelineStageFlagBits::ColorAttachmentOutput);
 
-				cmdbuf->BeginRendering(swapchainImage->GetView(), depthTexture->GetView());
+						cmdbuf->BeginRendering(swapchainImage->GetView(), depthTexture->GetView());
 
-				cmdbuf->Clear();
-				cmdbuf->BindGraphicsPipeline(pipeline);
+						cmdbuf->Clear();
+						cmdbuf->BindGraphicsPipeline(pipeline);
 
-				cmdbuf->SetViewport({ 0, 0, static_cast<float>(dims.width), static_cast<float>(dims.height), 0.0f, 1.0f });
-				cmdbuf->SetScissor({ 0, 0, dims.width, dims.height });
+						cmdbuf->SetViewport({ 0, 0, static_cast<float>(dims.width), static_cast<float>(dims.height), 0.0f, 1.0f });
+						cmdbuf->SetScissor({ 0, 0, dims.width, dims.height });
 
-				cmdbuf->BindVertexBuffer(meshGpu.vertexBuffer.GetPointer());
-				cmdbuf->BindIndexBuffer(meshGpu.indexBuffer.GetPointer());
-				cmdbuf->DrawIndexed(meshCpu.indices.size());
+						cmdbuf->BindVertexBuffer(meshGpu.vertexBuffer.GetPointer());
+						cmdbuf->BindIndexBuffer(meshGpu.indexBuffer.GetPointer());
 
-				cmdbuf->EndRendering();
+						for (uint32_t modelId = 0; modelId < visible; modelId++)
+						{
+							cmdbuf->PushConstants(modelId);
+							cmdbuf->DrawIndexed(meshCpu.indices.size());
+						}
 
-				cmdbuf->TransitionImage(swapchainImage, gfx::ImageLayout::ColorAttachmentOptimal, gfx::ImageLayout::PresentSrcOptimal,
-				                        gfx::AccessFlagBits::ColorAttachmentWrite, gfx::AccessFlagBits::None,
-				                        gfx::PipelineStageFlagBits::ColorAttachmentOutput, gfx::PipelineStageFlagBits::BottomOfPipe);
+						debugRenderer->Draw(cmdbuf);
+						debugRenderer->EndFrame();
 
-				cmdbuf->End();
+						cmdbuf->EndRendering();
 
-				gfx.GetDevice()->SubmitCommandBuffer(gfx::DeviceQueue::Graphics, cmdbuf);
-				gfx.GetDevice()->Present(gfx::DeviceQueue::Graphics);
+						cmdbuf->TransitionImage(swapchainImage, gfx::ImageLayout::ColorAttachmentOptimal, gfx::ImageLayout::PresentSrcOptimal,
+						                        gfx::AccessFlagBits::ColorAttachmentWrite, gfx::AccessFlagBits::None,
+						                        gfx::PipelineStageFlagBits::ColorAttachmentOutput, gfx::PipelineStageFlagBits::BottomOfPipe);
+
+						cmdbuf->End();
+					}
+					{
+						ZoneScopedN("Submit");
+						gfx.GetDevice()->SubmitCommandBuffer(gfx::DeviceQueue::Graphics, cmdbuf);
+					}
+					{
+						ZoneScopedN("Present");
+						gfx.GetDevice()->Present(gfx::DeviceQueue::Graphics);
+					}
+				}
+
+				TracyPlot("Visible Objects", static_cast<s64>(visible));
+
+				FrameMark;
 			}
 
 			for (auto cmdbuf : cmdbufs)
@@ -568,11 +785,11 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR pCmdLine
 				delete cmdbuf;
 			}
 
+			delete debugRenderer;
 			delete texture;
+			delete transformBuffer;
 			delete depthTexture;
 			delete cameraBuffer;
-			delete vertexShader;
-			delete fragmentShader;
 			delete pipeline;
 		}
 	}
