@@ -18,6 +18,8 @@
 #include "Graphics/DebugRenderer.h"
 #include "Math/Matrix4x4.h"
 #include "Math/Quaternion.h"
+#include "Platform/InputManager.h"
+#include "Platform/PlatformManager.h"
 
 #include "tracy/Tracy.hpp"
 
@@ -27,159 +29,6 @@
 
 bool g_running = true;
 bool g_resized = false;
-
-LRESULT WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
-{
-	switch (uMsg)
-	{
-	case WM_DESTROY:
-		g_running = false;
-		break;
-
-	case WM_SIZE:
-		g_resized = true;
-		break;
-	}
-	return DefWindowProc(hWnd, uMsg, wParam, lParam);
-}
-
-void OpenWindow(HINSTANCE hInstance, HWND& hwnd, int nCmdShow)
-{
-	WNDCLASS wc{};
-	wc.lpfnWndProc   = WndProc;
-	wc.lpszClassName = WNDCLASSNAME;
-	wc.hInstance     = hInstance;
-
-	RegisterClass(&wc);
-
-	hwnd = CreateWindowEx(
-		0,                               // Optional window styles
-		WNDCLASSNAME,	                 // Window class
-		APPNAME,                         // Window text
-		WS_OVERLAPPEDWINDOW,             // Window style
-		CW_USEDEFAULT, CW_USEDEFAULT,    // Position
-		1366, 768,                       // Size
-		NULL,                            // Parent window
-		NULL,                            // Menu
-		hInstance,
-		NULL 
-	);
-	ShowWindow(hwnd, nCmdShow);
-}
-
-void PollEvents(HWND hwnd)
-{
-	MSG msg{nullptr};
-	while (PeekMessage(&msg, hwnd, 0, 0, PM_REMOVE))
-	{
-		TranslateMessage(&msg);
-		DispatchMessage(&msg);
-	}
-}
-
-struct CameraMovement
-{
-	apex::math::Vector3 deltaPosition;
-	apex::math::Quat targetRotation;
-};
-
-void ProcessGamepadInput(CameraMovement& camera_movement, float dt)
-{
-	XINPUT_STATE state {};
-	DWORD dwResult = XInputGetState(0, &state);
-
-	if (ERROR_SUCCESS == dwResult)
-	{
-		if (state.Gamepad.wButtons & XINPUT_GAMEPAD_A)
-		{
-			//axInfo("Gamepad : A");
-		}
-		if (state.Gamepad.wButtons & XINPUT_GAMEPAD_B)
-		{
-			//axInfo("Gamepad : B");
-		}
-		if (state.Gamepad.wButtons & XINPUT_GAMEPAD_X)
-		{
-			//axInfo("Gamepad : X");
-		}
-		if (state.Gamepad.wButtons & XINPUT_GAMEPAD_Y)
-		{
-			//axInfo("Gamepad : Y");
-		}
-		if (state.Gamepad.wButtons & XINPUT_GAMEPAD_LEFT_SHOULDER)
-		{
-			//axInfo("Gamepad : LB");
-		}
-		if (state.Gamepad.wButtons & XINPUT_GAMEPAD_RIGHT_SHOULDER)
-		{
-			//axInfo("Gamepad : RB");
-		}
-		if (state.Gamepad.wButtons & XINPUT_GAMEPAD_LEFT_THUMB)
-		{
-			//axInfo("Gamepad : Left Thumb");
-		}
-		if (state.Gamepad.wButtons & XINPUT_GAMEPAD_RIGHT_THUMB)
-		{
-			//axInfo("Gamepad : Right Thumb");
-		}
-		if (state.Gamepad.wButtons & XINPUT_GAMEPAD_BACK)
-		{
-			//axInfo("Gamepad : Back");
-		}
-		if (state.Gamepad.wButtons & XINPUT_GAMEPAD_START)
-		{
-			//axInfo("Gamepad : Start");
-		}
-		if (state.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_UP)
-		{
-			//axInfo("Gamepad : DPad Up");
-		}
-		if (state.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_DOWN)
-		{
-			//axInfo("Gamepad : DPad Down");
-		}
-		if (state.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_LEFT)
-		{
-			//axInfo("Gamepad : DPad Left");
-		}
-		if (state.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_RIGHT)
-		{
-			//axInfo("Gamepad : DPad Right");
-		}
-		if (state.Gamepad.sThumbLX > XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE || state.Gamepad.sThumbLX < -XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE)
-		{
-			//axInfoFmt("Gamepad : Left Thumb X : {}", state.Gamepad.sThumbLX);
-			float fThumbLX = static_cast<float>(state.Gamepad.sThumbLX) / static_cast<float>(32767);
-			camera_movement.deltaPosition.x += fThumbLX * dt * 0.5f;
-		}
-		if (state.Gamepad.sThumbLY > XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE || state.Gamepad.sThumbLY < -XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE)
-		{
-			// axInfoFmt("Gamepad : Left Thumb Y : {}", state.Gamepad.sThumbLY);
-			float fThumbLY = static_cast<float>(state.Gamepad.sThumbLY) / static_cast<float>(32767);
-			camera_movement.deltaPosition.z -= fThumbLY * dt * 0.5f;
-		}
-		if (state.Gamepad.sThumbRX > XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE || state.Gamepad.sThumbRX < -XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE)
-		{
-			// axInfoFmt("Gamepad : RIGHT Thumb X : {}", state.Gamepad.sThumbRX);
-			float fThumbRX = static_cast<float>(state.Gamepad.sThumbRX) / static_cast<float>(32767);
-			camera_movement.targetRotation *= apex::math::Quat::fromAxisAngle(apex::math::Vector3::unitY(), fThumbRX * dt * 0.1f).normalized(); // * camera_movement.targetRotation;
-		}
-		if (state.Gamepad.sThumbRY > XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE || state.Gamepad.sThumbRY < -XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE)
-		{
-			// axInfoFmt("Gamepad : Right Thumb Y : {}", state.Gamepad.sThumbRY);
-			float fThumbRY = static_cast<float>(state.Gamepad.sThumbRY) / static_cast<float>(32767);
-			camera_movement.targetRotation = apex::math::Quat::fromAxisAngle(apex::math::Vector3::unitX(), -fThumbRY * dt * 0.1f).normalized() * camera_movement.targetRotation;
-		}
-		if (state.Gamepad.bLeftTrigger > XINPUT_GAMEPAD_TRIGGER_THRESHOLD)
-		{
-			// axInfoFmt("Gamepad : Left Trigger : {}", state.Gamepad.bLeftTrigger);
-		}
-		if (state.Gamepad.bRightTrigger > XINPUT_GAMEPAD_TRIGGER_THRESHOLD)
-		{
-			// axInfoFmt("Gamepad : Right Trigger : {}", state.Gamepad.bRightTrigger);
-		}
-	}
-}
 
 float clamp(float val, float min_val, float max_val)
 {
@@ -473,7 +322,8 @@ MeshGPU UploadMeshToGpu(apex::gfx::Context& gfx, MeshCPU const& mesh)
 	return { vertexBuffer, indexBuffer };
 }
 
-int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR pCmdLine, int nCmdShow)
+//int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR pCmdLine, int nCmdShow)
+int main(int argc, char* argv[])
 {
 	using namespace apex;
 
@@ -483,12 +333,15 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR pCmdLine
 	logging::Logger::AttachConsole(&console);
 
 	mem::MemoryManager::initialize({ .frameArenaSize = 0, .numFramesInFlight = 3 });
+
+	plat::PlatformManager::Init({ 1366, 768, "Apex Platform Test" });
+	plat::PlatformManager::GetMainWindow().Show();
 	{
-		HWND hwnd;
-		OpenWindow(hInstance, hwnd, nCmdShow);
+		//HWND hwnd;
+		//OpenWindow(hInstance, hwnd, nCmdShow);
 
 		gfx::Context gfx = gfx::Context::CreateContext(gfx::ContextApi::Vulkan);
-		gfx.Init(hInstance, hwnd);
+		gfx.Init(plat::PlatformManager::GetMainWindow());
 		// Rendering code
 		{
 			// MeshCPU meshCpu = LoadMesh(R"(X:\ApexGameEngine-Vulkan\Templates\Assets\cube.axmesh)");
@@ -650,7 +503,9 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR pCmdLine
 
 				liPrevEndTime.QuadPart = liEndTime.QuadPart;
 
-				PollEvents(hwnd);
+				plat::PlatformManager::PollEvents();
+
+				g_running = !plat::PlatformManager::GetMainWindow().ShouldQuit();
 
 				//if (frameCount++ % 1000) axDebugFmt("DeltaTime (us) : {}", deltaTime);
 
@@ -662,9 +517,9 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR pCmdLine
 
 				if (g_resized)
 				{
-					RECT rect;
-					GetClientRect(hwnd, &rect);
-					gfx.ResizeWindow(rect.right - rect.left, rect.bottom - rect.top);
+					u32 width, height;
+					plat::PlatformManager::GetMainWindow().GetSize(&width, &height);
+					gfx.ResizeWindow(width, height);
 					g_resized = false;
 					continue;
 				}
@@ -673,10 +528,21 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR pCmdLine
 				CameraMatrices cameraMatrices;
 				{
 					ZoneScopedN("Update Camera");
-					CameraMovement cam { .targetRotation = camera.rotation };
-					ProcessGamepadInput(cam, deltaTime);
-					camera.rotation = cam.targetRotation;
-					camera.position += camera.rotation.applyToVector(cam.deltaPosition);
+					// CameraMovement cam { .targetRotation = camera.rotation };
+					// ProcessGamepadInput(cam, deltaTime);
+					math::Vector3 deltaPosition;
+					math::Quat targetRotation = camera.rotation;
+
+					auto& inputManager = plat::PlatformManager::GetInputManager();
+					auto& gamepad = inputManager.GetGamepad(0);
+					
+					deltaPosition.x += gamepad.leftStick.x * deltaTime * 0.5f;
+					deltaPosition.z -= gamepad.leftStick.y * deltaTime * 0.5f;
+					targetRotation *= math::Quat::fromAxisAngle(math::Vector3::unitY(), gamepad.rightStick.x * deltaTime * 0.1f).normalized();
+					targetRotation = math::Quat::fromAxisAngle(math::Vector3::unitX(), -gamepad.rightStick.y * deltaTime * 0.1f).normalized() * targetRotation;
+
+					camera.rotation = targetRotation;
+					camera.position += camera.rotation.applyToVector(deltaPosition);
 					UpdateCamera(cameraMatrices, gfx.GetDevice()->GetSurfaceDim(), camera);
 					memcpy_s(cameraBuffer->GetMappedPointer(), cameraBuffer->GetSize(), &cameraMatrices, sizeof(CameraMatrices));
 				}
@@ -795,8 +661,6 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR pCmdLine
 	}
 
 	mem::MemoryManager::shutdown();
-
-	system("pause");
 
 	return 0;
 }

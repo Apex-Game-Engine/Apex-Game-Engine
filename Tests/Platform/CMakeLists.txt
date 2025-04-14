@@ -14,6 +14,7 @@ target_link_libraries(PlatformTest
     PUBLIC
     ApexFoundation
     ApexPlatform
+
     PRIVATE
     Tracy::TracyClient
 )

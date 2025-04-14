@@ -46,6 +46,7 @@ target_compile_definitions(ApexGraphics
 target_link_libraries(ApexGraphics
 	PRIVATE
 	ApexFoundation
+    ApexPlatform
 
     PUBLIC
     Vulkan::Vulkan
@@ -61,7 +62,6 @@ target_include_directories(ApexGraphics
 
     PRIVATE
     src
-    $<TARGET_PROPERTY:ApexFoundation,INTERFACE_INCLUDE_DIRECTORIES>
 )
 
 

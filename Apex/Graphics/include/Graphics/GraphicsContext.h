@@ -11,6 +11,11 @@
 #include "Factory.h"
 #include "Containers/AxArray.h"
 
+namespace apex::plat
+{
+	class PlatformWindow;
+}
+
 namespace apex {
 namespace gfx {
 
@@ -47,11 +52,7 @@ namespace gfx {
 	public:
 		virtual ~ContextBase() = default;
 		
-#if APEX_PLATFORM_WIN32
-		virtual void Init(HINSTANCE hinstance, HWND hwnd) = 0;
-#else
-		virtual void Init() = 0;
-#endif
+		virtual void Init(const plat::PlatformWindow& window) = 0;
 		virtual void Shutdown() = 0;
 
 		virtual Device* GetDevice() const = 0;
@@ -70,11 +71,7 @@ namespace gfx {
 
 		static Context CreateContext(ContextApi api);
 
-#if APEX_PLATFORM_WIN32
-		void Init(HINSTANCE hinstance, HWND hwnd) { m_instance->Init(hinstance, hwnd); }
-#else
-		void Init() { m_instance->Init(); }
-#endif
+		void Init(const plat::PlatformWindow& window) { m_instance->Init(window); }
 		void Shutdown()
 		{
 			m_instance->Shutdown();

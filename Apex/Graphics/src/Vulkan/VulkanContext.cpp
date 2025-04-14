@@ -2,6 +2,7 @@
 
 #include <vulkan/vk_enum_string_helper.h>
 
+#include "Platform/PlatformManager.h"
 #include "Core/Logging.h"
 #include "Core/Asserts.h"
 #include "Core/Files.h"
@@ -2155,18 +2156,10 @@ namespace apex::gfx {
 		return pushConstantRange;
     }
 
-    void VulkanContext::Init(
-#if APEX_PLATFORM_WIN32
-		HINSTANCE hinstance, HWND hwnd
-#endif // APEX_PLATFORM_WIN32
-	)
-	{
-		m_pImpl = apex_new (VulkanContextImpl) (
-#if APEX_PLATFORM_WIN32
-		hinstance, hwnd
-#endif // APEX_PLATFORM_WIN32
-		);
-	}
+    void VulkanContext::Init(const plat::PlatformWindow& window)
+    {
+		m_pImpl = apex_new (VulkanContextImpl) ((HINSTANCE)window.GetOsApplicationHandle(), (HWND)window.GetOsHandle());
+    }
 
 	void VulkanContext::Shutdown()
 	{

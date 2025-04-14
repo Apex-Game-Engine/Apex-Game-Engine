@@ -9,6 +9,11 @@
 #include "Containers/AxArray.h"
 #include "Graphics/GraphicsContext.h"
 
+namespace apex::plat
+{
+	class PlatformWindow;
+}
+
 namespace apex {
 namespace gfx {
 	class VulkanImageView;
@@ -497,11 +502,7 @@ namespace gfx {
 		VulkanContext() = default;
 		~VulkanContext() override = default;
 		
-	#if APEX_PLATFORM_WIN32
-		void Init(HINSTANCE hinstance, HWND hwnd) override;
-	#else
-		void Init() override;
-	#endif
+		void Init(const plat::PlatformWindow& window) override;
 		void Shutdown() override;
 		
 		Device* GetDevice() const override;
