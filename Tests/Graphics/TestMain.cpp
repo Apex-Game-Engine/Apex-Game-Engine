@@ -1,7 +1,6 @@
 ﻿#define NOMINMAX
 #include <Windows.h>
 #include <Xinput.h>
-#pragma comment(lib, "Xinput.lib")
 
 #include "Containers/AxArray.h"
 #include "Core/Console.h"
@@ -20,6 +19,7 @@
 #include "Math/Quaternion.h"
 #include "Platform/InputManager.h"
 #include "Platform/PlatformManager.h"
+#include "Platform/Timer.h"
 
 #include "tracy/Tracy.hpp"
 
@@ -35,7 +35,7 @@ float clamp(float val, float min_val, float max_val)
 	return val < min_val ? min_val : val > max_val ? max_val : val;
 }
 
-void ProcessGamepadRumble(float rumble_left, float rumble_right)
+/*void ProcessGamepadRumble(float rumble_left, float rumble_right)
 {
 	rumble_left = clamp(rumble_left, 0.0f, 1.0f);
 	rumble_right = clamp(rumble_right, 0.0f, 1.0f);
@@ -47,7 +47,7 @@ void ProcessGamepadRumble(float rumble_left, float rumble_right)
 
 	DWORD dwResult = XInputSetState(0, &vibration);
 	axAssertFmt(ERROR_SUCCESS == dwResult, "Failed to set gamepad vibration : {}", dwResult);
-}
+}*/
 
 struct Vertex { apex::math::Vector3 position; };
 struct MeshCPU { apex::AxArrayRef<float> vertices; apex::AxArrayRef<apex::u32> indices; };
@@ -477,14 +477,10 @@ int main(int argc, char* argv[])
 			for (u32 i = 0; i < framesInFlight; i++)
 				cmdbufs[i] = gfx.GetDevice()->AllocateCommandBuffer(gfx::DeviceQueue::Graphics, i, 0);
 
-			LARGE_INTEGER liFrequency;
-			LARGE_INTEGER liStartTime, liPrevEndTime, liEndTime, liElapsedMicroseconds, liDeltaMicroseconds;
-
-			QueryPerformanceFrequency(&liFrequency);
-			QueryPerformanceCounter(&liStartTime);
-			liPrevEndTime = liStartTime;
-
-			axDebugFmt("Timer Frequency: {} counts / second", liFrequency.QuadPart);
+			plat::PlatformTimer globalTimer;
+			plat::PlatformTimer frameTimer;
+			globalTimer.Start();
+			frameTimer.Start();
 
 			s64 frameCount = 0;
 
@@ -492,16 +488,13 @@ int main(int argc, char* argv[])
 			{
 				ZoneScopedN("Game Loop");
 
-				QueryPerformanceCounter(&liEndTime);
-				liElapsedMicroseconds.QuadPart = liEndTime.QuadPart - liStartTime.QuadPart;
-				liElapsedMicroseconds.QuadPart *= 1000'000;
-				liElapsedMicroseconds.QuadPart /= liFrequency.QuadPart;
-				float elapsedTime = static_cast<float>(liElapsedMicroseconds.QuadPart);
+				globalTimer.End();
+				frameTimer.End();
 
-				liDeltaMicroseconds.QuadPart = liEndTime.QuadPart - liPrevEndTime.QuadPart;
-				float deltaTime = static_cast<float>(liDeltaMicroseconds.QuadPart) / 1e6f;
+				f32 elapsedTime = globalTimer.GetElapsedSeconds();
+				f32 deltaTime = frameTimer.GetElapsedSeconds();
 
-				liPrevEndTime.QuadPart = liEndTime.QuadPart;
+				frameTimer.Restart();
 
 				plat::PlatformManager::PollEvents();
 
@@ -536,10 +529,10 @@ int main(int argc, char* argv[])
 					auto& inputManager = plat::PlatformManager::GetInputManager();
 					auto& gamepad = inputManager.GetGamepad(0);
 					
-					deltaPosition.x += gamepad.leftStick.x * deltaTime * 0.5f;
-					deltaPosition.z -= gamepad.leftStick.y * deltaTime * 0.5f;
-					targetRotation *= math::Quat::fromAxisAngle(math::Vector3::unitY(), gamepad.rightStick.x * deltaTime * 0.1f).normalized();
-					targetRotation = math::Quat::fromAxisAngle(math::Vector3::unitX(), -gamepad.rightStick.y * deltaTime * 0.1f).normalized() * targetRotation;
+					deltaPosition.x += gamepad.leftStick.x * deltaTime * 5;
+					deltaPosition.z -= gamepad.leftStick.y * deltaTime * 5;
+					targetRotation *= math::Quat::fromAxisAngle(math::Vector3::unitY(), gamepad.rightStick.x * deltaTime).normalized();
+					targetRotation = math::Quat::fromAxisAngle(math::Vector3::unitX(), -gamepad.rightStick.y * deltaTime).normalized() * targetRotation;
 
 					camera.rotation = targetRotation;
 					camera.position += camera.rotation.applyToVector(deltaPosition);
@@ -552,7 +545,7 @@ int main(int argc, char* argv[])
 					visible = 0;
 					Frustum frustum;
 					MakeViewSpaceFrustum(frustum, cameraMatrices);
-					math::Quat q = math::Quat::fromAxisAngle(math::Vector3{ 1.0, 1.0, 0.0 }.normalize(), elapsedTime * 0.000002f);
+					math::Quat q = math::Quat::fromAxisAngle(math::Vector3{ 1.0, 1.0, 0.0 }.normalize(), elapsedTime * 2.f);
 					math::Matrix4x4 r = q.matrix();
 
 					AxArrayRef transforms { (math::Matrix4x4*)transformBuffer->GetMappedPointer(), 1000 };

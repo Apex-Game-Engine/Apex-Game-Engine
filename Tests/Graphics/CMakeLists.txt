@@ -6,11 +6,11 @@ file(GLOB SOURCES *.cpp *.h)
 #    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /SUBSYSTEM:WINDOWS")
 #endif()
 
-add_executable(GraphicsTest
+add_executable(ApexGraphicsTests
     ${SOURCES}
 )
 
-target_link_libraries(GraphicsTest
+target_link_libraries(ApexGraphicsTests
     PUBLIC
     ApexFoundation
     ApexGraphics
@@ -21,9 +21,9 @@ target_link_libraries(GraphicsTest
     Tracy::TracyClient
 )
 
-add_dependencies(GraphicsTest ShaderBinaries)
+add_dependencies(ApexGraphicsTests ShaderBinaries)
 
-target_include_directories(GraphicsTest
+target_include_directories(ApexGraphicsTests
     PRIVATE
 )
 

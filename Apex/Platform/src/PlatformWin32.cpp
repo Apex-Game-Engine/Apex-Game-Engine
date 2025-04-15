@@ -1,6 +1,7 @@
 ﻿#include "Core/Asserts.h"
 #include "Platform/InputManager.h"
 #include "Platform/PlatformManager.h"
+#include "Platform/Timer.h"
 
 #if APEX_PLATFORM_WIN32
 
@@ -48,6 +49,7 @@ namespace apex::plat {
 		PlatformWindowImpl	mainWindow;
 		PlatformWindow      mainWindowWrapper;
 		InputManager		inputManager;
+		LARGE_INTEGER		timerFrequency;
 
 		struct {
 			HMODULE							module;
@@ -326,6 +328,8 @@ namespace apex::plat {
 
 		DetectGamepads();
 
+		QueryPerformanceFrequency(&g_context.timerFrequency);
+
 		return true;
 	}
 
@@ -366,6 +370,42 @@ namespace apex::plat {
 			if (g_context.inputManager.IsGamepadConnected(i))
 				PollGamepadEvents(g_context.inputManager.m_gamepads[i]);
 		}
+	}
+
+	PlatformTimer::PlatformTimer() = default;
+
+	PlatformTimer::~PlatformTimer() = default;
+
+	void PlatformTimer::Start()
+	{
+		LARGE_INTEGER liStartTime;
+		QueryPerformanceCounter(&liStartTime);
+		m_startTime = liStartTime.QuadPart;
+	}
+
+	void PlatformTimer::End()
+	{
+		LARGE_INTEGER liEndTime;
+		QueryPerformanceCounter(&liEndTime);
+		m_endTime = liEndTime.QuadPart;
+	}
+
+	void PlatformTimer::Restart()
+	{
+		m_startTime = m_endTime;
+	}
+
+	u64 PlatformTimer::GetElapsedMicroseconds() const
+	{
+		u64 elapsedMicroseconds = (m_endTime - m_startTime);
+		elapsedMicroseconds *= 1000000;
+		elapsedMicroseconds /= g_context.timerFrequency.QuadPart;
+		return elapsedMicroseconds;
+	}
+
+	f32 PlatformTimer::GetElapsedSeconds() const
+	{
+		return static_cast<float>(GetElapsedMicroseconds()) / 1e6f;
 	}
 }
 

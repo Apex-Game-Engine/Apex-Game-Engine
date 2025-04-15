@@ -6,11 +6,11 @@ file(GLOB SOURCES *.cpp *.h)
 #    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /SUBSYSTEM:WINDOWS")
 #endif()
 
-add_executable(PlatformTest
+add_executable(ApexPlatformTests
     ${SOURCES}
 )
 
-target_link_libraries(PlatformTest
+target_link_libraries(ApexPlatformTests
     PUBLIC
     ApexFoundation
     ApexPlatform
@@ -19,7 +19,7 @@ target_link_libraries(PlatformTest
     Tracy::TracyClient
 )
 
-target_include_directories(PlatformTest
+target_include_directories(ApexPlatformTests
     PRIVATE
 )
 
