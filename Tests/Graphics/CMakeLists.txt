@@ -16,12 +16,13 @@ target_link_libraries(ApexGraphicsTests
     ApexGraphics
     ApexPlatform
     ApexModel
+	ApexShaders
 
     PRIVATE
     Tracy::TracyClient
 )
 
-add_dependencies(ApexGraphicsTests ShaderBinaries)
+#add_dependencies(ApexGraphicsTests ApexShaders)
 
 target_include_directories(ApexGraphicsTests
     PRIVATE

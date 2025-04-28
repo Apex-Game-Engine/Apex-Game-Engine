@@ -299,6 +299,7 @@ MeshCPU LoadMesh(const char* filename, apex::AxArray<float>& vertices, apex::AxA
 
 MeshGPU UploadMeshToGpu(apex::gfx::Context& gfx, MeshCPU const& mesh)
 {
+	apex::gfx::Queue* transferQueue = gfx.GetDevice()->GetQueue(apex::gfx::QueueType::Transfer);
 	apex::gfx::Buffer* vertexBuffer = gfx.GetDevice()->CreateVertexBuffer("meshVB", sizeof(float) * mesh.vertices.size(), nullptr);
 	apex::gfx::Buffer* indexBuffer = gfx.GetDevice()->CreateIndexBuffer("meshIB", sizeof(apex::u32) * mesh.indices.size(), nullptr);
 	{
@@ -308,19 +309,21 @@ MeshGPU UploadMeshToGpu(apex::gfx::Context& gfx, MeshCPU const& mesh)
 		apex::memcpy_s<float>(vertexStagingBuffer->GetMappedPointer(), mesh.vertices.size(), mesh.vertices.data(), mesh.vertices.size());
 		apex::memcpy_s<apex::u32>(indexStagingBuffer->GetMappedPointer(), mesh.indices.size(), mesh.indices.data(), mesh.indices.size());
 
-		apex::gfx::CommandBuffer* commands = gfx.GetDevice()->AllocateCommandBuffer(apex::gfx::DeviceQueue::Transfer, 0, 0);
+		apex::gfx::CommandBuffer* commands = gfx.GetDevice()->AllocateCommandBuffer(apex::gfx::QueueType::Transfer, 0, 0);
 		commands->Begin();
-		commands->CopyBuffer(vertexBuffer, vertexStagingBuffer.GetPointer());
-		commands->CopyBuffer(indexBuffer, indexStagingBuffer.GetPointer());
+		commands->CopyBuffer(vertexStagingBuffer.GetPointer(), vertexBuffer);
+		commands->CopyBuffer(indexStagingBuffer.GetPointer(), indexBuffer);
 		commands->End();
 
-		gfx.GetDevice()->SubmitImmediateCommandBuffer(apex::gfx::DeviceQueue::Transfer, commands);
-		gfx.GetDevice()->WaitForQueueIdle(apex::gfx::DeviceQueue::Transfer);
+		transferQueue->SubmitImmediate(commands);
+		transferQueue->WaitForIdle();
 		delete commands;
 	}
 
 	return { vertexBuffer, indexBuffer };
 }
+
+apex::gfx::Context* g_context;
 
 //int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR pCmdLine, int nCmdShow)
 int main(int argc, char* argv[])
@@ -341,6 +344,7 @@ int main(int argc, char* argv[])
 		//OpenWindow(hInstance, hwnd, nCmdShow);
 
 		gfx::Context gfx = gfx::Context::CreateContext(gfx::ContextApi::Vulkan);
+		g_context = &gfx;
 		gfx.Init(plat::PlatformManager::GetMainWindow());
 		// Rendering code
 		{
@@ -368,6 +372,7 @@ int main(int argc, char* argv[])
 				                                                          gfx::MemoryPropertyFlagBits::HostCoherent,
 				                                                          .memoryFlags =
 				                                                          gfx::MemoryAllocateFlagBits::HostAccessSequential,
+				                                                          .ownerQueue = gfx::QueueType::Graphics,
 				                                                          .createMapped = true,
 			                                                          });
 
@@ -382,21 +387,27 @@ int main(int argc, char* argv[])
 				                                                             gfx::MemoryPropertyFlagBits::HostCoherent,
 				                                                             .memoryFlags =
 				                                                             gfx::MemoryAllocateFlagBits::HostAccessSequential,
+				                                                             .ownerQueue = gfx::QueueType::Graphics,
 				                                                             .createMapped = true,
 			                                                             });
 
-			gfx::Image* depthTexture = gfx.GetDevice()->CreateImage("Depth",
-			                                                        {
-				                                                        .imageType = gfx::ImageType::Image2D,
-				                                                        .format = gfx::ImageFormat::D32_SFLOAT,
-				                                                        .usageFlags = gfx::ImageUsageFlagBits::DepthStencilAttachment,
-				                                                        .dimensions = {
-					                                                        gfx.GetDevice()->GetSurfaceDim().width,
-					                                                        gfx.GetDevice()->GetSurfaceDim().height
-				                                                        },
-				                                                        .requiredFlags = gfx::MemoryPropertyFlagBits::DeviceLocal,
-				                                                        .createMapped = false
-			                                                        });
+			gfx::Image* depthImages[3];
+			std::for_each(depthImages, depthImages + 3, [&](gfx::Image*& depthImage) {
+				depthImage = gfx.GetDevice()->CreateImage("Depth",
+				                                          {
+					                                          .imageType = gfx::ImageType::Image2D,
+					                                          .format = gfx::ImageFormat::D32_FLOAT,
+					                                          .usageFlags =
+					                                          gfx::ImageUsageFlagBits::DepthStencilAttachment,
+					                                          .dimensions = {
+						                                          gfx.GetDevice()->GetSurfaceDim().width,
+						                                          gfx.GetDevice()->GetSurfaceDim().height
+					                                          },
+					                                          .requiredFlags = gfx::MemoryPropertyFlagBits::DeviceLocal,
+					                                          .ownerQueue = gfx::QueueType::Graphics,
+					                                          .createMapped = false
+				                                          });
+				});
 
 			gfx::Image* texture = gfx.GetDevice()->CreateImage("Texture",
 			                                                   {
@@ -404,9 +415,11 @@ int main(int argc, char* argv[])
 				                                                   .format = gfx::ImageFormat::R8G8B8A8_UNORM,
 				                                                   .usageFlags = gfx::ImageUsageFlagBits::Sampled |
 				                                                   gfx::ImageUsageFlagBits::TransferDst,
-				                                                   .dimensions = { 2, 2 },
-				                                                   .requiredFlags = gfx::MemoryPropertyFlagBits::DeviceLocal,
+				                                                   .dimensions = {2, 2},
+				                                                   .requiredFlags =
+				                                                   gfx::MemoryPropertyFlagBits::DeviceLocal,
 				                                                   .memoryFlags = gfx::MemoryAllocateFlagBits::None,
+				                                                   .ownerQueue = gfx::QueueType::Graphics,
 				                                                   .createMapped = false,
 			                                                   });
 
@@ -427,31 +440,35 @@ int main(int argc, char* argv[])
 					transforms[idx] = translate(math::Matrix4x4::identity(), position);
 				}
 
-				constexpr gfx::DeviceQueue queue = gfx::DeviceQueue::Graphics;
+				gfx::Queue* graphicsQueue = gfx.GetDevice()->GetQueue(gfx::QueueType::Graphics);
 
-				gfx::CommandBuffer* commands = gfx.GetDevice()->AllocateCommandBuffer(queue, 0, 0);
+				gfx::CommandBuffer* commands = gfx.GetDevice()->AllocateCommandBuffer(gfx::QueueType::Graphics, 0, 0);
 				commands->Begin();
-				commands->TransitionImage(depthTexture,
-				                          gfx::ImageLayout::Undefined, gfx::ImageLayout::DepthStencilAttachmentOptimal,
-				                          gfx::AccessFlagBits::None, gfx::AccessFlagBits::DepthStencilAttachmentWrite,
-				                          gfx::PipelineStageFlagBits::None, gfx::PipelineStageFlagBits::EarlyFragmentTests);
+				for (gfx::Image* depthImage : depthImages) {
+					commands->TransitionImage(depthImage,
+					                          gfx::ImageLayout::Undefined,						gfx::PipelineStageFlagBits::None,				gfx::AccessFlagBits::None,							gfx::QueueType::Graphics,
+					                          gfx::ImageLayout::DepthStencilAttachmentOptimal,	gfx::PipelineStageFlagBits::EarlyFragmentTests, gfx::AccessFlagBits::DepthStencilAttachmentWrite,	gfx::QueueType::Graphics);
+				}
 				commands->TransitionImage(texture,
-				                          gfx::ImageLayout::Undefined, gfx::ImageLayout::TransferDstOptimal,
-				                          gfx::AccessFlagBits::None, gfx::AccessFlagBits::TransferWrite,
-				                          gfx::PipelineStageFlagBits::TopOfPipe, gfx::PipelineStageFlagBits::Transfer);
-				commands->CopyBufferToImage(texture, stagingTexture, gfx::ImageLayout::TransferDstOptimal);
+				                          gfx::ImageLayout::Undefined,			gfx::PipelineStageFlagBits::TopOfPipe,	gfx::AccessFlagBits::None,			gfx::QueueType::Graphics,
+				                          gfx::ImageLayout::TransferDstOptimal, gfx::PipelineStageFlagBits::Transfer,	gfx::AccessFlagBits::TransferWrite, gfx::QueueType::Graphics);
+
+				commands->CopyBufferToImage(stagingTexture, texture, gfx::ImageLayout::TransferDstOptimal);
+
 				commands->TransitionImage(texture,
-				                          gfx::ImageLayout::TransferDstOptimal, gfx::ImageLayout::ShaderReadOnlyOptimal,
-				                          gfx::AccessFlagBits::TransferWrite, gfx::AccessFlagBits::ShaderRead,
-				                          gfx::PipelineStageFlagBits::Transfer, gfx::PipelineStageFlagBits::FragmentShader);
+				                          gfx::ImageLayout::TransferDstOptimal,		gfx::PipelineStageFlagBits::Transfer,		gfx::AccessFlagBits::TransferWrite, gfx::QueueType::Graphics,
+				                          gfx::ImageLayout::ShaderReadOnlyOptimal,	gfx::PipelineStageFlagBits::FragmentShader, gfx::AccessFlagBits::ShaderRead,	gfx::QueueType::Graphics);
 				commands->End();
 
-				gfx.GetDevice()->SubmitImmediateCommandBuffer(queue, commands);
-				gfx.GetDevice()->WaitForQueueIdle(queue);
+				graphicsQueue->SubmitImmediate(commands);
+				graphicsQueue->WaitForIdle();
 
 				delete stagingTexture;
 				delete commands;
 			}
+
+			gfx.GetDevice()->BindUniformBuffer(cameraBuffer);
+			gfx.GetDevice()->BindStorageBuffer(transformBuffer);
 
 			gfx::DebugRenderer* debugRenderer = gfx::DebugRenderer::Create(gfx.GetDevice(), { .maxVertexCount = 16 * 1024 });
 
@@ -475,14 +492,12 @@ int main(int argc, char* argv[])
 			cmdbufs.resize(framesInFlight);
 
 			for (u32 i = 0; i < framesInFlight; i++)
-				cmdbufs[i] = gfx.GetDevice()->AllocateCommandBuffer(gfx::DeviceQueue::Graphics, i, 0);
+				cmdbufs[i] = gfx.GetDevice()->AllocateCommandBuffer(gfx::QueueType::Graphics, i, 0);
 
 			plat::PlatformTimer globalTimer;
 			plat::PlatformTimer frameTimer;
 			globalTimer.Start();
 			frameTimer.Start();
-
-			s64 frameCount = 0;
 
 			while (g_running)
 			{
@@ -517,7 +532,7 @@ int main(int argc, char* argv[])
 					continue;
 				}
 
-				debugRenderer->BeginFrame();
+				debugRenderer->NewFrame();
 				CameraMatrices cameraMatrices;
 				{
 					ZoneScopedN("Update Camera");
@@ -586,17 +601,21 @@ int main(int argc, char* argv[])
 					}
 
 					const u32 currentFrameIndex = gfx.GetDevice()->GetCurrentFrameIndex();
+					ZoneValue(currentFrameIndex);
+
+					gfx::Queue* graphicsQueue = gfx.GetDevice()->GetQueue(gfx::QueueType::Graphics);
 
 					gfx::CommandBuffer* cmdbuf = cmdbufs[currentFrameIndex];
 					{
 						ZoneScopedN("Create Command Buffer");
 						cmdbuf->Begin();
+						cmdbuf->BindGlobalDescriptorSets();
 
-						cmdbuf->TransitionImage(swapchainImage, gfx::ImageLayout::Undefined, gfx::ImageLayout::ColorAttachmentOptimal,
-						                        gfx::AccessFlagBits::None, gfx::AccessFlagBits::ColorAttachmentWrite,
-						                        gfx::PipelineStageFlagBits::TopOfPipe, gfx::PipelineStageFlagBits::ColorAttachmentOutput);
+						cmdbuf->TransitionImage(swapchainImage,
+												gfx::ImageLayout::Undefined,				gfx::PipelineStageFlagBits::ColorAttachmentOutput,	gfx::AccessFlagBits::None,					gfx::QueueType::Graphics,
+												gfx::ImageLayout::ColorAttachmentOptimal,	gfx::PipelineStageFlagBits::ColorAttachmentOutput,	gfx::AccessFlagBits::ColorAttachmentWrite,	gfx::QueueType::Graphics);
 
-						cmdbuf->BeginRendering(swapchainImage->GetView(), depthTexture->GetView());
+						cmdbuf->BeginRendering(swapchainImage->GetView(), depthImages[currentFrameIndex]->GetView());
 
 						cmdbuf->Clear();
 						cmdbuf->BindGraphicsPipeline(pipeline);
@@ -614,23 +633,22 @@ int main(int argc, char* argv[])
 						}
 
 						debugRenderer->Draw(cmdbuf);
-						debugRenderer->EndFrame();
 
 						cmdbuf->EndRendering();
 
-						cmdbuf->TransitionImage(swapchainImage, gfx::ImageLayout::ColorAttachmentOptimal, gfx::ImageLayout::PresentSrcOptimal,
-						                        gfx::AccessFlagBits::ColorAttachmentWrite, gfx::AccessFlagBits::None,
-						                        gfx::PipelineStageFlagBits::ColorAttachmentOutput, gfx::PipelineStageFlagBits::BottomOfPipe);
+						cmdbuf->TransitionImage(swapchainImage, 
+												gfx::ImageLayout::ColorAttachmentOptimal,	gfx::PipelineStageFlagBits::ColorAttachmentOutput,	gfx::AccessFlagBits::ColorAttachmentWrite,	gfx::QueueType::Graphics,
+												gfx::ImageLayout::PresentSrcOptimal,		gfx::PipelineStageFlagBits::BottomOfPipe,			gfx::AccessFlagBits::None,					gfx::QueueType::Graphics);
 
 						cmdbuf->End();
 					}
 					{
 						ZoneScopedN("Submit");
-						gfx.GetDevice()->SubmitCommandBuffer(gfx::DeviceQueue::Graphics, cmdbuf);
+						graphicsQueue->SubmitCommandBuffer(cmdbuf, true, gfx::PipelineStageFlagBits::ColorAttachmentOutput, true);
 					}
 					{
 						ZoneScopedN("Present");
-						gfx.GetDevice()->Present(gfx::DeviceQueue::Graphics);
+						graphicsQueue->Present();
 					}
 				}
 
@@ -644,10 +662,14 @@ int main(int argc, char* argv[])
 				delete cmdbuf;
 			}
 
+			for (auto depthImage : depthImages)
+			{
+				delete depthImage;
+			}
+
 			delete debugRenderer;
 			delete texture;
 			delete transformBuffer;
-			delete depthTexture;
 			delete cameraBuffer;
 			delete pipeline;
 		}
