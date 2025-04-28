@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?> 
+<AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
+    
+    <Type Name="apex::gfx::Context">
+        <Expand>
+            <ExpandedItem>m_instance</ExpandedItem>
+        </Expand>
+    </Type>
+    
+    <Type Name="apex::gfx::VulkanContext">
+        <Expand>
+            <ExpandedItem>m_pImpl</ExpandedItem>
+        </Expand>
+    </Type>
+    
+    <Type Name="apex::gfx::VulkanContextImpl">
+        <Expand>
+            <Item Name="[Device]">m_device</Item>
+            <Item Name="[Instance]">m_instance</Item>
+            <Item Name="[Surface]">m_surface</Item>
+            <Item Name="[DebugUtilsMessenger]">m_debugUtilsMessenger</Item>
+        </Expand>
+    </Type>
+    
+    <Type Name="apex::gfx::VulkanQueue">
+        <DisplayString>{{type={m_type.value}}}</DisplayString>
+    </Type>
+    
+    <Type Name="apex::gfx::VulkanImage">
+        <DisplayString>{{m_image={m_image} m_view={m_view->m_view}}}</DisplayString>
+    </Type>
+    
+    <Type Name="VkPhysicalDeviceFeatures2">
+        <Expand>
+            <Item Name="sType">sType</Item>
+            <Item Name="pNext">pNext</Item>
+            <ExpandedItem>features</ExpandedItem>
+        </Expand>
+    </Type>
+    
+</AutoVisualizer>

@@ -463,7 +463,7 @@ namespace apex {
 	struct AxStaticArray
 	{
 		T m_data[Size];
-		uint32_t m_size;
+		uint32_t m_size = Size;
 
 		[[nodiscard]] auto operator[](size_t index) -> T&
 		{

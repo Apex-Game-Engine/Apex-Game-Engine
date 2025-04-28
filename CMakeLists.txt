@@ -8,6 +8,9 @@ set(CMAKE_CXX_EXCEPTIONS Off)
 set(CMAKE_CXX_RTTI Off)
 set(CMAKE_CXX_STANDARD 20)
 
+option(APEX_GENERATE_TESTS "Generate Unit Test and other Test projects" On)
+option(APEX_GENERATE_TOOLS "Generate Asset Tools projects" On)
+option(APEX_GENERATE_SAMPLES "Generate Sample projects" Off)
 
 # Similar to Unreal Engine
 # Debug       :: Engine: (Opt off  (Od), Sym on, Checks on),   Game: (Opt off, Sym on,   Checks on , Profiling on)
@@ -88,6 +91,10 @@ add_subdirectory(ThirdParty)
 add_subdirectory(Apex)
 add_subdirectory(Tests)
 add_subdirectory(Tools)
+
+if(APEX_GENERATE_SAMPLES)
+add_subdirectory(Samples)
+endif()
 
 # Examples
 # add_subdirectory(Examples)
