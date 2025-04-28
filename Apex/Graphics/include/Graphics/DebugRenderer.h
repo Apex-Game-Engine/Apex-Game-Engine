@@ -1,5 +1,5 @@
 ﻿#pragma once
-//#include "Containers/AxArray.h"
+#include "gfx_config.h"
 #include "Core/Types.h"
 
 namespace apex::gfx
@@ -31,9 +31,8 @@ namespace gfx {
 
 		~DebugRenderer();
 
-		void BeginFrame();
-		void Draw(CommandBuffer* cmd);
-		void EndFrame();
+		void NewFrame();
+		void Draw(CommandBuffer* cmd) const;
 
 		void Line(math::Vector3 const& v0, math::Vector3 const& v1);
 		void Cube(math::Vector3 const& pos, math::Vector3 const& size);
@@ -45,12 +44,10 @@ namespace gfx {
 		}
 
 	private:
-		constexpr static size_t NFRAMES = 3;
-
 		Device*							m_device {};
 		GraphicsPipeline*				m_pipeline {};
-		Buffer*							m_vertexBuffers [NFRAMES] {};
-		Buffer*							m_indexBuffers [NFRAMES] {};
+		Buffer*							m_vertexBuffers [MAX_FRAMES_IN_FLIGHT] {};
+		Buffer*							m_indexBuffers [MAX_FRAMES_IN_FLIGHT] {};
 		u32								m_maxVertexCount {};
 		u32								m_maxIndexCount {};
 		u32								m_vertexCount {};

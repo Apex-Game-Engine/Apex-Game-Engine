@@ -1,7 +1,7 @@
 #version 460
 #include "descriptors.glh"
 
-layout(set = BindlessStorageBufferSet, binding = 0) buffer Positions { vec4 positions[]; } uPositions[];
+layout(set = BindlessStorageBufferSet, binding = 0) buffer readonly Positions { vec4 positions[]; } uPositions[];
 
 layout (push_constant) uniform PushConstants {
 	vec4 color;

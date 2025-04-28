@@ -1,7 +1,6 @@
 #pragma once
 
 #include <atomic>
-#include <vulkan/vulkan.hpp>
 
 // ApexCore includes
 #include "Core/Types.h"
@@ -10,6 +9,7 @@
 // ApexGraphics includes
 #include "Factory.h"
 #include "Containers/AxArray.h"
+#include "Math/Vector4.h"
 
 namespace apex::plat
 {
@@ -21,6 +21,7 @@ namespace gfx {
 
 	// Forward Declarations
 	class Device;
+	class Queue;
 	class CommandBuffer;
 
 	struct DeviceProperties;
@@ -38,6 +39,8 @@ namespace gfx {
 	class Pipeline;
 	class GraphicsPipeline;
 	class ComputePipeline;
+
+	class Fence;
 
 	enum class ContextApi
 	{
@@ -59,7 +62,7 @@ namespace gfx {
 		virtual void GetDeviceFeatures(DeviceFeatures& device_features) const = 0;
 		virtual void GetDeviceProperties(DeviceProperties& device_properties) const = 0;
 		
-		virtual void ResizeWindow(u32 width, u32 height) const = 0;
+		virtual void ResizeSurface(u32 width, u32 height) const = 0;
 	};
 
 	class Context
@@ -83,26 +86,10 @@ namespace gfx {
 		void GetDeviceFeatures(DeviceFeatures& device_features) const { m_instance->GetDeviceFeatures(device_features); }
 		void GetDeviceProperties(DeviceProperties& device_properties) const { m_instance->GetDeviceProperties(device_properties); }
 
-		void ResizeWindow(u32 width, u32 height) const { m_instance->ResizeWindow(width, height); }
+		void ResizeWindow(u32 width, u32 height) const { m_instance->ResizeSurface(width, height); }
 
 	private:
 		ContextBase* m_instance;
-	};
-
-	struct DeviceQueue
-	{
-		enum Value {
-			Graphics,
-			Compute,
-			Transfer,
-		};
-
-		Value value;
-
-		constexpr DeviceQueue(Value val) : value(val) {}
-
-		constexpr operator Value() const { return value; }
-		constexpr bool operator == (Value val) const { return value == val; }
 	};
 
 	class Device
@@ -110,26 +97,30 @@ namespace gfx {
 	public:
 		virtual ~Device() = default;
 
+		virtual u32 GetTotalFramesPresented() const = 0;
 		virtual u32 GetFramesInFlight() const = 0;
 		virtual u32 GetCurrentFrameIndex() const = 0;
+		virtual u32 GetCurrentSwapchainImageIndex() const = 0;
 		virtual Dim2D GetSurfaceDim() const = 0;
 
-		virtual CommandBuffer* AllocateCommandBuffer(u32 queueIdx, u32 frame_index, u32 thread_idx) const = 0;
-		virtual void ResetCommandBuffers(u32 thread_idx) const = 0;
-		virtual void ResetCommandBuffers() const = 0;
-		virtual void SubmitCommandBuffer(DeviceQueue queue, CommandBuffer* command_buffer) const = 0;
-		virtual void SubmitImmediateCommandBuffer(DeviceQueue queue, CommandBuffer* command_buffer) const = 0;
+		virtual Queue* GetQueue(QueueType queue_type) = 0;
+		virtual const Queue* GetQueue(QueueType queue_type) const = 0;
 
 		virtual const Image* AcquireNextImage() = 0;
-		virtual void Present(DeviceQueue queue) = 0;
-		virtual void WaitForQueueIdle(DeviceQueue queue) const = 0;
 		virtual void WaitForIdle() const = 0;
+
+		virtual CommandBuffer* AllocateCommandBuffer(QueueType queue, u32 frame, u32 thread) const = 0;
 
 		virtual AxArray<DescriptorSet> AllocateDescriptorSets(GraphicsPipeline* pipeline) const = 0;
 		virtual void UpdateDescriptorSet(DescriptorSet const& descriptor_set) const = 0;
+		virtual void BindSampledImage(ImageView* image_view) = 0;
+		virtual void BindStorageImage(ImageView* image_view) = 0;
+		virtual void BindUniformBuffer(Buffer* buffer) = 0;
+		virtual void BindStorageBuffer(Buffer* buffer) = 0;
 
 		virtual ShaderModule* CreateShaderModule(const char* name, const char* filepath) const = 0;
 		virtual GraphicsPipeline* CreateGraphicsPipeline(const char* name, GraphicsPipelineCreateDesc const& desc) const = 0;
+		virtual ComputePipeline* CreateComputePipeline(const char* name, ComputePipelineCreateDesc const& desc) const = 0;
 
 		virtual Buffer* CreateBuffer(const char* name, BufferCreateDesc const& desc) = 0;
 		virtual Buffer* CreateVertexBuffer(const char* name, size_t size, const void* initial_data) = 0;
@@ -138,6 +129,29 @@ namespace gfx {
 
 		virtual Image* CreateImage(const char* name, ImageCreateDesc const& desc) = 0;
 		virtual ImageView* CreateImageView(const char* name, ImageViewCreateDesc const& desc) const = 0;
+
+		virtual Fence* CreateFence(const char* name, u64 init_value) = 0;
+	};
+
+	class Queue
+	{
+	public:
+		virtual ~Queue() = default;
+
+		virtual void ResetCommandBuffers(u32 frame_index, u32 thread_idx) const = 0;
+		virtual void ResetCurrentFrameCommandBuffers() const = 0;
+
+		virtual void SubmitImmediate(CommandBuffer* command_buffer) = 0;
+		virtual void SubmitCommandBuffer(CommandBuffer* command_buffer) = 0;
+		virtual void SubmitCommandBuffer(CommandBuffer* command_buffer, bool wait_image_acquired, PipelineStageFlags wait_stage_mask, bool signal_render_complete) = 0;
+		virtual void SubmitCommandBuffer(CommandBuffer* command_buffer, Fence* fence, u64 wait_value, PipelineStageFlags wait_stage_mask, u64 signal_value) = 0;
+		virtual void SubmitCommandBuffers(QueueSubmitDesc const& desc) = 0;
+		virtual void Flush() = 0;
+		virtual void Present() = 0;
+		virtual void WaitForIdle() = 0;
+
+		virtual QueueType GetType() const = 0;
+		virtual bool CanPresent() const = 0;
 	};
 
 	class CommandBuffer
@@ -150,6 +164,12 @@ namespace gfx {
 
 		virtual void Begin() = 0;
 		virtual void End() = 0;
+
+		virtual void BindGlobalDescriptorSets() = 0;
+
+		// Compute Commands
+		virtual void BindComputePipeline(ComputePipeline const* pipeline) = 0;
+		virtual void Dispatch(Dim3D group_counts) = 0;
 
 		// Graphics Commands
 		virtual void BeginRendering(const ImageView* color_image_view, ImageView const* depth_stencil_image_view) = 0;
@@ -166,23 +186,25 @@ namespace gfx {
 		virtual void Draw(u32 vertex_count) = 0;
 		virtual void DrawIndexed(u32 index_count) = 0;
 		virtual void DrawIndirect() = 0;
-		virtual void TransitionImage(const Image* image, ImageLayout old_layout, ImageLayout new_layout,
-			AccessFlags src_access_flags, AccessFlags dst_access_flags,
-			PipelineStageFlags src_stage_flags, PipelineStageFlags dst_stage_flags) = 0;
+		virtual void TransitionImage(const Image* image,
+									 ImageLayout old_layout, PipelineStageFlags src_stage_mask, AccessFlags src_access_mask, QueueType src_queue,
+									 ImageLayout new_layout, PipelineStageFlags dst_stage_mask, AccessFlags dst_access_mask, QueueType dst_queue) = 0;
 		virtual void Barrier() = 0;
-
-		// Compute Commands
-		virtual void BeginComputePass() = 0;
-		virtual void EndComputePass() = 0;
-		virtual void BindComputePipeline(ComputePipeline const* pipeline) = 0;
-		virtual void Dispatch() = 0;
+		virtual void InsertMemoryBarrier(PipelineStageFlags src_stage_mask, AccessFlags src_access_mask,
+		                                 PipelineStageFlags dst_stage_mask, AccessFlags dst_access_mask) = 0;
+		//virtual void InsertExecutionBarrier() = 0;
 
 		// Transfer Commands
-		virtual void CopyBuffer(Buffer const* dst, Buffer const* src) = 0;
-		virtual void CopyImageToBuffer(Buffer const* dst, Image const* src) = 0;
-		virtual void CopyImage(Image const* dst, Image const* src) = 0;
-		virtual void CopyBufferToImage(const Image* dst, const Buffer* src, ImageLayout layout) = 0;
+		virtual void BlitImage(Image const* src, ImageLayout src_layout, Image const* dst, ImageLayout dst_layout) = 0;
+		virtual void CopyBuffer(Buffer const* src, Buffer const* dst) = 0;
+		virtual void CopyImageToBuffer(Image const* src, Buffer const* dst) = 0;
+		virtual void CopyImage(Image const* src, Image const* dst) = 0;
+		virtual void CopyBufferToImage(Buffer const* src, Image const* dst, ImageLayout layout) = 0;
 		virtual void CopyQueryResults() = 0;
+
+		// Marker and Label Commands
+		virtual void PushLabel(const char* label_str, math::Vector4 const& color = {}) = 0;
+		virtual void PopLabel() = 0;
 
 		template <typename T>
 		void PushConstants(T const& data)
@@ -230,6 +252,7 @@ namespace gfx {
 
 		virtual void* GetMappedPointer() const = 0;
 		virtual size_t GetSize() const = 0;
+		virtual u32 GetBindlessIndex(BindlessDescriptorType descriptor_type) const = 0;
 	};
 
 	class Image : public Resource
@@ -257,26 +280,11 @@ namespace gfx {
 	public:
 		virtual const Image* GetOwner() const = 0;
 		virtual Image* GetOwner() = 0;
+
+		virtual u32 GetBindlessIndex(BindlessDescriptorType descriptor_type) const = 0;
 	};
 
 	// Descriptors
-	enum class DescriptorType
-	{
-		eInputAttachment,
-		eSampler,
-		eCombinedImageSampler,
-		eSampledImage,
-		eStorageImage,
-		eUniformBuffer,
-		eStorageBuffer,
-
-		// HLSL descriptor types
-		eShaderResourceView = eStorageImage,
-		eConstantBufferView = eUniformBuffer,
-		eUnorderedAccessView = eStorageBuffer,
-		eTexture = eSampledImage,
-	};
-
 	class Descriptor
 	{
 	public:
@@ -357,6 +365,19 @@ namespace gfx {
 		bool IsComputeEnabled() const override { return true; }
 	};
 
+	// Synchronization
+	class Fence
+	{
+	public:
+		static constexpr u64 InvalidValue = -1;
+
+		virtual ~Fence() = default;
+
+		virtual void Signal(u64 value) = 0;
+		virtual void Wait(u64 value) = 0;
+		virtual u64 GetValue() const = 0;
+	};
+
 
 	// Rendering
 	class RenderPass; // collection of input and output states, bindings. -> declarative definition of state transitions
@@ -431,6 +452,28 @@ namespace gfx {
 	using BufferRef = ResourceRef<Buffer>;
 	using ImageRef = ResourceRef<Image>;
 
+	class ScopedCommandBufferLabel
+	{
+	public:
+		ScopedCommandBufferLabel(CommandBuffer* command_buffer, const char* label_str, math::Vector4 const& color = {})
+			: m_commandBuffer(command_buffer)
+		{
+			m_commandBuffer->PushLabel(label_str, color);
+		}
+
+		~ScopedCommandBufferLabel()
+		{
+			m_commandBuffer->PopLabel();
+		}
+
+	private:
+		CommandBuffer* m_commandBuffer;
+	};
 
 } // namespace gfx
 } // namespace apex
+
+#define ScopedGpuLabel(cmdbuf)					apex::gfx::ScopedCommandBufferLabel CONCAT(__scoped_cmdbuf_label_,__LINE__) ((cmdbuf), (__FUNCTION__))
+#define ScopedGpuLabelN(cmdbuf, label)			apex::gfx::ScopedCommandBufferLabel CONCAT(__scoped_cmdbuf_label_,__LINE__) ((cmdbuf), (label))
+#define ScopedGpuLabelC(cmdbuf, color)			apex::gfx::ScopedCommandBufferLabel CONCAT(__scoped_cmdbuf_label_,__LINE__) ((cmdbuf), (__FUNCTION__), (color))
+#define ScopedGpuLabelNC(cmdbuf, label, color)	apex::gfx::ScopedCommandBufferLabel CONCAT(__scoped_cmdbuf_label_,__LINE__) ((cmdbuf), (label), (color))

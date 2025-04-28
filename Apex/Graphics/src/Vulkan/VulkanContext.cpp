@@ -8,17 +8,24 @@
 #include "Core/Files.h"
 #include "Memory/AxHandle.h"
 #include "Graphics/Factory.h"
+#include "Math/Vector4.h"
 #include "Memory/MemoryManager.h"
 #include "Memory/UniquePtr.h"
 
 namespace apex::gfx {
 
-	namespace vk {
+	struct VulkanDebugUtils
+	{
+		PFN_vkCreateDebugUtilsMessengerEXT		CreateDebugUtilsMessenger {};
+		PFN_vkDestroyDebugUtilsMessengerEXT		DestroyDebugUtilsMessenger {};
+		PFN_vkSetDebugUtilsObjectNameEXT		SetDebugUtilsObjectName {};
+		PFN_vkQueueBeginDebugUtilsLabelEXT		QueueBeginDebugUtilsLabel {};
+		PFN_vkQueueEndDebugUtilsLabelEXT		QueueEndDebugUtilsLabel {};
+		PFN_vkCmdBeginDebugUtilsLabelEXT		CmdBeginDebugUtilsLabel {};
+		PFN_vkCmdEndDebugUtilsLabelEXT			CmdEndDebugUtilsLabel {};
+	};
 
-		PFN_vkCreateDebugUtilsMessengerEXT CreateDebugUtilsMessengerEXT;
-		PFN_vkDestroyDebugUtilsMessengerEXT DestroyDebugUtilsMessengerEXT;
-		PFN_vkSetDebugUtilsObjectNameEXT SetDebugUtilsObjectNameEXT;
-	}
+	static VulkanDebugUtils vkdbg;
 
 	struct VulkanSwapchainSupportDetails
 	{
@@ -43,18 +50,20 @@ namespace apex::gfx {
 		void CreateSurface(HINSTANCE hinstance, HWND hwnd);
 	#endif
 		VkPhysicalDevice SelectPhysicalDevice(VulkanPhysicalDeviceFeatures const& required_device_features) const;
+		void CreateDevice(VkPhysicalDevice physical_device, VulkanPhysicalDeviceFeatures const& enabled_device_features);
+		bool ResizeSurface();
 
-		bool ResizeWindow(u32 width, u32 height) const;
+		bool ResizeSurface(u32 width, u32 height) const;
 
-		VkInstance		    GetInstance() const { return m_instance; }
-		VkSurfaceKHR	    GetSurface() const	{ return m_surface; }
-		VulkanDevice const& GetDevice() const   { return *m_device; }
+		VkInstance					GetInstance() const		{ return m_instance; }
+		VkSurfaceKHR				GetSurface() const		{ return m_surface; }
+		VulkanDevice const&			GetDevice() const		{ return *m_device; }
 
 	private:
-		VkInstance               m_instance {};
-		VkSurfaceKHR             m_surface {};
-		UniquePtr<VulkanDevice>  m_device {};
-		VkDebugUtilsMessengerEXT m_debugUtilsMessenger {};
+		VkInstance					m_instance {};
+		VkSurfaceKHR				m_surface {};
+		UniquePtr<VulkanDevice>		m_device {};
+		VkDebugUtilsMessengerEXT	m_debugUtilsMessenger {};
 	};
 
 	static VkBool32 DebugCallback(
@@ -232,9 +241,9 @@ namespace apex::gfx {
 		queueFamilies.resize(queueFamiliesCount, VkQueueFamilyProperties2{ .sType = VK_STRUCTURE_TYPE_QUEUE_FAMILY_PROPERTIES_2, .pNext = nullptr });
 		vkGetPhysicalDeviceQueueFamilyProperties2(physical_device, &queueFamiliesCount, queueFamilies.dataMutable());
 
-		VulkanQueueInfo& graphicsQueue = queueInfos[VulkanQueueFamily::Graphics];
-		VulkanQueueInfo& computeQueue = queueInfos[VulkanQueueFamily::Compute];
-		VulkanQueueInfo& transferQueue = queueInfos[VulkanQueueFamily::Transfer];
+		VulkanQueueInfo& graphicsQueue = queueInfos[QueueType::Graphics];
+		VulkanQueueInfo& computeQueue  = queueInfos[QueueType::Compute];
+		VulkanQueueInfo& transferQueue = queueInfos[QueueType::Transfer];
 
 		graphicsQueue.familyIndex = -1;
 		computeQueue.familyIndex = -1;
@@ -310,7 +319,7 @@ namespace apex::gfx {
 			.pObjectName = name,
 		};
 
-		vk::SetDebugUtilsObjectNameEXT(device, &objectNameInfo);
+		vkdbg.SetDebugUtilsObjectName(device, &objectNameInfo);
 	}
 
 	constexpr static VkMemoryPropertyFlags ConvertToVkMemoryPropertyFlags(MemoryPropertyFlags flags)
@@ -506,41 +515,43 @@ namespace apex::gfx {
 	{
 		switch (format)
 		{
-		case ImageFormat::R8_UNORM:          return VK_FORMAT_R8_UNORM;
-		case ImageFormat::R8_SNORM:          return VK_FORMAT_R8_SNORM;
-		case ImageFormat::R8_UINT:           return VK_FORMAT_R8_UINT;
-		case ImageFormat::R8_SINT:           return VK_FORMAT_R8_SINT;
-		case ImageFormat::R8_SRGB:           return VK_FORMAT_R8_SRGB;
-		case ImageFormat::R8G8_UNORM:        return VK_FORMAT_R8G8_UNORM;
-		case ImageFormat::R8G8_SNORM:        return VK_FORMAT_R8G8_SNORM;
-		case ImageFormat::R8G8_UINT:         return VK_FORMAT_R8G8_UINT;
-		case ImageFormat::R8G8_SINT:         return VK_FORMAT_R8G8_SINT;
-		case ImageFormat::R8G8_SRGB:         return VK_FORMAT_R8G8_SRGB;
-		case ImageFormat::R8G8B8_UNORM:      return VK_FORMAT_R8G8B8_UNORM;
-		case ImageFormat::R8G8B8_SNORM:      return VK_FORMAT_R8G8B8_SNORM;
-		case ImageFormat::R8G8B8_UINT:       return VK_FORMAT_R8G8B8_UINT;
-		case ImageFormat::R8G8B8_SINT:       return VK_FORMAT_R8G8B8_SINT;
-		case ImageFormat::R8G8B8_SRGB:       return VK_FORMAT_R8G8B8_SRGB;
-		case ImageFormat::B8G8R8_UNORM:      return VK_FORMAT_B8G8R8_UNORM;
-		case ImageFormat::B8G8R8_SNORM:      return VK_FORMAT_B8G8R8_SNORM;
-		case ImageFormat::B8G8R8_UINT:       return VK_FORMAT_B8G8R8_UINT;
-		case ImageFormat::B8G8R8_SINT:       return VK_FORMAT_B8G8R8_SINT;
-		case ImageFormat::B8G8R8_SRGB:       return VK_FORMAT_B8G8R8_SRGB;
-		case ImageFormat::R8G8B8A8_UNORM:    return VK_FORMAT_R8G8B8A8_UNORM;
-		case ImageFormat::R8G8B8A8_SNORM:    return VK_FORMAT_R8G8B8A8_SNORM;
-		case ImageFormat::R8G8B8A8_UINT:     return VK_FORMAT_R8G8B8A8_UINT;
-		case ImageFormat::R8G8B8A8_SINT:     return VK_FORMAT_R8G8B8A8_SINT;
-		case ImageFormat::R8G8B8A8_SRGB:     return VK_FORMAT_R8G8B8A8_SRGB;
-		case ImageFormat::B8G8R8A8_UNORM:    return VK_FORMAT_B8G8R8A8_UNORM;
-		case ImageFormat::B8G8R8A8_SNORM:    return VK_FORMAT_B8G8R8A8_SNORM;
-		case ImageFormat::B8G8R8A8_UINT:     return VK_FORMAT_B8G8R8A8_UINT;
-		case ImageFormat::B8G8R8A8_SINT:     return VK_FORMAT_B8G8R8A8_SINT;
-		case ImageFormat::B8G8R8A8_SRGB:     return VK_FORMAT_B8G8R8A8_SRGB;
-		case ImageFormat::D16_UNORM:         return VK_FORMAT_D16_UNORM;
-		case ImageFormat::D32_SFLOAT:        return VK_FORMAT_D32_SFLOAT;
-		case ImageFormat::S8_UINT:           return VK_FORMAT_S8_UINT;
-		case ImageFormat::D16_UNORM_S8_UINT: return VK_FORMAT_D16_UNORM_S8_UINT;
-		case ImageFormat::D24_UNORM_S8_UINT: return VK_FORMAT_D24_UNORM_S8_UINT;
+		case ImageFormat::R8_UNORM:				return VK_FORMAT_R8_UNORM;
+		case ImageFormat::R8_SNORM:				return VK_FORMAT_R8_SNORM;
+		case ImageFormat::R8_UINT:				return VK_FORMAT_R8_UINT;
+		case ImageFormat::R8_SINT:				return VK_FORMAT_R8_SINT;
+		case ImageFormat::R8_SRGB:				return VK_FORMAT_R8_SRGB;
+		case ImageFormat::R8G8_UNORM:			return VK_FORMAT_R8G8_UNORM;
+		case ImageFormat::R8G8_SNORM:			return VK_FORMAT_R8G8_SNORM;
+		case ImageFormat::R8G8_UINT:			return VK_FORMAT_R8G8_UINT;
+		case ImageFormat::R8G8_SINT:			return VK_FORMAT_R8G8_SINT;
+		case ImageFormat::R8G8_SRGB:			return VK_FORMAT_R8G8_SRGB;
+		case ImageFormat::R8G8B8_UNORM:			return VK_FORMAT_R8G8B8_UNORM;
+		case ImageFormat::R8G8B8_SNORM:			return VK_FORMAT_R8G8B8_SNORM;
+		case ImageFormat::R8G8B8_UINT:			return VK_FORMAT_R8G8B8_UINT;
+		case ImageFormat::R8G8B8_SINT:			return VK_FORMAT_R8G8B8_SINT;
+		case ImageFormat::R8G8B8_SRGB:			return VK_FORMAT_R8G8B8_SRGB;
+		case ImageFormat::B8G8R8_UNORM:			return VK_FORMAT_B8G8R8_UNORM;
+		case ImageFormat::B8G8R8_SNORM:			return VK_FORMAT_B8G8R8_SNORM;
+		case ImageFormat::B8G8R8_UINT:			return VK_FORMAT_B8G8R8_UINT;
+		case ImageFormat::B8G8R8_SINT:			return VK_FORMAT_B8G8R8_SINT;
+		case ImageFormat::B8G8R8_SRGB:			return VK_FORMAT_B8G8R8_SRGB;
+		case ImageFormat::R8G8B8A8_UNORM:		return VK_FORMAT_R8G8B8A8_UNORM;
+		case ImageFormat::R8G8B8A8_SNORM:		return VK_FORMAT_R8G8B8A8_SNORM;
+		case ImageFormat::R8G8B8A8_UINT:		return VK_FORMAT_R8G8B8A8_UINT;
+		case ImageFormat::R8G8B8A8_SINT:		return VK_FORMAT_R8G8B8A8_SINT;
+		case ImageFormat::R8G8B8A8_SRGB:		return VK_FORMAT_R8G8B8A8_SRGB;
+		case ImageFormat::B8G8R8A8_UNORM:		return VK_FORMAT_B8G8R8A8_UNORM;
+		case ImageFormat::B8G8R8A8_SNORM:		return VK_FORMAT_B8G8R8A8_SNORM;
+		case ImageFormat::B8G8R8A8_UINT:		return VK_FORMAT_B8G8R8A8_UINT;
+		case ImageFormat::B8G8R8A8_SINT:		return VK_FORMAT_B8G8R8A8_SINT;
+		case ImageFormat::B8G8R8A8_SRGB:		return VK_FORMAT_B8G8R8A8_SRGB;
+		case ImageFormat::R16_FLOAT:			return VK_FORMAT_R16_SFLOAT;
+		case ImageFormat::R32_FLOAT:			return VK_FORMAT_R32_SFLOAT;
+		case ImageFormat::D16_UNORM:			return VK_FORMAT_D16_UNORM;
+		case ImageFormat::D32_FLOAT:			return VK_FORMAT_D32_SFLOAT;
+		case ImageFormat::S8_UINT:				return VK_FORMAT_S8_UINT;
+		case ImageFormat::D16_UNORM_S8_UINT:	return VK_FORMAT_D16_UNORM_S8_UINT;
+		case ImageFormat::D24_UNORM_S8_UINT:	return VK_FORMAT_D24_UNORM_S8_UINT;
 		case ImageFormat::UNDEFINED:      ;
 		}
 		return VK_FORMAT_UNDEFINED;
@@ -732,6 +743,16 @@ namespace apex::gfx {
 		return false;
 	}
 
+	constexpr static VkPipelineBindPoint GetBindPointForQueueType(QueueType queue_type)
+	{
+		switch (queue_type)
+		{
+		case QueueType::Graphics:	return VK_PIPELINE_BIND_POINT_GRAPHICS;
+		case QueueType::Compute:	return VK_PIPELINE_BIND_POINT_COMPUTE;
+		default:					return VK_PIPELINE_BIND_POINT_GRAPHICS;
+		}
+	}
+
 	constexpr static VkPrimitiveTopology ConvertToVkPrimitiveTopology(PrimitiveTopology topology)
 	{
 		switch (topology)
@@ -788,10 +809,9 @@ namespace apex::gfx {
 		}
 	}
 
-	VulkanDevice::VulkanDevice(VulkanContextImpl& context, VkPhysicalDevice physical_device, VulkanPhysicalDeviceFeatures const& enabled_device_features)
+	VulkanDevice::VulkanDevice(VulkanContextImpl* context, VkPhysicalDevice physical_device, VkDevice logical_device, VmaAllocator allocator, AxArrayRef<VulkanQueueInfo> queue_infos)
+		: m_context(context), m_physicalDevice(physical_device), m_logicalDevice(logical_device), m_allocator(allocator)
 	{
-		m_physicalDevice = physical_device;
-
 		// Store physical device properties
 		VkPhysicalDeviceDescriptorIndexingProperties descriptorIndexingProperties { .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_PROPERTIES };
 		m_physicalDeviceProperties.SetupChain(&descriptorIndexingProperties);
@@ -811,65 +831,18 @@ namespace apex::gfx {
 		m_availableExtensions.resize(extensionCount);
 		vkEnumerateDeviceExtensionProperties(m_physicalDevice, nullptr, &extensionCount, m_availableExtensions.dataMutable());
 
-		// Store the required queue indices
-		FindQueueFamilies(m_physicalDevice, context.GetSurface(), true, m_queueInfos);
-
-		axAssertFmt(m_queueInfos[VulkanQueueFamily::Graphics].familyIndex != VulkanQueueInfo::kInvalidQueueFamilyIndex, "Required queue indices not found : 'graphics'");
-		axAssertFmt(m_queueInfos[VulkanQueueFamily::Compute].familyIndex != VulkanQueueInfo::kInvalidQueueFamilyIndex, "Required queue indices not found : 'compute'");
-		axAssertFmt(m_queueInfos[VulkanQueueFamily::Transfer].familyIndex != VulkanQueueInfo::kInvalidQueueFamilyIndex, "Required queue indices not found : 'transfer'");
-
-		// Create queues
-		const u32 numQueues = VulkanQueueFamily::COUNT;
-		VkDeviceQueueCreateInfo queueCreateInfos[numQueues];
-		float queuePriority = 1.f;
-		for (u32 i = 0; i < numQueues; i++)
+		for (u32 i = 0; i < QueueType::COUNT; i++)
 		{
-			queueCreateInfos[i] = VkDeviceQueueCreateInfo {
-				.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
-				.queueFamilyIndex = m_queueInfos[i].familyIndex,
-				.queueCount = 1,
-				.pQueuePriorities = &queuePriority,
-			};
+			VkQueue queue;
+			vkGetDeviceQueue(m_logicalDevice, queue_infos[i].familyIndex, 0, &queue);
+			if (queue)
+			{
+				m_queues[i].m_device = this;
+				m_queues[i].m_queue = queue;
+				m_queues[i].m_info = queue_infos[i];
+				m_queues[i].m_type = i;
+			}
 		}
-
-		const char* ppEnabledLayerNames[] = { "VK_LAYER_KHRONOS_validation" };
-		const char* ppEnabledDeviceExtensionNames[] = {
-			VK_KHR_SWAPCHAIN_EXTENSION_NAME,
-			VK_EXT_SHADER_ATOMIC_FLOAT_EXTENSION_NAME,
-			VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME,
-		};
-
-		const VkDeviceCreateInfo deviceCreateInfo {
-			.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
-			.pNext = &enabled_device_features,
-			.queueCreateInfoCount = numQueues,
-			.pQueueCreateInfos = queueCreateInfos,
-			.enabledLayerCount = 1,
-			.ppEnabledLayerNames = ppEnabledLayerNames,
-			.enabledExtensionCount = 3,
-			.ppEnabledExtensionNames = ppEnabledDeviceExtensionNames,
-		};
-
-		axVerifyFmt(VK_SUCCESS == vkCreateDevice(m_physicalDevice, &deviceCreateInfo, nullptr, &m_logicalDevice),
-					"Failed to create Vulkan logical device!"
-		);
-
-		for (u32 i = 0; i < std::size(m_queues); i++)
-		{
-			vkGetDeviceQueue(m_logicalDevice, m_queueInfos[i].familyIndex, 0, &m_queues[i]);
-		}
-
-		const VmaAllocatorCreateInfo allocatorCreateInfo {
-			.flags = 0,
-			.physicalDevice = m_physicalDevice,
-			.device = m_logicalDevice,
-			.instance = context.GetInstance(),
-			.vulkanApiVersion = VK_API_VERSION_1_3,
-		};
-
-		axVerifyFmt(VK_SUCCESS == vmaCreateAllocator(&allocatorCreateInfo, &m_allocator),
-					"Failed to create Vulkan Memory Allocator!"
-		);
 
 		CreateBindlessDescriptorResources();
 	}
@@ -895,11 +868,11 @@ namespace apex::gfx {
 		vkDestroyDevice(m_logicalDevice, VK_NULL_HANDLE);
 	}
 
-	CommandBuffer* VulkanDevice::AllocateCommandBuffer(u32 queueIdx, u32 frame_index, u32 thread_idx) const
+	CommandBuffer* VulkanDevice::AllocateCommandBuffer(QueueType queue_idx, u32 frame_index, u32 thread_idx) const
 	{
 		VkCommandBuffer commandBuffer;
 
-		const u32 poolIdx = queueIdx * m_swapchainImageCount * m_renderThreadCount +  frame_index * m_renderThreadCount + thread_idx;
+		const u32 poolIdx = queue_idx * MAX_FRAMES_IN_FLIGHT * m_renderThreadCount +  frame_index * m_renderThreadCount + thread_idx;
 
 		const VkCommandBufferAllocateInfo allocateInfo {
 			.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
@@ -912,147 +885,35 @@ namespace apex::gfx {
 			"Failed to allocate command buffers!"
 		);
 
-		return apex_new (VulkanCommandBuffer)(this, m_commandPools[poolIdx], commandBuffer);
-	}
-
-	void VulkanDevice::ResetCommandBuffers(u32 thread_idx) const
-	{
-		vkResetCommandPool(m_logicalDevice, m_commandPools[m_currentSwapchainImageIndex * m_renderThreadCount + thread_idx], 0);
-	}
-
-	void VulkanDevice::ResetCommandBuffers() const
-	{
-		for (u32 threadIdx = 0; threadIdx < m_renderThreadCount; threadIdx++)
-			vkResetCommandPool(m_logicalDevice, m_commandPools[m_currentSwapchainImageIndex * m_renderThreadCount + threadIdx], 0);
-	}
-
-	void VulkanDevice::SubmitCommandBuffer(DeviceQueue queue, CommandBuffer* command_buffer /* bool wait_for_image, bool signal_render_complete */) const
-	{
-		const VkCommandBufferSubmitInfo commandBufferSubmitInfo {
-			.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
-			.commandBuffer = static_cast<VulkanCommandBuffer*>(command_buffer)->m_commandBuffer,
-			.deviceMask = 0,
-		};
-
-		const VkSemaphoreSubmitInfo imageAvailableSemaphoreSubmitInfo {
-			.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
-			.semaphore = m_acquireSemaphores[m_currentSwapchainImageIndex],
-			.value = 1,
-			.stageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
-			.deviceIndex = 0,
-		};
-
-		// TODO: Add other wait semaphores from user
-		const VkSemaphoreSubmitInfo waitSemaphoreInfos[] = { imageAvailableSemaphoreSubmitInfo };
-
-		const VkSemaphoreSubmitInfo renderingCompleteSemaphoreSubmitInfo {
-			.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
-			.semaphore = m_releaseSemaphores[m_currentSwapchainImageIndex],
-			.value = 1,
-			.stageMask = queue == DeviceQueue::Graphics ? VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT : queue == DeviceQueue::Transfer ? VK_PIPELINE_STAGE_2_ALL_TRANSFER_BIT : VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
-			.deviceIndex = 0,
-		};
-
-		// TODO: Add other signal semaphores from user
-		const VkSemaphoreSubmitInfo signalSemaphoreInfos[] = { renderingCompleteSemaphoreSubmitInfo };
-
-		const VkSubmitInfo2 submitInfo {
-			.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2,
-			.waitSemaphoreInfoCount = static_cast<uint32_t>(std::size(waitSemaphoreInfos)),
-			.pWaitSemaphoreInfos = waitSemaphoreInfos,
-			.commandBufferInfoCount = 1,
-			.pCommandBufferInfos = &commandBufferSubmitInfo,
-			.signalSemaphoreInfoCount = static_cast<uint32_t>(std::size(signalSemaphoreInfos)),
-			.pSignalSemaphoreInfos = signalSemaphoreInfos,
-		};
-
-		axVerifyFmt(VK_SUCCESS == vkQueueSubmit2(m_queues[queue], 1, &submitInfo, m_renderFences[m_currentSwapchainImageIndex]),
-			"Failed to submit command buffer!"
-		);
-	}
-
-	void VulkanDevice::SubmitImmediateCommandBuffer(DeviceQueue queue, CommandBuffer* command_buffer) const
-	{
-		VkCommandBuffer commandBuffers[] = { static_cast<VulkanCommandBuffer*>(command_buffer)->m_commandBuffer };
-
-		const VkSubmitInfo submitInfo {
-			.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-			.commandBufferCount = 1,
-			.pCommandBuffers = commandBuffers,
-		};
-
-		vkQueueSubmit(m_queues[queue], 1, &submitInfo, VK_NULL_HANDLE);
+		return apex_new (VulkanCommandBuffer)(this, m_commandPools[poolIdx], commandBuffer, queue_idx, thread_idx);
 	}
 
 	const Image* VulkanDevice::AcquireNextImage()
 	{
-		VkSemaphore acquireSemaphore;
-
-		if (m_recycledSemaphores.empty())
-		{
-			const VkSemaphoreCreateInfo semaphoreCreateInfo { .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
-			axVerifyFmt(VK_SUCCESS == vkCreateSemaphore(m_logicalDevice, &semaphoreCreateInfo, VK_NULL_HANDLE, &acquireSemaphore),
-				"Failed to create semaphore!"
-			);
-			//axDebug("Created new semaphore");
-		}
-		else
-		{
-			acquireSemaphore = m_recycledSemaphores.back();
-			m_recycledSemaphores.pop_back();
-			//axDebug("Reusing existing semaphore");
-		}
+		const VkFence renderFence = GetRenderFence();
+		vkWaitForFences(m_logicalDevice, 1, &renderFence, VK_TRUE, 10'000'000);
+		vkResetFences(m_logicalDevice, 1, &renderFence);
 
 		const VkAcquireNextImageInfoKHR acquireNextImageInfo {
 			.sType = VK_STRUCTURE_TYPE_ACQUIRE_NEXT_IMAGE_INFO_KHR,
 			.swapchain = m_swapchain.handle,
 			.timeout = 120'000'000'000 /* ns */, // 120 s = 2 min
-			.semaphore = acquireSemaphore,
+			.semaphore = GetImageAcquiredSemaphore(),
 			.fence = VK_NULL_HANDLE,
 			.deviceMask = 0x1,
 		};
 
 		VkResult result = vkAcquireNextImage2KHR(m_logicalDevice, &acquireNextImageInfo, &m_currentSwapchainImageIndex);
-		axAssertFmt(VK_SUCCESS == result, "Failed to acquire swapchain image : {}", string_VkResult(result));
-
-		if (VK_SUCCESS != result)
+		if (VK_ERROR_OUT_OF_DATE_KHR == result)
 		{
-			m_recycledSemaphores.append(acquireSemaphore);
+			GetContext()->ResizeSurface();
+		}
+		else if (!axVerifyFmt(VK_SUCCESS == result || VK_SUBOPTIMAL_KHR == result, "Failed to acquire swapchain image : {}", string_VkResult(result)))
+		{
 			return nullptr;
 		}
 
-		vkWaitForFences(m_logicalDevice, 1, &m_renderFences[m_currentSwapchainImageIndex], true, 120'000'000'000 /* ns */);
-		vkResetFences(m_logicalDevice, 1, &m_renderFences[m_currentSwapchainImageIndex]);
-
-		ResetCommandBuffers(); // all threads
-
-		VkSemaphore oldSemaphore = m_acquireSemaphores[m_currentSwapchainImageIndex];
-		if (VK_NULL_HANDLE != oldSemaphore)
-			m_recycledSemaphores.append(oldSemaphore);
-		m_acquireSemaphores[m_currentSwapchainImageIndex] = acquireSemaphore;
-
 		return &m_swapchainImages[m_currentSwapchainImageIndex];
-	}
-
-	void VulkanDevice::Present(DeviceQueue queue)
-	{
-		const VkPresentInfoKHR presentInfo {
-			.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
-			.waitSemaphoreCount = 1,
-			.pWaitSemaphores = &m_releaseSemaphores[m_currentSwapchainImageIndex],
-			.swapchainCount = 1,
-			.pSwapchains = &m_swapchain.handle,
-			.pImageIndices = &m_currentSwapchainImageIndex,
-			.pResults = nullptr,
-		};
-
-		VkResult result = vkQueuePresentKHR(m_queues[(size_t)queue], &presentInfo);
-		axAssertFmt(VK_SUCCESS == result, "Failed to present swapchain image : {}", string_VkResult(result));
-	}
-
-	void VulkanDevice::WaitForQueueIdle(DeviceQueue queue) const
-	{
-		vkQueueWaitIdle(m_queues[(size_t)queue]);
 	}
 
 	void VulkanDevice::WaitForIdle() const
@@ -1152,14 +1013,7 @@ namespace apex::gfx {
 
 		spvReflectCreateShaderModule(shaderCode.size(), shaderCode.data(), &reflect);
 
-		const VkDebugUtilsObjectNameInfoEXT nameInfo {
-			.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT,
-			.objectType = VK_OBJECT_TYPE_SHADER_MODULE,
-			.objectHandle = reinterpret_cast<u64>(shader),
-			.pObjectName = name,
-		};
-
-		vk::SetDebugUtilsObjectNameEXT(m_logicalDevice, &nameInfo);
+		SetObjectName(m_logicalDevice, VK_OBJECT_TYPE_SHADER_MODULE, shader, name);
 
 		return apex_new (VulkanShaderModule)(this, shader, reflect);
 	}
@@ -1169,27 +1023,27 @@ namespace apex::gfx {
 		AxArray<VkPipelineShaderStageCreateInfo> shaderStageCreateInfos;
 		shaderStageCreateInfos.resize(2);
 
-		const VulkanShaderModule* vertexModule = static_cast<VulkanShaderModule*>(desc.shaderStages.vertexShader);
+		const VulkanShaderModule* vertexShader = static_cast<VulkanShaderModule*>(desc.shaderStages.vertexShader);
 
 		shaderStageCreateInfos[0] = {
 			.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
 			.stage = VK_SHADER_STAGE_VERTEX_BIT,
-			.module = vertexModule->m_shader,
-			.pName = vertexModule->m_reflect.entry_point_name,
+			.module = vertexShader->m_shader,
+			.pName = vertexShader->m_reflect.entry_point_name,
 		};
 
-		const VulkanShaderModule* fragmentModule = static_cast<VulkanShaderModule*>(desc.shaderStages.fragmentShader);
+		const VulkanShaderModule* fragmentShader = static_cast<VulkanShaderModule*>(desc.shaderStages.fragmentShader);
 
 		shaderStageCreateInfos[1] = {
 			.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
 			.stage = VK_SHADER_STAGE_FRAGMENT_BIT,
-			.module = fragmentModule->m_shader,
-			.pName = fragmentModule->m_reflect.entry_point_name,
+			.module = fragmentShader->m_shader,
+			.pName = fragmentShader->m_reflect.entry_point_name,
 		};
 
 		VkVertexInputBindingDescription bindingDescription;
 		AxArray<VkVertexInputAttributeDescription> attributeDescriptions;
-		PopulateVertexInputBindingDescriptionFromSpirv(vertexModule->m_reflect, bindingDescription, attributeDescriptions);
+		PopulateVertexInputBindingDescriptionFromSpirv(vertexShader->m_reflect, bindingDescription, attributeDescriptions);
 
 		const VkPipelineVertexInputStateCreateInfo vertexInputStateCreateInfo {
 			.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
@@ -1370,14 +1224,7 @@ namespace apex::gfx {
 		VkResult result = vkCreateGraphicsPipelines(m_logicalDevice, VK_NULL_HANDLE, 1, &pipelineCreateInfo, VK_NULL_HANDLE, &pipeline);
 		axVerifyFmt(VK_SUCCESS == result, "Failed to create graphics pipeline : {}", string_VkResult(result));
 
-		const VkDebugUtilsObjectNameInfoEXT nameInfo {
-			.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT,
-			.objectType = VK_OBJECT_TYPE_PIPELINE,
-			.objectHandle = reinterpret_cast<u64>(pipeline),
-			.pObjectName = name,
-		};
-
-		vk::SetDebugUtilsObjectNameEXT(m_logicalDevice, &nameInfo);
+		SetObjectName(m_logicalDevice, VK_OBJECT_TYPE_PIPELINE, pipeline, name);
 
 		return apex_new (VulkanGraphicsPipeline)(this, pipeline, pipelineLayout
 	#if GFX_USE_BINDLESS_DESCRIPTORS
@@ -1387,17 +1234,50 @@ namespace apex::gfx {
 			);
 	}
 
+	ComputePipeline* VulkanDevice::CreateComputePipeline(const char* name, ComputePipelineCreateDesc const& desc) const
+	{
+	#if GFX_USE_BINDLESS_DESCRIPTORS
+		VkPipelineLayout pipelineLayout = m_bindlessPipelineLayout;
+	#endif
+
+		const VulkanShaderModule* computeShader = static_cast<VulkanShaderModule*>(desc.computeShader);
+
+		const VkComputePipelineCreateInfo pipelineCreateInfo {
+			.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
+			.stage = {
+				.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+				.stage = VK_SHADER_STAGE_COMPUTE_BIT,
+				.module = computeShader->m_shader,
+				.pName = computeShader->m_reflect.entry_point_name,
+			},
+			.layout = pipelineLayout,
+		};
+
+		VkPipeline pipeline;
+
+		VkResult result = vkCreateComputePipelines(m_logicalDevice, VK_NULL_HANDLE, 1, &pipelineCreateInfo, VK_NULL_HANDLE, &pipeline);
+		axVerifyFmt(VK_SUCCESS == result, "Failed to create compute pipeline : {}", string_VkResult(result));
+
+		SetObjectName(m_logicalDevice, VK_OBJECT_TYPE_PIPELINE, pipeline, name);
+
+		return apex_new (VulkanComputePipeline)(this, pipeline, pipelineLayout
+	#if GFX_USE_BINDLESS_DESCRIPTORS
+	#else
+			, descriptorSetLayouts
+	#endif
+			);
+	}
+
 	Buffer* VulkanDevice::CreateBuffer(const char* name, BufferCreateDesc const& desc)
 	{
-		u32 queueFamilyIndices[] = { m_queueInfos[VulkanQueueFamily::Graphics].familyIndex, m_queueInfos[VulkanQueueFamily::Transfer].familyIndex };
+		u32 queueFamilyIndices[] = { m_queues[desc.ownerQueue].m_info.familyIndex };
 
 		const VkBufferCreateInfo bufferCreateInfo {
 			.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
 			.size = desc.size,
 			.usage = ConvertToVkBufferUsageFlags(desc.usageFlags),
-			// TODO: Infer the queue usage from the flags
-			.sharingMode = VK_SHARING_MODE_CONCURRENT,
-			.queueFamilyIndexCount = static_cast<u32>(std::size(queueFamilyIndices)),
+			.sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+			.queueFamilyIndexCount = 1,
 			.pQueueFamilyIndices = queueFamilyIndices,
 		};
 
@@ -1416,54 +1296,10 @@ namespace apex::gfx {
 		axVerifyFmt(VK_SUCCESS == vmaCreateBuffer(m_allocator, &bufferCreateInfo, &allocationCreateInfo, &buffer, &allocation, &allocationInfo),
 			"Failed to create Vulkan Buffer!"
 		);
-		
-		const VkDebugUtilsObjectNameInfoEXT nameInfo {
-			.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT,
-			.objectType = VK_OBJECT_TYPE_BUFFER,
-			.objectHandle = reinterpret_cast<u64>(buffer),
-			.pObjectName = name,
-		};
 
-		vk::SetDebugUtilsObjectNameEXT(m_logicalDevice, &nameInfo);
+		SetObjectName(m_logicalDevice, VK_OBJECT_TYPE_BUFFER, buffer, name);
 
-		// Add to the bindless descriptors
-		{
-			auto updateDescriptorSet = [](VkDevice device, auto buffer, auto bufferIndex, auto bindlessDescriptorSet, auto descriptorType)
-			{
-				const VkDescriptorBufferInfo bufferInfo { 
-					.buffer = buffer,
-					.offset = 0,
-					.range = VK_WHOLE_SIZE,
-				};
-
-				const VkWriteDescriptorSet writes[] = {
-					{
-						.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-						.dstSet = bindlessDescriptorSet,
-						.dstBinding = 0,
-						.dstArrayElement = bufferIndex,
-						.descriptorCount = 1,
-						.descriptorType = descriptorType,
-						.pBufferInfo = &bufferInfo,
-					}
-				};
-
-				vkUpdateDescriptorSets(device, 1, writes, 0, nullptr);
-			};
-
-			if (desc.usageFlags & BufferUsageFlagBits::Uniform)
-			{
-				const u32 bufferIndex = m_nextUniformBufferBindingIndex++;
-				updateDescriptorSet(m_logicalDevice, buffer, bufferIndex, m_bindlessDescriptorSets[BindlessDescriptorType::eUniformBuffer], VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-			}
-			if (desc.usageFlags & BufferUsageFlagBits::Storage)
-			{
-				const u32 bufferIndex = m_nextStorageBufferBindingIndex++;
-				updateDescriptorSet(m_logicalDevice, buffer, bufferIndex, m_bindlessDescriptorSets[BindlessDescriptorType::eStorageBuffer], VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-			}
-		}
-
-		return apex_new (VulkanBuffer)(this, buffer, allocation, allocationInfo);
+		return apex_new (VulkanBuffer)(this, buffer, bufferCreateInfo, allocation, allocationInfo);
 	}
 
 	Buffer* VulkanDevice::CreateVertexBuffer(const char* name, size_t size, const void* initial_data)
@@ -1474,6 +1310,7 @@ namespace apex::gfx {
 			.requiredFlags = MemoryPropertyFlagBits::DeviceLocal,
 			.preferredFlags = MemoryPropertyFlagBits::None,
 			.memoryFlags = MemoryAllocateFlagBits::None,
+			.ownerQueue = QueueType::Graphics,
 			.createMapped = false,
 			.alignment = 0,
 			.pInitialData = initial_data
@@ -1490,6 +1327,7 @@ namespace apex::gfx {
 			.requiredFlags = MemoryPropertyFlagBits::DeviceLocal,
 			.preferredFlags = MemoryPropertyFlagBits::None,
 			.memoryFlags = MemoryAllocateFlagBits::None,
+			.ownerQueue = QueueType::Graphics,
 			.createMapped = false,
 			.alignment = 0,
 			.pInitialData = initial_data
@@ -1506,6 +1344,7 @@ namespace apex::gfx {
 			.requiredFlags = MemoryPropertyFlagBits::HostCoherent,
 			.preferredFlags = MemoryPropertyFlagBits::DeviceLocal,
 			.memoryFlags = MemoryAllocateFlagBits::HostAccessSequential,
+			.ownerQueue = QueueType::Graphics,
 			.createMapped = true,
 		};
 
@@ -1514,7 +1353,7 @@ namespace apex::gfx {
 
 	Image* VulkanDevice::CreateImage(const char* name, ImageCreateDesc const& desc)
 	{
-		u32 queueFamilyIndices[] = { m_queueInfos[VulkanQueueFamily::Graphics].familyIndex, m_queueInfos[VulkanQueueFamily::Transfer].familyIndex };
+		u32 queueFamilyIndices[] = { m_queues[QueueType::Graphics].m_info.familyIndex };
 
 		const VkImageCreateInfo imageCreateInfo {
 			.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
@@ -1527,8 +1366,8 @@ namespace apex::gfx {
 		    .samples = VK_SAMPLE_COUNT_1_BIT,
 		    .tiling = VK_IMAGE_TILING_OPTIMAL,
 		    .usage = ConvertToVkImageUsageFlags(desc.usageFlags),
-		    .sharingMode = VK_SHARING_MODE_CONCURRENT,
-		    .queueFamilyIndexCount =  static_cast<u32>(std::size(queueFamilyIndices)),
+		    .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+		    .queueFamilyIndexCount = 1,
 		    .pQueueFamilyIndices = queueFamilyIndices,
 		    .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
 		};
@@ -1577,32 +1416,6 @@ namespace apex::gfx {
 		);
 
 		SetObjectName(m_logicalDevice, VK_OBJECT_TYPE_IMAGE_VIEW, imageView, name);
-
-		// Add to bindless descriptors
-		if (desc.usageFlags & ImageUsageFlagBits::Sampled)
-		{
-			const u32 imageIndex = m_nextSampledImageBindingIndex++;
-
-			const VkDescriptorImageInfo imageInfo { 
-				.sampler = m_defaultNearestSampler,
-				.imageView = imageView,
-				.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
-			};
-
-			const VkWriteDescriptorSet writes[] = {
-				{
-					.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-					.dstSet = m_bindlessDescriptorSets[BindlessDescriptorType::eSampledImage],
-					.dstBinding = 0,
-					.dstArrayElement = imageIndex,
-					.descriptorCount = 1,
-					.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
-					.pImageInfo = &imageInfo,
-				}
-			};
-
-			vkUpdateDescriptorSets(m_logicalDevice, 1, writes, 0, nullptr); // TODO: Buffer multiple descriptor writes and update at once
-		}
 		
 		return apex_new (VulkanImage)(this, image, imageCreateInfo, allocation, allocationInfo, imageView);
 	}
@@ -1615,6 +1428,167 @@ namespace apex::gfx {
 	ImageView* VulkanDevice::CreateImageView(const char* name, ImageViewCreateDesc const& desc) const
 	{
 		return nullptr;
+	}
+
+	Fence* VulkanDevice::CreateFence(const char* name, u64 init_value)
+	{
+		const VkSemaphoreTypeCreateInfo semaphoreTypeCreateInfo {
+			.sType = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO,
+			.semaphoreType = VK_SEMAPHORE_TYPE_TIMELINE,
+			.initialValue = init_value
+		};
+
+		const VkSemaphoreCreateInfo semaphoreCreateInfo {
+			.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+			.pNext = &semaphoreTypeCreateInfo,
+			.flags = 0,
+		};
+
+		VkSemaphore timelineSemaphore;
+
+		axVerifyFmt(VK_SUCCESS == vkCreateSemaphore(m_logicalDevice, &semaphoreCreateInfo, VK_NULL_HANDLE, &timelineSemaphore),
+			"Failed to create Vulkan timeline semaphore!"
+		);
+
+		SetObjectName(m_logicalDevice, VK_OBJECT_TYPE_SEMAPHORE, timelineSemaphore, name);
+
+		return apex_new (VulkanFence)(this, timelineSemaphore, init_value);
+	}
+
+	void VulkanDevice::BindSampledImage(ImageView* image_view)
+	{
+		VulkanImageView* vkImageView = static_cast<VulkanImageView*>(image_view);
+
+		if (!axVerifyFmt(vkImageView->m_bindlessIndices[0] == (u32)-1, "Image view is already bound as Sampled Image {}", vkImageView->m_bindlessIndices[0]))
+			return;
+
+		axAssert(vkImageView->m_owner->GetUsageFlags() & VK_IMAGE_USAGE_SAMPLED_BIT);
+
+		const u32 imageIndex = m_nextSampledImageBindingIndex.fetch_add(1);
+
+		const VkDescriptorImageInfo imageInfo { 
+			.sampler = m_defaultNearestSampler,
+			.imageView = vkImageView->GetNativeHandle(),
+			.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+		};
+
+		const VkWriteDescriptorSet writes[] = {
+			{
+				.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+				.dstSet = m_bindlessDescriptorSets[BindlessDescriptorType::SampledImage],
+				.dstBinding = 0,
+				.dstArrayElement = imageIndex,
+				.descriptorCount = 1,
+				.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
+				.pImageInfo = &imageInfo,
+			}
+		};
+
+		vkUpdateDescriptorSets(m_logicalDevice, 1, writes, 0, nullptr); // TODO: Buffer multiple descriptor writes and update at once
+
+		vkImageView->m_bindlessIndices[0] = imageIndex;
+	}
+
+	void VulkanDevice::BindStorageImage(ImageView* image_view)
+	{
+		VulkanImageView* vkImageView = static_cast<VulkanImageView*>(image_view);
+
+		if (!axVerifyFmt(vkImageView->m_bindlessIndices[1] == (u32)-1, "Image view is already bound as Storage Image {}", vkImageView->m_bindlessIndices[1]))
+			return;
+
+		axAssert(vkImageView->m_owner->GetUsageFlags() & VK_IMAGE_USAGE_STORAGE_BIT);
+
+		const u32 imageIndex = m_nextStorageImageBindingIndex.fetch_add(1);
+
+		const VkDescriptorImageInfo imageInfo { 
+			.sampler = m_defaultNearestSampler,
+			.imageView = vkImageView->GetNativeHandle(),
+			.imageLayout = VK_IMAGE_LAYOUT_GENERAL
+		};
+
+		const VkWriteDescriptorSet writes[] = {
+			{
+				.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+				.dstSet = m_bindlessDescriptorSets[BindlessDescriptorType::StorageImage],
+				.dstBinding = 0,
+				.dstArrayElement = imageIndex,
+				.descriptorCount = 1,
+				.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+				.pImageInfo = &imageInfo,
+			}
+		};
+
+		vkUpdateDescriptorSets(m_logicalDevice, 1, writes, 0, nullptr); // TODO: Buffer multiple descriptor writes and update at once
+
+		vkImageView->m_bindlessIndices[1] = imageIndex;
+	}
+
+	void VulkanDevice::BindUniformBuffer(Buffer* buffer)
+	{
+		VulkanBuffer* vkBuffer = static_cast<VulkanBuffer*>(buffer);
+
+		if (!axVerifyFmt(vkBuffer->m_bindlessIndices[0] == (u32)-1, "Buffer is already bound as Uniform Buffer {}", vkBuffer->m_bindlessIndices[0]))
+			return;
+
+		axAssert(vkBuffer->GetUsageFlags() & VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
+
+		const u32 bufferIndex = m_nextUniformBufferBindingIndex.fetch_add(1);
+
+		const VkDescriptorBufferInfo bufferInfo {
+			.buffer = vkBuffer->GetNativeHandle(),
+			.offset = 0,
+			.range = VK_WHOLE_SIZE,
+		};
+
+		const VkWriteDescriptorSet writes[] = {
+			{
+				.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+				.dstSet = m_bindlessDescriptorSets[BindlessDescriptorType::UniformBuffer],
+				.dstBinding = 0,
+				.dstArrayElement = bufferIndex,
+				.descriptorCount = 1,
+				.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+				.pBufferInfo = &bufferInfo,
+			}
+		};
+
+		vkUpdateDescriptorSets(m_logicalDevice, 1, writes, 0, nullptr); // TODO: Buffer multiple descriptor writes and update at once
+
+		vkBuffer->m_bindlessIndices[0] = bufferIndex;
+	}
+
+	void VulkanDevice::BindStorageBuffer(Buffer* buffer)
+	{
+		VulkanBuffer* vkBuffer = static_cast<VulkanBuffer*>(buffer);
+
+		if (!axVerifyFmt(vkBuffer->m_bindlessIndices[1] == (u32)-1, "Buffer is already bound as Storage Buffer {}", vkBuffer->m_bindlessIndices[1]))
+			return;
+
+		axAssert(vkBuffer->GetUsageFlags() & VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
+
+		const u32 bufferIndex = m_nextStorageBufferBindingIndex.fetch_add(1);
+
+		const VkDescriptorBufferInfo bufferInfo {
+			.buffer = vkBuffer->GetNativeHandle(),
+			.offset = 0,
+			.range = VK_WHOLE_SIZE,
+		};
+
+		const VkWriteDescriptorSet writes[] = {
+			{
+				.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+				.dstSet = m_bindlessDescriptorSets[BindlessDescriptorType::StorageBuffer],
+				.dstBinding = 0,
+				.dstArrayElement = bufferIndex,
+				.descriptorCount = 1,
+				.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+				.pBufferInfo = &bufferInfo,
+			}
+		};
+
+		vkUpdateDescriptorSets(m_logicalDevice, 1, writes, 0, nullptr); // TODO: Buffer multiple descriptor writes and update at once
+
+		vkBuffer->m_bindlessIndices[1] = bufferIndex;
 	}
 
 	void VulkanDevice::DestroyShaderModule(ShaderModule* shader) const
@@ -1667,6 +1641,12 @@ namespace apex::gfx {
 		vkDestroyImageView(m_logicalDevice, vkview->m_view, VK_NULL_HANDLE);
 	}
 
+	void VulkanDevice::DestroyFence(Fence* fence) const
+	{
+		VulkanFence* vkfence = static_cast<VulkanFence*>(fence);
+		vkDestroySemaphore(m_logicalDevice, vkfence->m_semaphore, VK_NULL_HANDLE);
+	}
+
 	void VulkanDevice::CreateSwapchain(VkSurfaceKHR surface, u32 width, u32 height)
 	{
 		VulkanSwapchainSupportDetails swapchainSupportDetails;
@@ -1710,7 +1690,7 @@ namespace apex::gfx {
 		}
 
 		// Choose desired image count
-		u32 imageCount = swapchainSupportDetails.capabilities.minImageCount + 1;
+		u32 imageCount = std::max((u32)MAX_FRAMES_IN_FLIGHT, swapchainSupportDetails.capabilities.minImageCount + 1);
 		if (swapchainSupportDetails.capabilities.maxImageCount > 0)
 		{
 			imageCount = std::min(imageCount, swapchainSupportDetails.capabilities.maxImageCount);
@@ -1729,8 +1709,7 @@ namespace apex::gfx {
 			.imageColorSpace = m_swapchain.surfaceFormat.colorSpace,
 			.imageExtent = m_swapchain.extent,
 			.imageArrayLayers = 1,
-			.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
-
+			.imageUsage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
 			.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE,
 			.queueFamilyIndexCount = 0,
 			.pQueueFamilyIndices = nullptr,
@@ -1793,7 +1772,7 @@ namespace apex::gfx {
 				"Failed to create swapchain image view!"
 			);
 
-			m_swapchainImages.emplace_back(this, images[i], imageView, VkExtent3D{ m_swapchain.extent.width, m_swapchain.extent.height, 1 }, m_swapchain.surfaceFormat.format);
+			m_swapchainImages.emplace_back(this, images[i], imageView, VkExtent3D{ m_swapchain.extent.width, m_swapchain.extent.height, 1 }, m_swapchain.surfaceFormat.format, 0);
 		}
 
 		m_swapchainImageCount = imageCount;
@@ -1826,10 +1805,10 @@ namespace apex::gfx {
 		axAssert(totalUniformBufferDescriptors > 16);
 		axAssert(totalStorageBufferDescriptors > 16);
 
-		axDebugFmt("Total Sampled Image Descriptors: {}", totalSampledImageDescriptors);
-		axDebugFmt("Total Storage Image Descriptors: {}", totalStorageImageDescriptors);
-		axDebugFmt("Total Uniform Buffer Descriptors: {}", totalUniformBufferDescriptors);
-		axDebugFmt("Total Storage Buffer Descriptors: {}", totalStorageBufferDescriptors);
+		axDebugFmt("Total Sampled Image Descriptors:  {} (Max: {})", totalSampledImageDescriptors, descriptorIndexingProperties->maxDescriptorSetUpdateAfterBindSampledImages);
+		axDebugFmt("Total Storage Image Descriptors:  {} (Max: {})", totalStorageImageDescriptors, descriptorIndexingProperties->maxDescriptorSetUpdateAfterBindUniformBuffers);
+		axDebugFmt("Total Uniform Buffer Descriptors: {} (Max: {})", totalUniformBufferDescriptors, descriptorIndexingProperties->maxDescriptorSetUpdateAfterBindStorageImages);
+		axDebugFmt("Total Storage Buffer Descriptors: {} (Max: {})", totalStorageBufferDescriptors, descriptorIndexingProperties->maxDescriptorSetUpdateAfterBindStorageBuffers);
 
 		const VkDescriptorPoolSize poolSizes[] = {
 			{ VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, totalSampledImageDescriptors },
@@ -1920,7 +1899,7 @@ namespace apex::gfx {
 					.pBindings = &binding,
 				};
 
-				axVerifyFmt(VK_SUCCESS == vkCreateDescriptorSetLayout(m_logicalDevice, &descriptorSetLayoutCreateInfo, VK_NULL_HANDLE, &m_bindlessDescriptorSetLayouts[BindlessDescriptorType::eSampler]),
+				axVerifyFmt(VK_SUCCESS == vkCreateDescriptorSetLayout(m_logicalDevice, &descriptorSetLayoutCreateInfo, VK_NULL_HANDLE, &m_bindlessDescriptorSetLayouts[BindlessDescriptorType::Sampler]),
 					"Failed to create bindless descriptor set layout!"
 				);
 			}
@@ -1976,10 +1955,10 @@ namespace apex::gfx {
 					.pNext = nullptr,
 					.descriptorPool = m_descriptorPool,
 					.descriptorSetCount = 1,
-					.pSetLayouts = &m_bindlessDescriptorSetLayouts[BindlessDescriptorType::eSampler],
+					.pSetLayouts = &m_bindlessDescriptorSetLayouts[BindlessDescriptorType::Sampler],
 				};
 
-				axVerifyFmt(VK_SUCCESS == vkAllocateDescriptorSets(m_logicalDevice, &samplerDescriptorSetAllocateInfo, &m_bindlessDescriptorSets[BindlessDescriptorType::eSampler]),
+				axVerifyFmt(VK_SUCCESS == vkAllocateDescriptorSets(m_logicalDevice, &samplerDescriptorSetAllocateInfo, &m_bindlessDescriptorSets[BindlessDescriptorType::Sampler]),
 					"Failed to allocate bindless sampler descriptor set!"
 				);
 			}
@@ -1990,26 +1969,24 @@ namespace apex::gfx {
 	{
 		const VkSemaphoreCreateInfo semaphoreCreateInfo { .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
 
-		m_recycledSemaphores.reserve(m_swapchainImageCount + 1);
-		for (u32 i = 0; i < m_swapchainImageCount; i++)
+		// m_recycledSemaphores.reserve(MAX_FRAMES_IN_FLIGHT + 1);
+		for (u32 i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
 		{
 			VkSemaphore semaphore {};
 			axVerifyFmt(VK_SUCCESS == vkCreateSemaphore(m_logicalDevice, &semaphoreCreateInfo, VK_NULL_HANDLE, &semaphore),
 				"Failed to create semaphore!"
 			);
-			m_recycledSemaphores.append(semaphore);
+			m_imageAcquiredSemaphores[i] = semaphore;
+			// m_recycledSemaphores.append(semaphore);
 		}
 
-		m_acquireSemaphores.resize(m_swapchainImageCount, (VkSemaphore)VK_NULL_HANDLE);
-
-		m_releaseSemaphores.reserve(m_swapchainImageCount);
-		for (u32 i = 0; i < m_swapchainImageCount; i++)
+		for (u32 i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
 		{
 			VkSemaphore semaphore {};
 			axVerifyFmt(VK_SUCCESS == vkCreateSemaphore(m_logicalDevice, &semaphoreCreateInfo, VK_NULL_HANDLE, &semaphore),
 				"Failed to create semaphore!"
 			);
-			m_releaseSemaphores.append(semaphore);
+			m_renderCompleteSemaphores[i] = semaphore;
 		}
 
 		const VkFenceCreateInfo fenceCreateInfo {
@@ -2017,30 +1994,29 @@ namespace apex::gfx {
 			.flags = VK_FENCE_CREATE_SIGNALED_BIT,
 		};
 
-		m_renderFences.reserve(m_swapchainImageCount);
-		for (u32 i = 0; i < m_swapchainImageCount; i++)
+		for (u32 i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
 		{
 			VkFence fence {};
 			axVerifyFmt(VK_SUCCESS == vkCreateFence(m_logicalDevice, &fenceCreateInfo, VK_NULL_HANDLE, &fence),
 				"Failed to create fence!"
 			);
-			m_renderFences.append(fence);
+			m_renderFences[i] = fence;
 		}
 	}
 
 	void VulkanDevice::DestroyPerFrameData()
 	{
-		for (VkSemaphore& semaphore : m_recycledSemaphores)
+		/*for (VkSemaphore& semaphore : m_recycledSemaphores)
+		{
+			vkDestroySemaphore(m_logicalDevice, semaphore, VK_NULL_HANDLE);
+		}*/
+
+		for (VkSemaphore& semaphore : m_imageAcquiredSemaphores)
 		{
 			vkDestroySemaphore(m_logicalDevice, semaphore, VK_NULL_HANDLE);
 		}
 
-		for (VkSemaphore& semaphore : m_acquireSemaphores)
-		{
-			vkDestroySemaphore(m_logicalDevice, semaphore, VK_NULL_HANDLE);
-		}
-
-		for (VkSemaphore& semaphore : m_releaseSemaphores)
+		for (VkSemaphore& semaphore : m_renderCompleteSemaphores)
 		{
 			vkDestroySemaphore(m_logicalDevice, semaphore, VK_NULL_HANDLE);
 		}
@@ -2050,17 +2026,15 @@ namespace apex::gfx {
 			vkDestroyFence(m_logicalDevice, fence, VK_NULL_HANDLE);
 		}
 
-		m_recycledSemaphores.clear();
-		m_acquireSemaphores.clear();
-		m_releaseSemaphores.clear();
-		m_renderFences.clear();
+		/*m_recycledSemaphores.clear();
+		m_imageAcquiredSemaphores.clear();
+		m_renderCompleteSemaphores.clear();
+		m_renderFences.clear();*/
 	}
 
 	void VulkanDevice::CreateCommandPools()
     {
-		m_commandPools.resize(3 * m_swapchainImageCount * m_renderThreadCount);
-
-        // Create a command pool for each frame in flight and each render thread
+		// Create a command pool for each frame in flight and each render thread
 		for (u32 queueIdx = 0; queueIdx < 3; queueIdx++)
 		{
 	        for (u32 frameIdx = 0; frameIdx < m_swapchainImageCount; frameIdx++)
@@ -2070,7 +2044,7 @@ namespace apex::gfx {
 	                VkCommandPoolCreateInfo poolCreateInfo{
 						.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
 						.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
-						.queueFamilyIndex = m_queueInfos[queueIdx].familyIndex,
+						.queueFamilyIndex = m_queues[queueIdx].m_info.familyIndex,
 	                };
 
 	                VkCommandPool commandPool;
@@ -2078,7 +2052,7 @@ namespace apex::gfx {
 						"Failed to create command pool!"
 					);
 
-					const u32 poolIdx = queueIdx * m_swapchainImageCount * m_renderThreadCount + frameIdx * m_renderThreadCount + threadIdx;
+					const u32 poolIdx = CalculateCommandPoolIndex(queueIdx, frameIdx, threadIdx);
 	                m_commandPools[poolIdx] = commandPool;
 	            }
 	        }
@@ -2156,6 +2130,7 @@ namespace apex::gfx {
 		return pushConstantRange;
     }
 
+	// Vulkan Context
     void VulkanContext::Init(const plat::PlatformWindow& window)
     {
 		m_pImpl = apex_new (VulkanContextImpl) ((HINSTANCE)window.GetOsApplicationHandle(), (HWND)window.GetOsHandle());
@@ -2179,11 +2154,210 @@ namespace apex::gfx {
 	{
 	}
 
-	void VulkanContext::ResizeWindow(u32 width, u32 height) const
+	void VulkanContext::ResizeSurface(u32 width, u32 height) const
 	{
-		(void)m_pImpl->ResizeWindow(width, height);
+		(void)m_pImpl->ResizeSurface(width, height);
 	}
 
+	void VulkanContext::ResizeSurface() const
+	{
+		m_pImpl->ResizeSurface();
+	}
+
+	// Vulkan Queue
+	void VulkanQueue::ResetCommandBuffers(u32 frame_idx, u32 thread_idx) const
+	{
+		const u32 poolIdx = m_device->CalculateCommandPoolIndex(m_type, frame_idx, thread_idx);
+		vkResetCommandPool(m_device->GetLogicalDevice(), m_device->GetCommandPool(poolIdx), 0);
+	}
+
+	void VulkanQueue::SubmitImmediate(CommandBuffer* command_buffer)
+	{
+		VkCommandBuffer commandBuffers[] = { static_cast<VkCommandBuffer>(command_buffer->GetNativeHandle()) };
+
+		const VkSubmitInfo submitInfo {
+			.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+			.commandBufferCount = 1,
+			.pCommandBuffers = commandBuffers,
+		};
+
+		vkQueueSubmit(m_queue, 1, &submitInfo, VK_NULL_HANDLE);
+	}
+
+	void VulkanQueue::SubmitCommandBuffer(CommandBuffer* command_buffer)
+	{
+		const VkCommandBufferSubmitInfo commandBufferSubmitInfo {
+			.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
+			.commandBuffer = static_cast<VkCommandBuffer>(command_buffer->GetNativeHandle()),
+			.deviceMask = 0,
+		};
+
+		const VkSubmitInfo2 submitInfo {
+			.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2,
+			.waitSemaphoreInfoCount = 0,
+			.pWaitSemaphoreInfos = nullptr,
+			.commandBufferInfoCount = 1,
+			.pCommandBufferInfos = &commandBufferSubmitInfo,
+			.signalSemaphoreInfoCount = 0,
+			.pSignalSemaphoreInfos = nullptr,
+		};
+
+		axVerifyFmt(VK_SUCCESS == vkQueueSubmit2(m_queue, 1, &submitInfo, nullptr),
+			"Failed to submit command buffer!"
+		);
+	}
+
+	void VulkanQueue::SubmitCommandBuffer(CommandBuffer* command_buffer, bool wait_image_acquired, PipelineStageFlags wait_stage_mask, bool signal_render_complete)
+	{
+		VkCommandBuffer			commandBuffer []		= { static_cast<VkCommandBuffer>(command_buffer->GetNativeHandle()) };
+
+		VkSemaphore				waitSemaphores[]		= { m_device->GetImageAcquiredSemaphore() };
+		VkPipelineStageFlags	waitStageMasks[]		= { ConvertToVkPipelineStageFlags(wait_stage_mask) };
+		u32						waitCount				= wait_image_acquired ? 1 : 0;
+
+		VkSemaphore				signalSemaphores[]		= { m_device->GetRenderCompleteSemaphore() };
+		u32						signalCount				= signal_render_complete ? 1 : 0;
+
+		const VkSubmitInfo submitInfo {
+			.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+			.waitSemaphoreCount = waitCount,
+			.pWaitSemaphores = waitSemaphores,
+			.pWaitDstStageMask = waitStageMasks,
+			.commandBufferCount = 1,
+			.pCommandBuffers = commandBuffer,
+			.signalSemaphoreCount = signalCount,
+			.pSignalSemaphores = signalSemaphores
+		};
+
+		axVerifyFmt(VK_SUCCESS == vkQueueSubmit(m_queue, 1, &submitInfo, m_device->GetRenderFence()),
+			"Failed to submit command buffer!"
+		);
+	}
+
+	void VulkanQueue::SubmitCommandBuffer(CommandBuffer* command_buffer, Fence* fence, u64 wait_value, PipelineStageFlags wait_stage_mask, u64 signal_value)
+	{
+		VkCommandBuffer			commandBuffer []		= { static_cast<VkCommandBuffer>(command_buffer->GetNativeHandle()) };
+
+		VkSemaphore				waitSemaphores[]		= { static_cast<VulkanFence*>(fence)->GetSemaphore() };
+		u64						waitValues[]			= { wait_value };
+		VkPipelineStageFlags	waitStageMasks[]		= { ConvertToVkPipelineStageFlags(wait_stage_mask) };
+		u32						waitCount				= wait_value != Fence::InvalidValue;
+
+		VkSemaphore				signalSemaphores[]		= { static_cast<VulkanFence*>(fence)->GetSemaphore() };
+		u64						signalValues[]			= { signal_value };
+		u32						signalCount				= signal_value != Fence::InvalidValue;
+
+		const VkTimelineSemaphoreSubmitInfo timelineSubmitInfo {
+			.sType = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO,
+			.waitSemaphoreValueCount = waitCount,
+			.pWaitSemaphoreValues = waitValues,
+			.signalSemaphoreValueCount = signalCount,
+			.pSignalSemaphoreValues = signalValues,
+		};
+
+		const VkSubmitInfo submitInfo {
+			.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+			.pNext = &timelineSubmitInfo,
+			.waitSemaphoreCount = waitCount,
+			.pWaitSemaphores = waitSemaphores,
+			.pWaitDstStageMask = waitStageMasks,
+			.commandBufferCount = 1,
+			.pCommandBuffers = commandBuffer,
+			.signalSemaphoreCount = signalCount,
+			.pSignalSemaphores = signalSemaphores
+		};
+
+		axVerifyFmt(VK_SUCCESS == vkQueueSubmit(m_queue, 1, &submitInfo, nullptr),
+			"Failed to submit command buffer!"
+		);
+	}
+
+	void VulkanQueue::SubmitCommandBuffers(const QueueSubmitDesc& desc)
+	{
+		VkCommandBuffer* commandBuffers = static_cast<VkCommandBuffer*>(_alloca(sizeof(VkCommandBuffer) * desc.commandBuffers.size()));
+		for (u32 i = 0; i < desc.commandBuffers.size(); i++)
+		{
+			commandBuffers[i] = static_cast<VkCommandBuffer>(desc.commandBuffers[i]->GetNativeHandle());
+		}
+
+		VkSemaphore				waitSemaphores[]		= { static_cast<VulkanFence*>(desc.fence)->GetSemaphore(), m_device->GetImageAcquiredSemaphore() };
+		u64						waitValues[]			= { desc.fenceWaitValue, 0 };
+		VkPipelineStageFlags	waitStageMasks[]		= { ConvertToVkPipelineStageFlags(desc.fenceWaitStageMask), ConvertToVkPipelineStageFlags(desc.imageAcquiredWaitStageMask) };
+		u32						waitCount				= desc.waitImageAcquired ? 2 : 1;
+
+		VkSemaphore				signalSemaphores[]		= { static_cast<VulkanFence*>(desc.fence)->GetSemaphore(), m_device->GetRenderCompleteSemaphore() };
+		u64						signalValues[]			= { desc.fenceSignalValue, 0 };
+		u32						signalCount				= desc.signalRenderComplete ? 2 : 1;
+
+		const VkTimelineSemaphoreSubmitInfo timelineSubmitInfo {
+			.sType = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO,
+			.waitSemaphoreValueCount = waitCount,
+			.pWaitSemaphoreValues = waitValues,
+			.signalSemaphoreValueCount = signalCount,
+			.pSignalSemaphoreValues = signalValues,
+		};
+
+		const VkSubmitInfo submitInfo {
+			.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+			.pNext = &timelineSubmitInfo,
+			.waitSemaphoreCount = waitCount,
+			.pWaitSemaphores = waitSemaphores,
+			.pWaitDstStageMask = waitStageMasks,
+			.commandBufferCount = (u32)desc.commandBuffers.size(),
+			.pCommandBuffers = commandBuffers,
+			.signalSemaphoreCount = signalCount,
+			.pSignalSemaphores = signalSemaphores
+		};
+
+		axVerifyFmt(VK_SUCCESS == vkQueueSubmit(m_queue, 1, &submitInfo, nullptr),
+			"Failed to submit command buffer!"
+		);
+	}
+
+	void VulkanQueue::Flush()
+	{
+		const VkResult result = vkQueueSubmit2(m_queue, m_submitInfos.size(), m_submitInfos.data(), m_device->GetRenderFence());
+		if (axVerifyFmt(VK_SUCCESS == result, "Failed to submit command buffer : {}", string_VkResult(result)))
+		{
+			m_submitInfos.clear();
+		}
+	}
+
+	void VulkanQueue::Present()
+	{
+		if (!axVerifyFmt(CanPresent(), "This queue cannot present to the swapchain!"))
+		{
+			return;
+		}
+
+		VkSemaphore waitSemaphores[] = { m_device->GetRenderCompleteSemaphore() };
+		u32 swapchainImageIndices[] = { m_device->GetCurrentSwapchainImageIndex() };
+
+		const VkPresentInfoKHR presentInfo {
+			.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+			.waitSemaphoreCount = (u32)std::size(waitSemaphores),
+			.pWaitSemaphores = waitSemaphores,
+			.swapchainCount = 1,
+			.pSwapchains = &m_device->GetSwapchain().handle,
+			.pImageIndices = swapchainImageIndices,
+			.pResults = nullptr,
+		};
+
+		const VkResult result = vkQueuePresentKHR(m_queue, &presentInfo);
+		if (VK_ERROR_OUT_OF_DATE_KHR == result)
+		{
+			m_device->GetContext()->ResizeSurface();
+			return;
+		}
+		axVerifyFmt(VK_SUCCESS == result || VK_SUBOPTIMAL_KHR == result, "Failed to present swapchain image : {}", string_VkResult(result));
+	}
+
+	void VulkanQueue::WaitForIdle()
+	{
+		vkQueueWaitIdle(m_queue);
+	}
+
+	// Vulkan Command Buffer
 	VulkanCommandBuffer::~VulkanCommandBuffer()
 	{
 		vkFreeCommandBuffers(m_device->GetLogicalDevice(), m_commandPool, 1, &m_commandBuffer);
@@ -2207,11 +2381,35 @@ namespace apex::gfx {
 		);
 	}
 
+	void VulkanCommandBuffer::BindGlobalDescriptorSets()
+	{
+		auto bindlessDescriptorSets = m_device->GetBindlessDescriptorSets();
+
+		const VkPipelineBindPoint bindPoint = GetBindPointForQueueType(m_queue);
+
+		vkCmdBindDescriptorSets(m_commandBuffer,
+			bindPoint,
+			m_device->GetBindlessPipelineLayout(),
+			0, bindlessDescriptorSets.size(), bindlessDescriptorSets.data(),
+			0 , nullptr);
+	}
+
+	void VulkanCommandBuffer::BindComputePipeline(ComputePipeline const* pipeline)
+	{
+		VulkanComputePipeline const* vkPipeline = static_cast<VulkanComputePipeline const*>(pipeline);
+
+		vkCmdBindPipeline(m_commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, vkPipeline->GetNativeHandle());
+	}
+
+	void VulkanCommandBuffer::Dispatch(Dim3D group_counts)
+	{
+		vkCmdDispatch(m_commandBuffer, group_counts.x, group_counts.y, group_counts.z);
+	}
+
 	void VulkanCommandBuffer::BeginRendering(ImageView const* color_image_view, ImageView const* depth_stencil_image_view)
 	{
-		const VkRenderingAttachmentInfo colorAttachmentInfo {
+		VkRenderingAttachmentInfo colorAttachmentInfo {
 			.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
-			.imageView = static_cast<const VulkanImageView*>(color_image_view)->GetNativeHandle(),
 			.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
 			.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
 			.storeOp = VK_ATTACHMENT_STORE_OP_STORE,
@@ -2220,9 +2418,8 @@ namespace apex::gfx {
 			}
 		};
 
-		const VkRenderingAttachmentInfo depthStencilAttachmentInfo {
+		VkRenderingAttachmentInfo depthStencilAttachmentInfo {
 			.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
-			.imageView = static_cast<const VulkanImageView*>(depth_stencil_image_view)->GetNativeHandle(),
 			.imageLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
 			.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
 			.storeOp = VK_ATTACHMENT_STORE_OP_STORE,
@@ -2231,25 +2428,26 @@ namespace apex::gfx {
 			}
 		};
 
-		const VkRenderingInfo renderingInfo {
+		VkRenderingInfo renderingInfo {
 			.sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
 			.renderArea = { .offset = { 0, 0}, .extent = m_device->GetSwapchain().extent },
 			.layerCount = 1,
-			.colorAttachmentCount = 1,
-			.pColorAttachments = &colorAttachmentInfo,
-			.pDepthAttachment = &depthStencilAttachmentInfo,
-			.pStencilAttachment = nullptr,
 		};
 
+		if (color_image_view)
+		{
+			colorAttachmentInfo.imageView = static_cast<const VulkanImageView*>(color_image_view)->GetNativeHandle();
+			renderingInfo.colorAttachmentCount = 1;
+			renderingInfo.pColorAttachments = &colorAttachmentInfo;
+		}
+
+		if (depth_stencil_image_view)
+		{
+			depthStencilAttachmentInfo.imageView = static_cast<const VulkanImageView*>(depth_stencil_image_view)->GetNativeHandle();
+			renderingInfo.pDepthAttachment = &depthStencilAttachmentInfo;
+		}
+
 		vkCmdBeginRendering(m_commandBuffer, &renderingInfo);
-
-		auto bindlessDescriptorSets = m_device->GetBindlessDescriptorSets();
-
-		vkCmdBindDescriptorSets(m_commandBuffer,
-			VK_PIPELINE_BIND_POINT_GRAPHICS,
-			m_device->GetBindlessPipelineLayout(),
-			0, bindlessDescriptorSets.count, bindlessDescriptorSets._data,
-			0 , nullptr);
 	}
 
 	void VulkanCommandBuffer::EndRendering()
@@ -2335,19 +2533,22 @@ namespace apex::gfx {
 		vkCmdDrawIndexed(m_commandBuffer, index_count, 1, 0, 0, 0);
 	}
 
-	void VulkanCommandBuffer::TransitionImage(const Image* image, ImageLayout old_layout, ImageLayout new_layout,
-	                                          AccessFlags src_access_flags, AccessFlags dst_access_flags, PipelineStageFlags src_stage_flags, PipelineStageFlags dst_stage_flags)
+	void VulkanCommandBuffer::TransitionImage(const Image* image,
+											  ImageLayout old_layout, PipelineStageFlags src_stage_mask, AccessFlags src_access_mask, QueueType src_queue,
+											  ImageLayout new_layout, PipelineStageFlags dst_stage_mask, AccessFlags dst_access_mask, QueueType dst_queue)
 	{
-		VkImageAspectFlags aspectMask = IsDepthFormat(static_cast<VulkanImage const*>(image)->GetFormat()) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
+		const VkImageAspectFlags aspectMask = IsDepthFormat(static_cast<VulkanImage const*>(image)->GetFormat()) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
 
-		const VkImageMemoryBarrier barrier {
-			.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-			.srcAccessMask = ConvertToVkAccessFlags(src_access_flags),
-			.dstAccessMask = ConvertToVkAccessFlags(dst_access_flags),
+		const VkImageMemoryBarrier2 imageBarrier {
+			.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
+			.srcStageMask = ConvertToVkPipelineStageFlags(src_stage_mask),
+			.srcAccessMask = ConvertToVkAccessFlags(src_access_mask),
+			.dstStageMask = ConvertToVkPipelineStageFlags(dst_stage_mask),
+			.dstAccessMask = ConvertToVkAccessFlags(dst_access_mask),
 			.oldLayout = ConvertToVkImageLayout(old_layout),
 			.newLayout = ConvertToVkImageLayout(new_layout),
-			.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-			.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+			.srcQueueFamilyIndex = static_cast<const VulkanQueue*>(m_device->GetQueue(src_queue))->GetQueueFamilyIndex(),
+			.dstQueueFamilyIndex = static_cast<const VulkanQueue*>(m_device->GetQueue(dst_queue))->GetQueueFamilyIndex(),
 			.image = static_cast<const VulkanImage*>(image)->GetNativeHandle(),
 			.subresourceRange = {
 				.aspectMask = aspectMask,
@@ -2358,14 +2559,73 @@ namespace apex::gfx {
 			},
 		};
 
-		vkCmdPipelineBarrier(m_commandBuffer, ConvertToVkPipelineStageFlags(src_stage_flags), ConvertToVkPipelineStageFlags(dst_stage_flags),
-			0, 0, nullptr, 0, nullptr, 1, &barrier);
+		const VkDependencyInfo dependencyInfo {
+			.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+		    .imageMemoryBarrierCount = 1,
+			.pImageMemoryBarriers = &imageBarrier,
+		};
+
+		vkCmdPipelineBarrier2(m_commandBuffer, &dependencyInfo);
 	}
 
-	void VulkanCommandBuffer::CopyBuffer(const Buffer* dst, const Buffer* src)
+	void VulkanCommandBuffer::InsertMemoryBarrier(PipelineStageFlags src_stage_mask, AccessFlags src_access_mask,
+	                                              PipelineStageFlags dst_stage_mask, AccessFlags dst_access_mask)
 	{
-		const VulkanBuffer* vkdst = static_cast<const VulkanBuffer*>(dst);
+		const VkMemoryBarrier2 memoryBarrier {
+			.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2,
+			.srcStageMask = ConvertToVkPipelineStageFlags(src_stage_mask),
+			.srcAccessMask = ConvertToVkAccessFlags(src_access_mask),
+			.dstStageMask = ConvertToVkPipelineStageFlags(dst_stage_mask),
+			.dstAccessMask = ConvertToVkAccessFlags(dst_access_mask)
+		};
+
+		const VkDependencyInfo dependencyInfo {
+			.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+		    .memoryBarrierCount = 1,
+		    .pMemoryBarriers = &memoryBarrier
+		};
+
+		vkCmdPipelineBarrier2(m_commandBuffer, &dependencyInfo);
+	}
+
+	void VulkanCommandBuffer::BlitImage(const Image* src, ImageLayout src_layout,
+	                                    const Image* dst, ImageLayout dst_layout)
+	{
+		const VulkanImage* vksrc = static_cast<const VulkanImage*>(src);
+		const VulkanImage* vkdst = static_cast<const VulkanImage*>(dst);
+
+		const VkExtent3D srcExtent = vksrc->GetExtent();
+
+		const VkImageBlit regions = {
+			.srcSubresource = {
+				.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+				.mipLevel = 0,
+				.baseArrayLayer = 0,
+				.layerCount = 1,
+			},
+			.srcOffsets = {
+				{ 0, 0, 0 }, 
+				{ (s32)srcExtent.width, (s32)srcExtent.height, (s32)srcExtent.depth }
+			},
+			.dstSubresource = {
+				.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+				.mipLevel = 0,
+				.baseArrayLayer = 0,
+				.layerCount = 1,
+			},
+			.dstOffsets = {
+				{ 0, 0, 0 }, 
+				{ (s32)srcExtent.width, (s32)srcExtent.height, (s32)srcExtent.depth }
+			}
+		};
+
+		vkCmdBlitImage(m_commandBuffer, vksrc->GetNativeHandle(), ConvertToVkImageLayout(src_layout), vkdst->GetNativeHandle(), ConvertToVkImageLayout(dst_layout), 1, &regions, VK_FILTER_LINEAR);
+	}
+
+	void VulkanCommandBuffer::CopyBuffer(const Buffer* src, const Buffer* dst)
+	{
 		const VulkanBuffer* vksrc = static_cast<const VulkanBuffer*>(src);
+		const VulkanBuffer* vkdst = static_cast<const VulkanBuffer*>(dst);
 
 		const VkBufferCopy copyRegion {
 			.srcOffset = 0,
@@ -2376,10 +2636,10 @@ namespace apex::gfx {
 		vkCmdCopyBuffer(m_commandBuffer, vksrc->GetNativeHandle(), vkdst->GetNativeHandle(), 1, &copyRegion);
 	}
 
-	void VulkanCommandBuffer::CopyBufferToImage(const Image* dst, const Buffer* src, ImageLayout layout)
+	void VulkanCommandBuffer::CopyBufferToImage(const Buffer* src, const Image* dst, ImageLayout layout)
 	{
-		const VulkanImage* vkdst = static_cast<const VulkanImage*>(dst);
 		const VulkanBuffer* vksrc = static_cast<const VulkanBuffer*>(src);
+		const VulkanImage* vkdst = static_cast<const VulkanImage*>(dst);
 
 		const VkBufferImageCopy copyRegion {
 			.bufferOffset = 0,
@@ -2399,25 +2659,43 @@ namespace apex::gfx {
 		vkCmdCopyBufferToImage(m_commandBuffer, vksrc->GetNativeHandle(), vkdst->GetNativeHandle(), ConvertToVkImageLayout(layout), 1, &copyRegion);
 	}
 
+	void VulkanCommandBuffer::PushLabel(const char* label_str, math::Vector4 const& color)
+	{
+		const VkDebugUtilsLabelEXT label {
+			.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT,
+			.pLabelName = label_str,
+			.color = { color[0], color[1], color[2], color[3] },
+		};
+
+		vkdbg.CmdBeginDebugUtilsLabel(m_commandBuffer, &label);
+	}
+
+	void VulkanCommandBuffer::PopLabel()
+	{
+		vkdbg.CmdEndDebugUtilsLabel(m_commandBuffer);
+	}
+
 	// Vulkan Buffer
 	VulkanBuffer::~VulkanBuffer()
 	{
 		m_device->DestroyBuffer(this);
 	}
 
-	VulkanImage::VulkanImage(VulkanDevice const* device, VkImage image, VkImageView view, VkExtent3D extent, VkFormat format)
-	: m_device(device), m_image(image), m_allocation(nullptr), m_allocationInfo(), m_view(apex_new(VulkanImageView)(view, this)), m_extent(extent), m_format(format)
-	{
-	}
-
 	// Vulkan Image
 	VulkanImage::VulkanImage(VulkanDevice const* device, VkImage image, VkImageCreateInfo const& create_info, VkImageView view)
-	: m_device(device), m_image(image), m_allocation(nullptr), m_allocationInfo(), m_view(apex_new(VulkanImageView)(view, this)), m_extent(create_info.extent), m_format(create_info.format)
+	: m_device(device), m_image(image), m_allocation(nullptr), m_allocationInfo(), m_view(apex_new(VulkanImageView)(view, this))
+	, m_extent(create_info.extent), m_usage(create_info.usage), m_format(create_info.format)
 	{
 	}
 
 	VulkanImage::VulkanImage(VulkanDevice const* device, VkImage image, VkImageCreateInfo const& create_info, VmaAllocation allocation, VmaAllocationInfo const& allocation_info, VkImageView view)
-	: m_device(device), m_image(image), m_allocation(allocation), m_allocationInfo(allocation_info), m_view(apex_new(VulkanImageView)(view, this)), m_extent(create_info.extent), m_format(create_info.format)
+	: m_device(device), m_image(image), m_allocation(allocation), m_allocationInfo(allocation_info), m_view(apex_new(VulkanImageView)(view, this))
+	, m_extent(create_info.extent), m_usage(create_info.usage), m_format(create_info.format)
+	{}
+
+	VulkanImage::VulkanImage(VulkanDevice const* device, VkImage image, VkImageView view, VkExtent3D extent, VkFormat format, VkImageUsageFlags usage)
+	: m_device(device), m_image(image), m_allocation(nullptr), m_allocationInfo(), m_view(apex_new(VulkanImageView)(view, this))
+	, m_extent(extent), m_usage(usage), m_format(format)
 	{}
 
 	VulkanImage::~VulkanImage()
@@ -2433,11 +2711,13 @@ namespace apex::gfx {
 			m_owner->GetDevice()->DestroyImageView(this);
 	}
 
+	// Vulkan Shader Module
 	VulkanShaderModule::~VulkanShaderModule()
 	{
 		m_device->DestroyShaderModule(this);
 	}
 
+	// Vulkan Pipelines
 	VulkanGraphicsPipeline::~VulkanGraphicsPipeline()
 	{
 		m_device->DestroyPipeline(this);
@@ -2446,6 +2726,41 @@ namespace apex::gfx {
 	VulkanComputePipeline::~VulkanComputePipeline()
 	{
 		m_device->DestroyPipeline(this);
+	}
+
+	// Vulkan Fence
+	VulkanFence::~VulkanFence()
+	{
+		m_device->DestroyFence(this);
+	}
+
+	void VulkanFence::Signal(u64 value)
+	{
+		const VkSemaphoreSignalInfo signalInfo {
+			.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SIGNAL_INFO,
+			.semaphore = m_semaphore,
+			.value = value,
+		};
+
+		axVerifyFmt(VK_SUCCESS == vkSignalSemaphore(m_device->GetLogicalDevice(), &signalInfo),
+			"Failed to signal semaphore!"
+		);
+
+		m_counter = value;
+	}
+
+	void VulkanFence::Wait(u64 value)
+	{
+		const VkSemaphoreWaitInfo waitInfo {
+			.sType = VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO,
+			.semaphoreCount = 1,
+			.pSemaphores = &m_semaphore,
+			.pValues = &value,
+		};
+
+		axVerifyFmt(VK_SUCCESS == vkWaitSemaphores(m_device->GetLogicalDevice(), &waitInfo, Constants::u64_MAX),
+			"Failed to wait for semaphore!"
+		);
 	}
 
 	VulkanContextImpl::VulkanContextImpl(
@@ -2484,31 +2799,14 @@ namespace apex::gfx {
 			"Validation layers are requested but not supported!"
 		);
 
-		const VkDebugUtilsMessageSeverityFlagsEXT messageSeverityFlags =
-#if GFX_LOGGING_VERBOSE
-			VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
-			VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT |
-#endif // GFX_LOGGING_VERBOSE
-			VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
-			VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
-
-		const VkDebugUtilsMessageTypeFlagsEXT messageTypeFlags =
-			VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | 
-			VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
-			VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT |
-			VK_DEBUG_UTILS_MESSAGE_TYPE_DEVICE_ADDRESS_BINDING_BIT_EXT;
-
-		const VkDebugUtilsMessengerCreateInfoEXT debugUtilsMessengerCreateInfo {
-			.sType				= VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
-		    .messageSeverity	= messageSeverityFlags,
-		    .messageType		= messageTypeFlags,
-		    .pfnUserCallback	= DebugMessengerCallback,
-		    .pUserData			= this,
-		};
+		// Enable Synchronization validation
+		const VkBool32 verbose_value = true;
+		const VkLayerSettingEXT layerSetting { "VK_LAYER_KHRONOS_validation", "validate_sync", VK_LAYER_SETTING_TYPE_BOOL32_EXT, 1, &verbose_value };
+		VkLayerSettingsCreateInfoEXT layerSettingsCreateInfo { VK_STRUCTURE_TYPE_LAYER_SETTINGS_CREATE_INFO_EXT, nullptr, 1, &layerSetting };
 
 		const VkInstanceCreateInfo instanceCreateInfo {
 			.sType				     = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
-			.pNext				     = &debugUtilsMessengerCreateInfo,
+			.pNext				     = &layerSettingsCreateInfo,
 			.pApplicationInfo	     = &applicationInfo,
 			.enabledLayerCount       = static_cast<u32>(std::size(kValidationLayerNames)),
 			.ppEnabledLayerNames     = kValidationLayerNames,
@@ -2520,22 +2818,6 @@ namespace apex::gfx {
 			"Failed to create Vulkan instance!"
 		);
 		axDebug("Vulkan Instance created");
-
-		vk::CreateDebugUtilsMessengerEXT = (PFN_vkCreateDebugUtilsMessengerEXT) vkGetInstanceProcAddr(m_instance, "vkCreateDebugUtilsMessengerEXT");
-		if (nullptr != vk::CreateDebugUtilsMessengerEXT)
-		{
-			axVerifyFmt(VK_SUCCESS == vk::CreateDebugUtilsMessengerEXT(m_instance, &debugUtilsMessengerCreateInfo, VK_NULL_HANDLE, &m_debugUtilsMessenger),
-				"Failed to create debug utils messenger!"
-			);
-		}
-		vk::DestroyDebugUtilsMessengerEXT = (PFN_vkDestroyDebugUtilsMessengerEXT) vkGetInstanceProcAddr(m_instance, "vkDestroyDebugUtilsMessengerEXT");
-
-		vk::SetDebugUtilsObjectNameEXT = (PFN_vkSetDebugUtilsObjectNameEXT) vkGetInstanceProcAddr(m_instance, "vkSetDebugUtilsObjectNameEXT");
-		if (nullptr == vk::SetDebugUtilsObjectNameEXT)
-		{
-			axWarnFmt("Could not load function `vkSetDebugUtilsObjectNameEXT`");
-			vk::SetDebugUtilsObjectNameEXT = +[](VkDevice, const VkDebugUtilsObjectNameInfoEXT*) { return VK_ERROR_NOT_PERMITTED_EXT; };
-		}
 
 	#if APEX_PLATFORM_WIN32
 		CreateSurface(hinstance, hwnd);
@@ -2549,6 +2831,7 @@ namespace apex::gfx {
 		requiredDeviceFeatures.features12.descriptorBindingPartiallyBound = true;
 		requiredDeviceFeatures.features12.descriptorBindingVariableDescriptorCount = true;
 		requiredDeviceFeatures.features12.runtimeDescriptorArray = true;
+		requiredDeviceFeatures.features12.timelineSemaphore = true;
 		// shader resource arrays non-uniform indexing
 		requiredDeviceFeatures.features12.shaderUniformBufferArrayNonUniformIndexing = true;
 		requiredDeviceFeatures.features12.shaderSampledImageArrayNonUniformIndexing = true;
@@ -2571,9 +2854,66 @@ namespace apex::gfx {
 		};
 		requiredDeviceFeatures.SetupChain(&atomicFloatFeatures);
 
-		VkPhysicalDevice physicalDevice = SelectPhysicalDevice(requiredDeviceFeatures);
+		const VkPhysicalDevice physicalDevice = SelectPhysicalDevice(requiredDeviceFeatures);
 
-		m_device = apex::make_unique<VulkanDevice>(*this, physicalDevice, requiredDeviceFeatures);
+		CreateDevice(physicalDevice, requiredDeviceFeatures);
+		if (!axVerifyFmt(m_device, "Vulkan logical device could not be created!"))
+		{
+			return;
+		}
+
+		// Enable Debug Messenger
+		{
+			const VkDebugUtilsMessageSeverityFlagsEXT messageSeverityFlags =
+	#if GFX_LOGGING_VERBOSE
+				VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
+				VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT |
+	#endif // GFX_LOGGING_VERBOSE
+				VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
+				VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
+
+			const VkDebugUtilsMessageTypeFlagsEXT messageTypeFlags =
+				VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | 
+				VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
+				VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
+				//VK_DEBUG_UTILS_MESSAGE_TYPE_DEVICE_ADDRESS_BINDING_BIT_EXT;
+
+			const VkDebugUtilsMessengerCreateInfoEXT debugUtilsMessengerCreateInfo {
+				.sType				= VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
+				.pNext				= nullptr,
+			    .messageSeverity	= messageSeverityFlags,
+			    .messageType		= messageTypeFlags,
+			    .pfnUserCallback	= DebugMessengerCallback,
+			    .pUserData			= this,
+			};
+
+			auto getInstanceProcAddrOrDefault = []<typename Fn>(auto instance, const char* fname) -> Fn
+			{
+				Fn fn = (Fn)vkGetInstanceProcAddr(instance, fname);
+				if (fn == nullptr)
+				{
+					axWarnFmt("Could not load function {}", fname);
+					fn = (Fn)+[]() { return VK_RESULT_MAX_ENUM; };
+				}
+				return fn;
+			};
+
+#define GetInstanceProcAddrOrDefault(instance, func) getInstanceProcAddrOrDefault.operator()<CONCAT(PFN_,func)>((instance), STR(func))
+
+			vkdbg.CreateDebugUtilsMessenger =	GetInstanceProcAddrOrDefault(m_instance, vkCreateDebugUtilsMessengerEXT);
+			vkdbg.DestroyDebugUtilsMessenger =	GetInstanceProcAddrOrDefault(m_instance, vkDestroyDebugUtilsMessengerEXT);
+			vkdbg.SetDebugUtilsObjectName =		GetInstanceProcAddrOrDefault(m_instance, vkSetDebugUtilsObjectNameEXT);
+			vkdbg.QueueBeginDebugUtilsLabel =	GetInstanceProcAddrOrDefault(m_instance, vkQueueBeginDebugUtilsLabelEXT);
+			vkdbg.QueueEndDebugUtilsLabel =		GetInstanceProcAddrOrDefault(m_instance, vkQueueEndDebugUtilsLabelEXT);
+			vkdbg.CmdBeginDebugUtilsLabel =		GetInstanceProcAddrOrDefault(m_instance, vkCmdBeginDebugUtilsLabelEXT);
+			vkdbg.CmdEndDebugUtilsLabel =		GetInstanceProcAddrOrDefault(m_instance, vkCmdEndDebugUtilsLabelEXT);
+
+#undef GetInstanceProcAddrOrDefault
+			
+			axVerifyFmt(VK_SUCCESS == vkdbg.CreateDebugUtilsMessenger(m_instance, &debugUtilsMessengerCreateInfo, VK_NULL_HANDLE, &m_debugUtilsMessenger),
+				"Failed to create debug utils messenger!"
+			);
+		}
 
 	#if APEX_PLATFORM_WIN32
 		RECT rect;
@@ -2591,8 +2931,7 @@ namespace apex::gfx {
 	#if APEX_PLATFORM_WIN32
 		vkDestroySurfaceKHR(m_instance, m_surface, VK_NULL_HANDLE);
 	#endif // APEX_PLATFORM_WIN32
-		if (nullptr != vk::DestroyDebugUtilsMessengerEXT)
-			vk::DestroyDebugUtilsMessengerEXT(m_instance, m_debugUtilsMessenger, VK_NULL_HANDLE);
+		vkdbg.DestroyDebugUtilsMessenger(m_instance, m_debugUtilsMessenger, VK_NULL_HANDLE);
 		vkDestroyInstance(m_instance, VK_NULL_HANDLE);
 	}
 
@@ -2637,18 +2976,131 @@ namespace apex::gfx {
 		return physicalDevice;
 	}
 
-	bool VulkanContextImpl::ResizeWindow(u32 width, u32 height) const
+	void VulkanContextImpl::CreateDevice(VkPhysicalDevice physical_device, VulkanPhysicalDeviceFeatures const& enabled_device_features)
+	{
+		VulkanQueueInfo queueInfos[QueueType::COUNT];
+		FindQueueFamilies(physical_device, m_surface, true, queueInfos);
+
+		axAssertFmt(queueInfos[QueueType::Graphics].familyIndex != VulkanQueueInfo::kInvalidQueueFamilyIndex, "Required queue indices not found : 'graphics'");
+		axAssertFmt(queueInfos[QueueType::Compute ].familyIndex != VulkanQueueInfo::kInvalidQueueFamilyIndex, "Required queue indices not found : 'compute'");
+		axAssertFmt(queueInfos[QueueType::Transfer].familyIndex != VulkanQueueInfo::kInvalidQueueFamilyIndex, "Required queue indices not found : 'transfer'");
+
+		AxArray<VkExtensionProperties> availableExtensions;
+		u32 extensionCount;
+		vkEnumerateDeviceExtensionProperties(physical_device, nullptr, &extensionCount, nullptr);
+		availableExtensions.resize(extensionCount);
+		vkEnumerateDeviceExtensionProperties(physical_device, nullptr, &extensionCount, availableExtensions.dataMutable());
+
+		const char* requiredLayerNames[] = {
+			"VK_LAYER_KHRONOS_validation"
+		};
+
+		const char* requiredDeviceExtensionNames[] = {
+			VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+			VK_EXT_SHADER_ATOMIC_FLOAT_EXTENSION_NAME,
+			VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME,
+		};
+
+		const char* optionalDeviceExtensionNames[] = {
+			VK_EXT_DEVICE_ADDRESS_BINDING_REPORT_EXTENSION_NAME,
+		};
+
+		AxArray<const char*> enabledDeviceExtenionNames(availableExtensions.size());
+
+		for (auto extensionName : requiredDeviceExtensionNames)
+		{
+			auto it = std::find_if(availableExtensions.begin(), availableExtensions.end(), [extensionName](const VkExtensionProperties& prop)
+			{
+				return strcmp(prop.extensionName, extensionName);
+			});
+
+			if (!axVerifyFmt(it != availableExtensions.end(), "Required device extension not available : {}", extensionName))
+			{
+				return;
+			}
+
+			enabledDeviceExtenionNames.append(extensionName);
+		}
+
+		for (auto extensionName : optionalDeviceExtensionNames)
+		{
+			auto it = std::find_if(availableExtensions.begin(), availableExtensions.end(), [extensionName](const VkExtensionProperties& prop)
+			{
+				return strcmp(prop.extensionName, extensionName);
+			});
+
+			if (axVerifyFmt(it != availableExtensions.end(), "Required device extension not available : {}", extensionName))
+			{
+				enabledDeviceExtenionNames.append(extensionName);
+			}
+		}
+
+		// Create queues
+		const size_t numQueues = QueueType::COUNT;
+		VkDeviceQueueCreateInfo queueCreateInfos[numQueues];
+		const float queuePriority = 1.f;
+		for (u32 i = 0; i < numQueues; i++)
+		{
+			queueCreateInfos[i] = VkDeviceQueueCreateInfo {
+				.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+				.queueFamilyIndex = queueInfos[i].familyIndex,
+				.queueCount = 1,
+				.pQueuePriorities = &queuePriority,
+			};
+		}
+
+		const VkDeviceCreateInfo deviceCreateInfo {
+			.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
+			.pNext = &enabled_device_features,
+			.queueCreateInfoCount = numQueues,
+			.pQueueCreateInfos = queueCreateInfos,
+			.enabledLayerCount = (u32)std::size(requiredLayerNames),
+			.ppEnabledLayerNames = requiredLayerNames,
+			.enabledExtensionCount = (u32)std::size(requiredDeviceExtensionNames),
+			.ppEnabledExtensionNames = requiredDeviceExtensionNames,
+		};
+
+		VkDevice logicalDevice;
+		const VkResult result = vkCreateDevice(physical_device, &deviceCreateInfo, nullptr, &logicalDevice);
+		if (!axVerifyFmt(VK_SUCCESS == result, "Failed to create Vulkan logical device : {}", string_VkResult(result)))
+		{
+			return;
+		}
+
+		const VmaAllocatorCreateInfo allocatorCreateInfo {
+			.flags = 0,
+			.physicalDevice = physical_device,
+			.device = logicalDevice,
+			.instance = m_instance,
+			.vulkanApiVersion = VK_API_VERSION_1_3,
+		};
+		VmaAllocator allocator;
+
+		if (!axVerifyFmt(VK_SUCCESS == vmaCreateAllocator(&allocatorCreateInfo, &allocator), "Failed to create Vulkan Memory Allocator!"))
+		{
+			return;
+		}
+
+		m_device = apex::make_unique<VulkanDevice>(this, physical_device, logicalDevice, allocator, make_array_ref(queueInfos));
+	}
+
+	bool VulkanContextImpl::ResizeSurface()
 	{
 		VkSurfaceCapabilitiesKHR surfaceCapabilities;
 		vkGetPhysicalDeviceSurfaceCapabilitiesKHR(m_device->m_physicalDevice, m_surface, &surfaceCapabilities);
 
-		if (surfaceCapabilities.currentExtent.width == m_device->m_swapchain.extent.width &&
-			surfaceCapabilities.currentExtent.height == m_device->m_swapchain.extent.height)
+		return ResizeSurface(surfaceCapabilities.currentExtent.width, surfaceCapabilities.currentExtent.height);
+	}
+
+	bool VulkanContextImpl::ResizeSurface(u32 width, u32 height) const
+	{
+		if (width == m_device->m_swapchain.extent.width &&
+			height == m_device->m_swapchain.extent.height)
 		{
 			return false;
 		}
 
-		vkDeviceWaitIdle(m_device->m_logicalDevice);
+		m_device->WaitForIdle();
 
 		m_device->CreateSwapchain(m_surface, width, height);
 

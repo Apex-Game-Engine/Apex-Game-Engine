@@ -2,10 +2,13 @@
 
 #include <type_traits>
 
+#include "Containers/AxArray.h"
 #include "Core/Types.h"
 
 namespace apex {
 namespace gfx {
+	class CommandBuffer;
+	class Fence;
 	class ShaderModule;
 
 	template <typename BitType>
@@ -146,9 +149,12 @@ namespace gfx {
 		B8G8R8A8_UINT,
 		B8G8R8A8_SINT,
 		B8G8R8A8_SRGB,
+
+		R16_FLOAT,
+		R32_FLOAT,
 		
 		D16_UNORM,
-	    D32_SFLOAT,
+	    D32_FLOAT,
 	    S8_UINT,
 	    D16_UNORM_S8_UINT,
 	    D24_UNORM_S8_UINT,
@@ -217,6 +223,59 @@ namespace gfx {
 		PatchList,
 	};
 
+	struct QueueType
+	{
+		enum Value {
+			Graphics,
+			Compute,
+			Transfer,
+			COUNT
+		};
+
+		Value value;
+
+		constexpr QueueType(Value val) : value(val) {}
+		constexpr QueueType(u32 val) : value(static_cast<Value>(val)) {}
+
+		constexpr operator Value() const { return value; }
+		constexpr bool operator==(Value val) const { return value == val; }
+	};
+
+	struct BindlessDescriptorType
+	{
+		enum Value : u32
+		{
+			SampledImage,
+			StorageImage,
+			UniformBuffer,
+			StorageBuffer,
+			Sampler,
+
+			COUNT
+		} value;
+
+		constexpr BindlessDescriptorType(Value val) : value(val) {}
+
+		constexpr operator u32() const { return value; }
+	};
+
+	enum class DescriptorType : u8
+	{
+		eInputAttachment,
+		eSampler,
+		eCombinedImageSampler,
+		eSampledImage,
+		eStorageImage,
+		eUniformBuffer,
+		eStorageBuffer,
+
+		// HLSL descriptor types
+		eShaderResourceView = eStorageImage,
+		eConstantBufferView = eUniformBuffer,
+		eUnorderedAccessView = eStorageBuffer,
+		eTexture = eSampledImage,
+	};
+
 	struct Viewport
 	{
 		float x;
@@ -237,15 +296,15 @@ namespace gfx {
 
 	struct Dim2D
 	{
-		u32 width {1};
-		u32 height {1};
+		union { u32 width = 1;	u32 x; };
+		union { u32 height = 1;	u32 y; };
 	};
 
 	struct Dim3D
 	{
-		u32 width {1};
-		u32 height {1};
-		u32 depth {1};
+		union { u32 width = 1;	u32 x;};
+		union { u32 height = 1;	u32 y;};
+		union { u32 depth = 1;	u32 z;};
 	};
 
 	struct CommandBufferCreateDesc;
@@ -257,6 +316,7 @@ namespace gfx {
 		MemoryPropertyFlags requiredFlags;
 		MemoryPropertyFlags preferredFlags;
 		MemoryAllocateFlags memoryFlags;
+		QueueType			ownerQueue;
 		bool                createMapped;
 		u32                 alignment;
 		const void*         pInitialData;
@@ -271,6 +331,7 @@ namespace gfx {
 		MemoryPropertyFlags requiredFlags;
 		MemoryPropertyFlags preferredFlags;
 		MemoryAllocateFlags memoryFlags;
+		QueueType			ownerQueue;
 		bool                createMapped;
 		const void*         pInitialData;
 	};
@@ -295,9 +356,20 @@ namespace gfx {
 
 	struct ComputePipelineCreateDesc
 	{
-		
+		ShaderModule* computeShader;
 	};
 
+	struct QueueSubmitDesc
+	{
+		AxArrayRef<CommandBuffer*>			commandBuffers;
+		Fence*								fence;
+		PipelineStageFlags					fenceWaitStageMask;
+		u64									fenceWaitValue;
+		u64									fenceSignalValue;
+		bool								waitImageAcquired;
+		PipelineStageFlags					imageAcquiredWaitStageMask;
+		bool								signalRenderComplete;
+	};
 
 } // namespace gfx
 } // namespace apex

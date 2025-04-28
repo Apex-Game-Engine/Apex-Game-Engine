@@ -27,6 +27,7 @@ namespace apex::gfx {
 			.usageFlags = BufferUsageFlagBits::Storage,
 			.requiredFlags = MemoryPropertyFlagBits::DeviceLocal | MemoryPropertyFlagBits::HostVisible | MemoryPropertyFlagBits::HostCoherent,
 			.memoryFlags = MemoryAllocateFlagBits::HostAccessRandom,
+			.ownerQueue = QueueType::Graphics,
 			.createMapped = true,
 		};
 
@@ -35,13 +36,16 @@ namespace apex::gfx {
 			.usageFlags = BufferUsageFlagBits::Index,
 			.requiredFlags = MemoryPropertyFlagBits::DeviceLocal | MemoryPropertyFlagBits::HostVisible | MemoryPropertyFlagBits::HostCoherent,
 			.memoryFlags = MemoryAllocateFlagBits::HostAccessRandom,
+			.ownerQueue = QueueType::Graphics,
 			.createMapped = true,
 		};
 
-		for (u32 i = 0; i < NFRAMES; i++)
+		for (u32 i = 0; i < device->GetFramesInFlight(); i++)
 		{
 			debugRenderer->m_vertexBuffers[i] = device->CreateBuffer("DebugRenderer-VertexBuffer", vertexBufferDesc);
 			debugRenderer->m_indexBuffers[i] = device->CreateBuffer("DebugRenderer-IndexBuffer", indexBufferDesc);
+
+			device->BindStorageBuffer(debugRenderer->m_vertexBuffers[i]);
 		}
 
 		return debugRenderer;
@@ -57,13 +61,14 @@ namespace apex::gfx {
 		delete m_pipeline;
 	}
 
-	void DebugRenderer::BeginFrame()
+	void DebugRenderer::NewFrame()
 	{
+		m_frameIndex = (m_frameIndex + 1) / m_device->GetFramesInFlight();
 		m_vertexCount = 0;
 		m_indexCount = 0;
 	}
 
-	void DebugRenderer::Draw(CommandBuffer* cmd)
+	void DebugRenderer::Draw(CommandBuffer* cmd) const
 	{
 		struct PushConstants
 		{
@@ -71,18 +76,14 @@ namespace apex::gfx {
 			u32 bufferIndex;
 		} pc {
 			.color = { 0.0, 1.0, 1.0, 1.0 },
-			.bufferIndex = 1 + m_frameIndex
+			.bufferIndex = m_vertexBuffers[m_frameIndex]->GetBindlessIndex(BindlessDescriptorType::StorageBuffer)
 		};
 
+		ScopedGpuLabel(cmd);
 		cmd->BindGraphicsPipeline(m_pipeline);
 		cmd->PushConstants(pc);
 		cmd->BindIndexBuffer(m_indexBuffers[m_frameIndex]);
 		cmd->DrawIndexed(m_indexCount);
-	}
-
-	void DebugRenderer::EndFrame()
-	{
-		m_frameIndex = (m_frameIndex + 1) / NFRAMES;
 	}
 
 	void DebugRenderer::Line(math::Vector3 const& v0, math::Vector3 const& v1)

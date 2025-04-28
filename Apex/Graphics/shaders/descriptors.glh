@@ -1,6 +1,6 @@
 #extension GL_EXT_nonuniform_qualifier : enable
 
-#define BindlessSampledTextureSet 0
+#define BindlessSampledImageSet   0
 #define BindlessStorageImageSet   1
 #define BindlessUniformBufferSet  2
 #define BindlessStorageBufferSet  3
@@ -12,11 +12,11 @@ layout(set = BindlessUniformBufferSet, binding = 0) uniform Camera {
 	mat4 inverseView;
 } uCamera[];
 
-layout(set = BindlessSampledTextureSet, binding = 0) uniform texture2D   uGlobalTextures2D[];
-layout(set = BindlessSampledTextureSet, binding = 0) uniform textureCube uGlobalTexturesCube[];
+layout(set = BindlessSampledImageSet, binding = 0) uniform texture2D   uGlobalTextures2D[];
+layout(set = BindlessSampledImageSet, binding = 0) uniform textureCube uGlobalTexturesCube[];
 
 layout(set = BindlessSamplerSet, binding = 0) uniform sampler uGlobalSamplers[];
 
-layout(set = BindlessStorageBufferSet, binding = 0) buffer Transforms {
+layout(set = BindlessStorageBufferSet, binding = 0) readonly buffer Transforms {
 	mat4 models[];
 } uTransforms[];

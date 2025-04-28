@@ -13,7 +13,7 @@ file(GLOB_RECURSE SHADER_INCLUDES shaders/*.glh)
 
 message(CHECK_START "Finding glslc")
 
-find_package(Vulkan REQUIRED COMPONENTS glslc)
+find_package(Vulkan 1.4 REQUIRED COMPONENTS glslc)
 find_program(GLSLC NAMES glslc HINTS Vulkan::glslc)
 
 if(DEFINED GLSLC)
@@ -64,22 +64,15 @@ target_include_directories(ApexGraphics
     src
 )
 
-
 # Shaders
-add_custom_target(Shaders ALL)
-
-target_sources(Shaders
-    PRIVATE
-    ${SHADER_FILES}
-    ${SHADER_INCLUDES}
-)
-
-target_vulkan_shaders(ShaderBinaries
+add_shader_library(ApexShaders
     SOURCES
     ${SHADER_FILES}
     INCLUDES
     ${SHADER_INCLUDES}
 )
 
-add_dependencies(ShaderBinaries Shaders)
-
+target_include_directories(ApexShaders
+	INTERFACE
+	shaders
+)
