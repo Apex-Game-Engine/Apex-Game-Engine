@@ -49,6 +49,10 @@ namespace plat {
 		PlatformWindowCreateParams windowParams;
 	};
 
+#if APEX_PLATFORM_WIN32
+	typedef s64 (*PFN_WindowProc)(void* wnd, u32 msg, u64 wParam, s64 lParam);
+#endif
+
 	class PlatformManager
 	{
 	public:
@@ -57,6 +61,9 @@ namespace plat {
 
 		static InputManager& GetInputManager();
 		static PlatformWindow& GetMainWindow();
+	#ifdef APEX_PLATFORM_WIN32
+		static PFN_WindowProc SetUserWindowProc(PFN_WindowProc proc);
+	#endif
 
 		static void PollEvents();
 	};

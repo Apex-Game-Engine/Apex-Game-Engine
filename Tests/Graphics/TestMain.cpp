@@ -20,6 +20,9 @@
 #include "Platform/InputManager.h"
 #include "Platform/PlatformManager.h"
 #include "Platform/Timer.h"
+#include "ApexImGui.h"
+
+#include "imgui.h"
 
 #include "tracy/Tracy.hpp"
 
@@ -309,15 +312,14 @@ MeshGPU UploadMeshToGpu(apex::gfx::Context& gfx, MeshCPU const& mesh)
 		apex::memcpy_s<float>(vertexStagingBuffer->GetMappedPointer(), mesh.vertices.size(), mesh.vertices.data(), mesh.vertices.size());
 		apex::memcpy_s<apex::u32>(indexStagingBuffer->GetMappedPointer(), mesh.indices.size(), mesh.indices.data(), mesh.indices.size());
 
-		apex::gfx::CommandBuffer* commands = gfx.GetDevice()->AllocateCommandBuffer(apex::gfx::QueueType::Transfer, 0, 0);
-		commands->Begin();
-		commands->CopyBuffer(vertexStagingBuffer.GetPointer(), vertexBuffer);
-		commands->CopyBuffer(indexStagingBuffer.GetPointer(), indexBuffer);
-		commands->End();
-
-		transferQueue->SubmitImmediate(commands);
-		transferQueue->WaitForIdle();
-		delete commands;
+		if (auto autoSubmit = apex::gfx::AutoSubmitCommandBuffer(gfx, apex::gfx::QueueType::Transfer))
+		{
+			auto commands = autoSubmit.GetCommandBuffer();
+			commands->Begin();
+			commands->CopyBuffer(vertexStagingBuffer.GetPointer(), vertexBuffer);
+			commands->CopyBuffer(indexStagingBuffer.GetPointer(), indexBuffer);
+			commands->End();
+		}
 	}
 
 	return { vertexBuffer, indexBuffer };
@@ -338,14 +340,17 @@ int main(int argc, char* argv[])
 	mem::MemoryManager::initialize({ .frameArenaSize = 0, .numFramesInFlight = 3 });
 
 	plat::PlatformManager::Init({ 1366, 768, "Apex Platform Test" });
-	plat::PlatformManager::GetMainWindow().Show();
+	plat::PlatformWindow& mainWindow = plat::PlatformManager::GetMainWindow();
+	mainWindow.Show();
 	{
-		//HWND hwnd;
-		//OpenWindow(hInstance, hwnd, nCmdShow);
-
+		
 		gfx::Context gfx = gfx::Context::CreateContext(gfx::ContextApi::Vulkan);
 		g_context = &gfx;
-		gfx.Init(plat::PlatformManager::GetMainWindow());
+		gfx.Init(mainWindow);
+
+		// Setup ImGui
+		AxImGui::Init(mainWindow, gfx);
+
 		// Rendering code
 		{
 			// MeshCPU meshCpu = LoadMesh(R"(X:\ApexGameEngine-Vulkan\Templates\Assets\cube.axmesh)");
@@ -440,31 +445,28 @@ int main(int argc, char* argv[])
 					transforms[idx] = translate(math::Matrix4x4::identity(), position);
 				}
 
-				gfx::Queue* graphicsQueue = gfx.GetDevice()->GetQueue(gfx::QueueType::Graphics);
+				if (auto autoSubmit = gfx::AutoSubmitCommandBuffer(gfx, gfx::QueueType::Graphics))
+				{
+					gfx::CommandBuffer* commands = autoSubmit.GetCommandBuffer();
+					commands->Begin();
+					for (gfx::Image* depthImage : depthImages) {
+						commands->TransitionImage(depthImage,
+						                          gfx::ImageLayout::Undefined,						gfx::PipelineStageFlagBits::None,				gfx::AccessFlagBits::None,							gfx::QueueType::Graphics,
+						                          gfx::ImageLayout::DepthStencilAttachmentOptimal,	gfx::PipelineStageFlagBits::EarlyFragmentTests, gfx::AccessFlagBits::DepthStencilAttachmentWrite,	gfx::QueueType::Graphics);
+					}
+					commands->TransitionImage(texture,
+					                          gfx::ImageLayout::Undefined,			gfx::PipelineStageFlagBits::TopOfPipe,	gfx::AccessFlagBits::None,			gfx::QueueType::Graphics,
+					                          gfx::ImageLayout::TransferDstOptimal, gfx::PipelineStageFlagBits::Transfer,	gfx::AccessFlagBits::TransferWrite, gfx::QueueType::Graphics);
 
-				gfx::CommandBuffer* commands = gfx.GetDevice()->AllocateCommandBuffer(gfx::QueueType::Graphics, 0, 0);
-				commands->Begin();
-				for (gfx::Image* depthImage : depthImages) {
-					commands->TransitionImage(depthImage,
-					                          gfx::ImageLayout::Undefined,						gfx::PipelineStageFlagBits::None,				gfx::AccessFlagBits::None,							gfx::QueueType::Graphics,
-					                          gfx::ImageLayout::DepthStencilAttachmentOptimal,	gfx::PipelineStageFlagBits::EarlyFragmentTests, gfx::AccessFlagBits::DepthStencilAttachmentWrite,	gfx::QueueType::Graphics);
+					commands->CopyBufferToImage(stagingTexture, texture, gfx::ImageLayout::TransferDstOptimal);
+
+					commands->TransitionImage(texture,
+					                          gfx::ImageLayout::TransferDstOptimal,		gfx::PipelineStageFlagBits::Transfer,		gfx::AccessFlagBits::TransferWrite, gfx::QueueType::Graphics,
+					                          gfx::ImageLayout::ShaderReadOnlyOptimal,	gfx::PipelineStageFlagBits::FragmentShader, gfx::AccessFlagBits::ShaderRead,	gfx::QueueType::Graphics);
+					commands->End();
 				}
-				commands->TransitionImage(texture,
-				                          gfx::ImageLayout::Undefined,			gfx::PipelineStageFlagBits::TopOfPipe,	gfx::AccessFlagBits::None,			gfx::QueueType::Graphics,
-				                          gfx::ImageLayout::TransferDstOptimal, gfx::PipelineStageFlagBits::Transfer,	gfx::AccessFlagBits::TransferWrite, gfx::QueueType::Graphics);
-
-				commands->CopyBufferToImage(stagingTexture, texture, gfx::ImageLayout::TransferDstOptimal);
-
-				commands->TransitionImage(texture,
-				                          gfx::ImageLayout::TransferDstOptimal,		gfx::PipelineStageFlagBits::Transfer,		gfx::AccessFlagBits::TransferWrite, gfx::QueueType::Graphics,
-				                          gfx::ImageLayout::ShaderReadOnlyOptimal,	gfx::PipelineStageFlagBits::FragmentShader, gfx::AccessFlagBits::ShaderRead,	gfx::QueueType::Graphics);
-				commands->End();
-
-				graphicsQueue->SubmitImmediate(commands);
-				graphicsQueue->WaitForIdle();
 
 				delete stagingTexture;
-				delete commands;
 			}
 
 			gfx.GetDevice()->BindUniformBuffer(cameraBuffer);
@@ -513,7 +515,7 @@ int main(int argc, char* argv[])
 
 				plat::PlatformManager::PollEvents();
 
-				g_running = !plat::PlatformManager::GetMainWindow().ShouldQuit();
+				g_running = !mainWindow.ShouldQuit();
 
 				//if (frameCount++ % 1000) axDebugFmt("DeltaTime (us) : {}", deltaTime);
 
@@ -526,13 +528,15 @@ int main(int argc, char* argv[])
 				if (g_resized)
 				{
 					u32 width, height;
-					plat::PlatformManager::GetMainWindow().GetSize(&width, &height);
+					mainWindow.GetSize(&width, &height);
 					gfx.ResizeWindow(width, height);
 					g_resized = false;
 					continue;
 				}
 
 				debugRenderer->NewFrame();
+				AxImGui::BeginFrame();
+
 				CameraMatrices cameraMatrices;
 				{
 					ZoneScopedN("Update Camera");
@@ -590,6 +594,15 @@ int main(int argc, char* argv[])
 					}
 				}
 
+				if (ImGui::Begin("Frame Stats"))
+				{
+					ImGui::Text("Frame Time:    %0.3f", deltaTime);
+					ImGui::Text("No. Objects:    %u", visible);
+					ImGui::End();
+				}
+
+				AxImGui::EndFrame();
+
 				{
 					ZoneScopedN("Render");
 					const gfx::Dim2D dims = gfx.GetDevice()->GetSurfaceDim();
@@ -616,24 +629,24 @@ int main(int argc, char* argv[])
 												gfx::ImageLayout::ColorAttachmentOptimal,	gfx::PipelineStageFlagBits::ColorAttachmentOutput,	gfx::AccessFlagBits::ColorAttachmentWrite,	gfx::QueueType::Graphics);
 
 						cmdbuf->BeginRendering(swapchainImage->GetView(), depthImages[currentFrameIndex]->GetView());
-
 						cmdbuf->Clear();
 						cmdbuf->BindGraphicsPipeline(pipeline);
-
 						cmdbuf->SetViewport({ 0, 0, static_cast<float>(dims.width), static_cast<float>(dims.height), 0.0f, 1.0f });
 						cmdbuf->SetScissor({ 0, 0, dims.width, dims.height });
 
 						cmdbuf->BindVertexBuffer(meshGpu.vertexBuffer.GetPointer());
 						cmdbuf->BindIndexBuffer(meshGpu.indexBuffer.GetPointer());
-
 						for (uint32_t modelId = 0; modelId < visible; modelId++)
 						{
 							cmdbuf->PushConstants(modelId);
 							cmdbuf->DrawIndexed(meshCpu.indices.size());
 						}
-
 						debugRenderer->Draw(cmdbuf);
 
+						cmdbuf->EndRendering();
+
+						cmdbuf->BeginRendering(swapchainImage->GetView(), nullptr, false);
+						AxImGui::Render(cmdbuf);
 						cmdbuf->EndRendering();
 
 						cmdbuf->TransitionImage(swapchainImage, 
@@ -644,7 +657,7 @@ int main(int argc, char* argv[])
 					}
 					{
 						ZoneScopedN("Submit");
-						graphicsQueue->SubmitCommandBuffer(cmdbuf, true, gfx::PipelineStageFlagBits::ColorAttachmentOutput, true);
+						graphicsQueue->Submit(cmdbuf, true, gfx::PipelineStageFlagBits::ColorAttachmentOutput, true);
 					}
 					{
 						ZoneScopedN("Present");
@@ -666,6 +679,8 @@ int main(int argc, char* argv[])
 			{
 				delete depthImage;
 			}
+
+			AxImGui::Shutdown();
 
 			delete debugRenderer;
 			delete texture;

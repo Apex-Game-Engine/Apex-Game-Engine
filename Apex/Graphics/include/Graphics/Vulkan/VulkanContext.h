@@ -101,7 +101,7 @@ namespace gfx {
 		void BindComputePipeline(ComputePipeline const* pipeline) override;
 		void Dispatch(Dim3D group_counts) override;
 
-		void BeginRendering(const ImageView* color_image_view, ImageView const* depth_stencil_image_view) override;
+		void BeginRendering(const ImageView* color_image_view, ImageView const* depth_stencil_image_view, bool clear = true) override;
 		void EndRendering() override;
 		void BindGraphicsPipeline(GraphicsPipeline const* pipeline) override;
 		void BindDescriptorSet(DescriptorSet const& descriptor_set, GraphicsPipeline const* pipeline) override;
@@ -430,11 +430,10 @@ namespace gfx {
 
 		void ResetCommandBuffers(u32 frame_idx, u32 thread_idx) const override;
 		void ResetCurrentFrameCommandBuffers() const override { axDebug(__FUNCTION__); }
-		void SubmitImmediate(CommandBuffer* command_buffer) override;
-		void SubmitCommandBuffer(CommandBuffer* command_buffer) override;
-		void SubmitCommandBuffer(CommandBuffer* command_buffer, bool wait_image_acquired, PipelineStageFlags wait_stage_mask, bool signal_render_complete) override;
-		void SubmitCommandBuffer(CommandBuffer* command_buffer, Fence* fence, u64 wait_value, PipelineStageFlags wait_stage_mask, u64 signal_value) override;
-		void SubmitCommandBuffers(const QueueSubmitDesc& desc) override;
+		void Submit(CommandBuffer* command_buffer) override;
+		void Submit(CommandBuffer* command_buffer, bool wait_image_acquired, PipelineStageFlags wait_stage_mask, bool signal_render_complete) override;
+		void Submit(CommandBuffer* command_buffer, Fence* fence, u64 wait_value, PipelineStageFlags wait_stage_mask, u64 signal_value) override;
+		void Submit(const QueueSubmitDesc& desc) override;
 		void Flush() override;
 		void Present() override;
 		void WaitForIdle() override;
@@ -442,6 +441,7 @@ namespace gfx {
 		QueueType GetType() const override { return m_type; }
 
 		u32 GetQueueFamilyIndex() const { return m_info.familyIndex; }
+		VkQueue GetNativeHandle() const { return m_queue; }
 
 	protected:
 		VulkanDevice*					m_device;
@@ -470,6 +470,7 @@ namespace gfx {
 		VkCommandPool							GetCommandPool(u32 idx) const					{ return m_commandPools[idx]; }
 		VulkanPhysicalDeviceFeatures const&		GetPhysicalDeviceFeatures() const				{ return m_physicalDeviceFeatures; }
 		VulkanPhysicalDeviceProperties const&	GetPhysicalDeviceProperties() const				{ return m_physicalDeviceProperties; }
+		VkDescriptorPool						GetDescriptorPool() const						{ return m_descriptorPool; }
 		u32										GetRenderThreadCount() const					{ return m_renderThreadCount; }
 
 		VkFence									GetRenderFence() const							{ return GetRenderFence(m_currentFrameIndex); }
@@ -495,9 +496,11 @@ namespace gfx {
 			return queue_idx * MAX_FRAMES_IN_FLIGHT * m_renderThreadCount + frame_idx * m_renderThreadCount + thread_idx;
 		}
 
+		VulkanQueue& GetVulkanQueue(QueueType queue_type) { return m_queues[queue_type]; }
+		const VulkanQueue& GetVulkanQueue(QueueType queue_type) const { return m_queues[queue_type]; }
 
-		Queue* GetQueue(QueueType queue_type) override { return &m_queues[queue_type]; }
-		const Queue* GetQueue(QueueType queue_type) const override { return &m_queues[queue_type]; }
+		Queue* GetQueue(QueueType queue_type) override { return &GetVulkanQueue(queue_type); }
+		const Queue* GetQueue(QueueType queue_type) const override { return &GetVulkanQueue(queue_type); }
 
 		const Image* AcquireNextImage() override;
 		void WaitForIdle() const override;
@@ -505,9 +508,9 @@ namespace gfx {
 		CommandBuffer* AllocateCommandBuffer(QueueType queue_idx, u32 frame_index, u32 thread_idx) const override;
 		//void ResetCommandBuffers(QueueType queue_idx, u32 frame_idx, u32 thread_idx) const override;
 		//void ResetCurrentFrameCommandBuffers() const override;
-		//void SubmitCommandBuffer(QueueType queue, CommandBuffer* command_buffer) const override;
+		//void Submit(QueueType queue, CommandBuffer* command_buffer) const override;
 		//void SubmitImmediateCommandBuffer(QueueType queue, CommandBuffer* command_buffer) const override;
-		//void SubmitCommandBuffers(QueueType queue, AxArrayRef<CommandBuffer> command_buffers) const;
+		//void Submit(QueueType queue, AxArrayRef<CommandBuffer> command_buffers) const;
 
 		AxArray<DescriptorSet> AllocateDescriptorSets(GraphicsPipeline* pipeline) const override;
 		void UpdateDescriptorSet(DescriptorSet const& descriptor_set) const override;
@@ -612,6 +615,7 @@ namespace gfx {
 		void Init(const plat::PlatformWindow& window) override;
 		void Shutdown() override;
 		
+		ContextApi GetApi() const override { return ContextApi::Vulkan; }
 		Device* GetDevice() const override;
 		void GetDeviceFeatures(DeviceFeatures& device_features) const override;
 		void GetDeviceProperties(DeviceProperties& device_properties) const override;
@@ -619,8 +623,10 @@ namespace gfx {
 		void ResizeSurface(u32 width, u32 height) const override;
 
 		void ResizeSurface() const;
+		VkInstance GetInstance() const;
 
-		VulkanContextImpl* GetImpl() const { return m_pImpl; }
+		VulkanContextImpl& GetImpl() { return *m_pImpl; }
+		const VulkanContextImpl& GetImpl() const { return *m_pImpl; }
 
 	private:
 		VulkanContextImpl* m_pImpl {};

@@ -52,6 +52,12 @@ namespace apex::mem {
 		}
 	}
 
+	void* GlobalMemoryOperators::OperatorNew(size_t size)
+	{
+		AxHandle handle(size);
+		return handle.getAs<void>();
+	}
+
 	void* GlobalMemoryOperators::OperatorNew(size_t size, AxHandle handle, const char* debug_string = nullptr)
 	{
 		if (!handle.isValid())

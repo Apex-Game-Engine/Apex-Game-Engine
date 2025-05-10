@@ -2164,6 +2164,11 @@ namespace apex::gfx {
 		m_pImpl->ResizeSurface();
 	}
 
+	VkInstance VulkanContext::GetInstance() const
+	{
+		return m_pImpl->m_instance;
+	}
+
 	// Vulkan Queue
 	void VulkanQueue::ResetCommandBuffers(u32 frame_idx, u32 thread_idx) const
 	{
@@ -2171,20 +2176,7 @@ namespace apex::gfx {
 		vkResetCommandPool(m_device->GetLogicalDevice(), m_device->GetCommandPool(poolIdx), 0);
 	}
 
-	void VulkanQueue::SubmitImmediate(CommandBuffer* command_buffer)
-	{
-		VkCommandBuffer commandBuffers[] = { static_cast<VkCommandBuffer>(command_buffer->GetNativeHandle()) };
-
-		const VkSubmitInfo submitInfo {
-			.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-			.commandBufferCount = 1,
-			.pCommandBuffers = commandBuffers,
-		};
-
-		vkQueueSubmit(m_queue, 1, &submitInfo, VK_NULL_HANDLE);
-	}
-
-	void VulkanQueue::SubmitCommandBuffer(CommandBuffer* command_buffer)
+	void VulkanQueue::Submit(CommandBuffer* command_buffer)
 	{
 		const VkCommandBufferSubmitInfo commandBufferSubmitInfo {
 			.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
@@ -2207,7 +2199,7 @@ namespace apex::gfx {
 		);
 	}
 
-	void VulkanQueue::SubmitCommandBuffer(CommandBuffer* command_buffer, bool wait_image_acquired, PipelineStageFlags wait_stage_mask, bool signal_render_complete)
+	void VulkanQueue::Submit(CommandBuffer* command_buffer, bool wait_image_acquired, PipelineStageFlags wait_stage_mask, bool signal_render_complete)
 	{
 		VkCommandBuffer			commandBuffer []		= { static_cast<VkCommandBuffer>(command_buffer->GetNativeHandle()) };
 
@@ -2234,7 +2226,7 @@ namespace apex::gfx {
 		);
 	}
 
-	void VulkanQueue::SubmitCommandBuffer(CommandBuffer* command_buffer, Fence* fence, u64 wait_value, PipelineStageFlags wait_stage_mask, u64 signal_value)
+	void VulkanQueue::Submit(CommandBuffer* command_buffer, Fence* fence, u64 wait_value, PipelineStageFlags wait_stage_mask, u64 signal_value)
 	{
 		VkCommandBuffer			commandBuffer []		= { static_cast<VkCommandBuffer>(command_buffer->GetNativeHandle()) };
 
@@ -2272,7 +2264,7 @@ namespace apex::gfx {
 		);
 	}
 
-	void VulkanQueue::SubmitCommandBuffers(const QueueSubmitDesc& desc)
+	void VulkanQueue::Submit(const QueueSubmitDesc& desc)
 	{
 		VkCommandBuffer* commandBuffers = static_cast<VkCommandBuffer*>(_alloca(sizeof(VkCommandBuffer) * desc.commandBuffers.size()));
 		for (u32 i = 0; i < desc.commandBuffers.size(); i++)
@@ -2406,12 +2398,12 @@ namespace apex::gfx {
 		vkCmdDispatch(m_commandBuffer, group_counts.x, group_counts.y, group_counts.z);
 	}
 
-	void VulkanCommandBuffer::BeginRendering(ImageView const* color_image_view, ImageView const* depth_stencil_image_view)
+	void VulkanCommandBuffer::BeginRendering(ImageView const* color_image_view, ImageView const* depth_stencil_image_view, bool clear)
 	{
 		VkRenderingAttachmentInfo colorAttachmentInfo {
 			.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
 			.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-			.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+			.loadOp = clear ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD,
 			.storeOp = VK_ATTACHMENT_STORE_OP_STORE,
 			.clearValue = {
 				.color = { 0.01f, 0.01f, 0.01f, 1.0f },
@@ -2421,7 +2413,7 @@ namespace apex::gfx {
 		VkRenderingAttachmentInfo depthStencilAttachmentInfo {
 			.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
 			.imageLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
-			.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+			.loadOp = clear ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD,
 			.storeOp = VK_ATTACHMENT_STORE_OP_STORE,
 			.clearValue = {
 				.depthStencil = { .depth = 0.0, .stencil = 0 }

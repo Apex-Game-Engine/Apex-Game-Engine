@@ -58,6 +58,7 @@ namespace gfx {
 		virtual void Init(const plat::PlatformWindow& window) = 0;
 		virtual void Shutdown() = 0;
 
+		virtual ContextApi GetApi() const = 0;
 		virtual Device* GetDevice() const = 0;
 		virtual void GetDeviceFeatures(DeviceFeatures& device_features) const = 0;
 		virtual void GetDeviceProperties(DeviceProperties& device_properties) const = 0;
@@ -68,28 +69,31 @@ namespace gfx {
 	class Context
 	{
 	private:
-		Context(ContextBase* context) : m_instance(context) {}
+		Context(ContextBase* context) : m_base(context) {}
 	public:
-		~Context() { if (m_instance) Shutdown(); }
+		~Context() = default;
 
 		static Context CreateContext(ContextApi api);
 
-		void Init(const plat::PlatformWindow& window) { m_instance->Init(window); }
+		void Init(const plat::PlatformWindow& window) { m_base->Init(window); }
 		void Shutdown()
 		{
-			m_instance->Shutdown();
-			delete m_instance;
-			m_instance = nullptr;
+			m_base->Shutdown();
+			delete m_base;
+			m_base = nullptr;
 		}
-		
-		Device* GetDevice() const { return m_instance->GetDevice(); }
-		void GetDeviceFeatures(DeviceFeatures& device_features) const { m_instance->GetDeviceFeatures(device_features); }
-		void GetDeviceProperties(DeviceProperties& device_properties) const { m_instance->GetDeviceProperties(device_properties); }
 
-		void ResizeWindow(u32 width, u32 height) const { m_instance->ResizeSurface(width, height); }
+		ContextBase* GetBase() const { return m_base; }
+
+		ContextApi GetApi() const { return m_base->GetApi(); }
+		Device* GetDevice() const { return m_base->GetDevice(); }
+		void GetDeviceFeatures(DeviceFeatures& device_features) const { m_base->GetDeviceFeatures(device_features); }
+		void GetDeviceProperties(DeviceProperties& device_properties) const { m_base->GetDeviceProperties(device_properties); }
+
+		void ResizeWindow(u32 width, u32 height) const { m_base->ResizeSurface(width, height); }
 
 	private:
-		ContextBase* m_instance;
+		ContextBase* m_base;
 	};
 
 	class Device
@@ -141,11 +145,10 @@ namespace gfx {
 		virtual void ResetCommandBuffers(u32 frame_index, u32 thread_idx) const = 0;
 		virtual void ResetCurrentFrameCommandBuffers() const = 0;
 
-		virtual void SubmitImmediate(CommandBuffer* command_buffer) = 0;
-		virtual void SubmitCommandBuffer(CommandBuffer* command_buffer) = 0;
-		virtual void SubmitCommandBuffer(CommandBuffer* command_buffer, bool wait_image_acquired, PipelineStageFlags wait_stage_mask, bool signal_render_complete) = 0;
-		virtual void SubmitCommandBuffer(CommandBuffer* command_buffer, Fence* fence, u64 wait_value, PipelineStageFlags wait_stage_mask, u64 signal_value) = 0;
-		virtual void SubmitCommandBuffers(QueueSubmitDesc const& desc) = 0;
+		virtual void Submit(CommandBuffer* command_buffer) = 0;
+		virtual void Submit(CommandBuffer* command_buffer, bool wait_image_acquired, PipelineStageFlags wait_stage_mask, bool signal_render_complete) = 0;
+		virtual void Submit(CommandBuffer* command_buffer, Fence* fence, u64 wait_value, PipelineStageFlags wait_stage_mask, u64 signal_value) = 0;
+		virtual void Submit(QueueSubmitDesc const& desc) = 0;
 		virtual void Flush() = 0;
 		virtual void Present() = 0;
 		virtual void WaitForIdle() = 0;
@@ -172,7 +175,7 @@ namespace gfx {
 		virtual void Dispatch(Dim3D group_counts) = 0;
 
 		// Graphics Commands
-		virtual void BeginRendering(const ImageView* color_image_view, ImageView const* depth_stencil_image_view) = 0;
+		virtual void BeginRendering(const ImageView* color_image_view, ImageView const* depth_stencil_image_view, bool clear = true) = 0;
 		virtual void EndRendering() = 0;
 		virtual void BindGraphicsPipeline(GraphicsPipeline const* pipeline) = 0;
 		virtual void BindDescriptorSet(DescriptorSet const& descriptor_set, GraphicsPipeline const* pipeline) = 0;
@@ -451,6 +454,31 @@ namespace gfx {
 
 	using BufferRef = ResourceRef<Buffer>;
 	using ImageRef = ResourceRef<Image>;
+
+
+	class AutoSubmitCommandBuffer
+	{
+	public:
+		AutoSubmitCommandBuffer(Context& ctx, QueueType queue_type)
+			: m_queue(ctx.GetDevice()->GetQueue(queue_type)), m_commandBuffer(ctx.GetDevice()->AllocateCommandBuffer(queue_type, 0, 0))
+		{}
+
+		~AutoSubmitCommandBuffer()
+		{
+			m_queue->Submit(m_commandBuffer);
+			m_queue->WaitForIdle();
+			delete m_commandBuffer;
+		}
+
+		Queue* GetQueue() const { return m_queue; }
+		CommandBuffer* GetCommandBuffer() const { return m_commandBuffer; }
+
+		operator bool() const { return m_commandBuffer && m_queue; }
+
+	private:
+		Queue* m_queue;
+		CommandBuffer* m_commandBuffer;
+	};
 
 	class ScopedCommandBufferLabel
 	{

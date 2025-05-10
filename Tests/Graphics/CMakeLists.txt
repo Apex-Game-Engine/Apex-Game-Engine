@@ -17,6 +17,7 @@ target_link_libraries(ApexGraphicsTests
     ApexPlatform
     ApexModel
 	ApexShaders
+    ApexImGui
 
     PRIVATE
     Tracy::TracyClient

@@ -50,6 +50,7 @@ namespace apex::plat {
 		PlatformWindow      mainWindowWrapper;
 		InputManager		inputManager;
 		LARGE_INTEGER		timerFrequency;
+		PFN_WindowProc		userWindowProc;
 
 		struct {
 			HMODULE							module;
@@ -190,6 +191,9 @@ namespace apex::plat {
 			return DefWindowProc(wnd, msg, wParam, lParam);
 		}
 
+		if (g_context.userWindowProc && g_context.userWindowProc(wnd, msg, wParam, lParam))
+			return true;
+
 		switch (msg)
 		{
 		case WM_CLOSE:
@@ -296,14 +300,20 @@ namespace apex::plat {
 		*posY = m_impl->lastPosY;
 	}
 
-	PlatformHandle PlatformWindow::GetOsHandle() const { return m_impl->window; }
+	PlatformHandle PlatformWindow::GetOsHandle() const
+	{
+		return m_impl->window;
+	}
 
 	PlatformHandle PlatformWindow::GetOsApplicationHandle() const
 	{
 		return g_context.instance;
 	}
 
-	bool PlatformWindow::ShouldQuit() const { return m_impl->shouldQuit; }
+	bool PlatformWindow::ShouldQuit() const
+	{
+		return m_impl->shouldQuit;
+	}
 
 	bool PlatformManager::Init(const PlatformManagerInitParams& params)
 	{
@@ -347,6 +357,13 @@ namespace apex::plat {
 	PlatformWindow& PlatformManager::GetMainWindow()
 	{
 		return g_context.mainWindowWrapper;
+	}
+
+	PFN_WindowProc PlatformManager::SetUserWindowProc(PFN_WindowProc proc)
+	{
+		const auto prevProc = g_context.userWindowProc;
+		g_context.userWindowProc = proc;
+		return prevProc;
 	}
 
 	void PlatformManager::PollEvents()

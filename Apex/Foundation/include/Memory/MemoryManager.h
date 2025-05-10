@@ -78,6 +78,7 @@ namespace mem {
 
 	struct GlobalMemoryOperators
 	{
+		static void* OperatorNew(size_t);
 		static void* OperatorNew(size_t, AxHandle, const char*);
 		static void OperatorDelete(void* ptr) noexcept;
 	};
