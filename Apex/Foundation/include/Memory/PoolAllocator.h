@@ -33,11 +33,14 @@ namespace mem {
 		[[nodiscard]] u32 getBlockSize() const { return m_blockSize; }
 		[[nodiscard]] u32 getFreeBlocks() const { return m_numFreeBlocks; }
 
-		bool containsPointer(void* mem) const { return mem >= m_pBase && mem < static_cast<u8*>(m_pBase) + m_numTotalBlocks * m_blockSize; }
-		bool checkManaged(void* mem) const { return containsPointer(mem) && (reinterpret_cast<intptr_t>(mem) - reinterpret_cast<intptr_t>(m_pBase)) % m_blockSize == 0; }
+		bool containsPointer(void* mem) const { return mem >= m_basePtr && mem < static_cast<u8*>(m_basePtr) + m_numTotalBlocks * m_blockSize; }
+		bool checkManaged(void* mem) const { return containsPointer(mem) && (reinterpret_cast<intptr_t>(mem) - reinterpret_cast<intptr_t>(m_basePtr)) % m_blockSize == 0; }
+
+	protected:
+		void* GetBasePointer() const { return m_basePtr; }
 
 	private:
-		void *m_pBase { nullptr };
+		void *m_basePtr {};
 		void *m_allocPtr {};
 		u32 m_blockSize {};
 		u32 m_numTotalBlocks {};

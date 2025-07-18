@@ -157,8 +157,7 @@ namespace apex {
 	private:
 		constexpr void _Allocate()
 		{
-			AxHandle handle(sizeof(storage_type));
-			m_data = new (handle) storage_type();
+			m_data = apex_new storage_type();
 		}
 
 	private:
@@ -303,46 +302,26 @@ namespace apex {
 	private:
 		constexpr void _Allocate()
 		{
-			AxHandle handle(sizeof(storage_type));
-			m_data = new (handle) storage_type();
+			m_data = apex_new storage_type();
 		}
 
 	private:
 		storage_type* m_data;
 	};
 
-	// make a SharedPtr from a AxHandle
-	template <typename T, cncy::lockable Lock = default_shared_ptr_lock, typename... Args> requires (!std::is_array_v<T>) // not array
-	[[nodiscard]] auto shared_from_handle(apex::AxHandle& handle, Args&&... args) noexcept -> SharedPtr<T, Lock>
-	{
-		return SharedPtr<T, Lock>(new (handle) T(std::forward<Args>(args)...));
-	}
-
-	// make a SharedPtr from a AxHandle
-	template <typename T, cncy::lockable Lock = default_shared_ptr_lock> requires (std::is_array_v<T> && std::extent_v<T> == 0) // array
-	[[nodiscard]] auto shared_from_handle(apex::AxHandle& handle, const size_t size) noexcept -> SharedPtr<T, Lock>
-	{
-		using element_type = std::remove_extent_t<T>;
-		if constexpr (std::is_default_constructible_v<element_type>)
-			return SharedPtr<T, Lock>(new (handle) element_type[size]());
-		else
-			return SharedPtr<T, Lock>(new (handle) std::remove_extent_t<T>[size]);
-	}
-
 	// make a SharedPtr
 	template <typename T, cncy::lockable Lock = default_shared_ptr_lock, typename... Args> requires(!std::is_array_v<T>) // not array
 	[[nodiscard]] auto make_shared(Args&&... args) noexcept -> SharedPtr<T, Lock>
 	{
-		AxHandle handle = make_handle<T>();
-		return apex::shared_from_handle<T, Lock>(handle, std::forward<Args>(args)...);
+		return SharedPtr<T, Lock>(apex_new T(std::forward<Args>(args)...));
 	}
 
 	// make a SharedPtr
 	template <typename T, cncy::lockable Lock = default_shared_ptr_lock> requires (std::is_array_v<T> && std::extent_v<T> == 0) // managed_class , array
 	[[nodiscard]] auto make_shared(const size_t size) noexcept -> SharedPtr<T, Lock>
 	{
-		AxHandle handle = make_handle<T>(size);
-		return shared_from_handle<T, Lock>(handle, size);
+		using element_type = std::remove_extent_t<T>;
+		return SharedPtr<T, Lock>(apex_new element_type[size]);
 	}
 
 }

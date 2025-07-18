@@ -71,6 +71,7 @@ namespace gfx {
 	private:
 		Context(ContextBase* context) : m_base(context) {}
 	public:
+		constexpr Context() = default;
 		~Context() = default;
 
 		static Context CreateContext(ContextApi api);

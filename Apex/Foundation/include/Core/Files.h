@@ -3,52 +3,47 @@
 
 namespace apex {
 
-	struct FileAccessMode
+	enum FileAccessMode : u8
 	{
-		enum Value : u32
-		{
-			eRead  = 0x00000001,
-			eWrite = 0x00000002,
-
-			eReadWrite = eRead | eWrite,
-		};
-
-		u32 value;
-
-		FileAccessMode(u32 v) : value(v) {}
-
-		constexpr operator u32() const { return value; }
+		eRead		= 0b01,
+		eWrite		= 0b10, 
+		eReadWrite	= 0b11,
 	};
 
 	using FileHandle = void*;
 
 	class File
 	{
+	private:
+		File(FileHandle handle, size_t size, const char* filename, u32 flags);
 	public:
-		static File CreateNew(char const* filename, FileAccessMode mode = FileAccessMode::eReadWrite);
-		static File OpenExisting(char const* filename, FileAccessMode mode = FileAccessMode::eRead);
-
 		File() = default;
 		~File();
-
+		
 		File(File const&) = delete;
 		File& operator=(File const&) = delete;
 
-		File(File&&) = default;
-		File& operator=(File&&) = default;
+		File(File&&) noexcept;
+		File& operator=(File&&) noexcept;
 
-		void Create(const char* filename, FileAccessMode mode = FileAccessMode::eReadWrite);
-		void Open(const char* filename, FileAccessMode mode = FileAccessMode::eRead);
+		static File CreateOrOpen(char const* filename, FileAccessMode mode = FileAccessMode::eReadWrite);
+		static File CreateNew(char const* filename, FileAccessMode mode = FileAccessMode::eReadWrite);
+		static File OpenExisting(char const* filename, FileAccessMode mode = FileAccessMode::eRead);
 
-		AxArray<char> Read();
-		void Read(AxArray<char>& buf);
+		size_t GetSize() const;
+
+		void* MapRange(uint32_t offset, size_t size);
+		void UnmapRange(void* address);
+
+		size_t Read(void* buffer, size_t buffer_size) const;
+		size_t Write(const void* buffer, size_t buffer_size);
 
 	private:
-		FileHandle m_handle {};
-		size_t m_size;
-	#if APEX_CONFIG_DEBUG
-		const char* m_filename;
-	#endif
+		FileHandle		m_handle = nullptr;
+		FileHandle		m_mappedHandle = nullptr;
+		size_t			m_size = 0;
+		const char*		m_filename = nullptr;
+		u32				m_flags = 0;
 	};
 
 }

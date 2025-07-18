@@ -22,7 +22,7 @@ namespace ranges {
 	};
 
 	template <typename T>
-	concept range = iterable<T> || reverse_iterable<T>;
+	concept is_range = iterable<T> || reverse_iterable<T>;
 
 	template <typename Func, typename T>
 	concept view_func = requires (Func f, T const& t)
@@ -31,21 +31,31 @@ namespace ranges {
 	};
 
 	template <typename F1, typename F2>
-	auto operator&(F1&& func1, F2&& func2)
+	auto filter_and(F1&& func1, F2&& func2)
 	{
-		return [func1 = std::move(func1), func2 = std::move(func2)](auto it)
+		return [func1 = std::forward<F1>(func1), func2 = std::forward<F2>(func2)](auto it)
 		{
 			return func1(it) && func2(it);
 		};
 	}
-	
+
+	namespace operators {
+
+		template <typename F1, typename F2>
+		auto operator&&(F1&& func1, F2&& func2)
+		{
+			return filter_and(std::forward<F1>(func1), std::forward<F2>(func2));
+		}
+
+	}
+
 	template <typename T>
 	concept is_view = requires
 	{
 		typename T::is_view;
 	};
 
-	template <range Range, typename Iterator = typename Range::iterator>
+	template <is_range Range, typename Iterator = typename Range::iterator>
 	class AxRange
 	{
 	public:
@@ -75,7 +85,7 @@ namespace ranges {
 		return AxRange<T, typename T::reverse_iterator>(range.rbegin(), range.rend());
 	}
 
-	template <range Range, typename ViewFn, typename RangeIterator = typename AxRange<Range>::iterator>
+	template <is_range Range, typename ViewFn, typename RangeIterator = typename AxRange<Range>::iterator>
 	class AxView
 	{
 	public:
@@ -203,7 +213,7 @@ namespace ranges {
 	template <typename Range, typename ViewFn1, typename ViewFn2>
 	auto view(Range&& range, ViewFn1&& view_fn1, ViewFn2&& view_fn2)
 	{
-		return AxView(std::forward<Range>(range), view_fn1 & view_fn2);
+		return AxView(std::forward<Range>(range), filter_and(std::forward<ViewFn1>(view_fn1), std::forward<ViewFn2>(view_fn2)));
 	}
 
 }

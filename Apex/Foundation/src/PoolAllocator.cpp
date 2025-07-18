@@ -21,8 +21,8 @@ namespace apex::mem {
 		axAssertFmt(p_begin != nullptr, "Invalid memory address!");
 		axAssert(size > block_size);
 
-		m_pBase = p_begin;
-		m_allocPtr = m_pBase;
+		m_basePtr = p_begin;
+		m_allocPtr = m_basePtr;
 		m_blockSize = block_size;
 		m_numTotalBlocks = static_cast<u32>(size / static_cast<size_t>(m_blockSize));
 		m_numFreeBlocks = m_numTotalBlocks;
@@ -32,7 +32,7 @@ namespace apex::mem {
 
 	void* PoolAllocator::allocate(size_t size)
 	{
-		axAssertFmt(m_pBase != nullptr, "Pool allocator not initialized!");
+		axAssertFmt(m_basePtr != nullptr, "Pool allocator not initialized!");
 		axAssertFmt(size <= m_blockSize, "Allocation size cannot be larger than pool element size!");
 
 		if (m_numFreeBlocks == 0)
@@ -76,14 +76,14 @@ namespace apex::mem {
 
 	void PoolAllocator::reset()
 	{
-		memset(m_pBase, 0, static_cast<size_t>(m_numTotalBlocks) * m_blockSize);
-		m_allocPtr = m_pBase;
+		memset(m_basePtr, 0, static_cast<size_t>(m_numTotalBlocks) * m_blockSize);
+		m_allocPtr = m_basePtr;
 		m_numFreeBlocks = m_numTotalBlocks;
 	}
 
 	void PoolAllocator::shutdown()
 	{
-		m_pBase = nullptr;
+		m_basePtr = nullptr;
 		m_allocPtr = nullptr;
 		m_blockSize = 0;
 		m_numTotalBlocks = 0;

@@ -101,7 +101,7 @@ namespace apex {
 	TEST_F(AxRangeTest, TestAxViewFuncLogicalAnd)
 	{
 		std::vector nums = { 1, 2, 3, 45, 23, 51, 2, 612, 34, 5 };
-		using apex::ranges::operator&;
+		using namespace apex::ranges::operators;
 
 		{
 			auto isEven = [](int const& i) { return i % 2 == 0; };
@@ -119,7 +119,7 @@ namespace apex {
 			}
 			printf("\n");
 
-			for (auto v : ranges::AxView( nums, isDivisibleBy3 & isEven ))
+			for (auto v : ranges::AxView( nums, isDivisibleBy3 && isEven ))
 			{
 				printf("%d, ", v);
 			}

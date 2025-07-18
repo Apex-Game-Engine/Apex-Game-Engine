@@ -15,7 +15,7 @@ namespace apex::gfx {
 			break;
 		case ContextApi::Vulkan:
 		{
-			instance = apex_new(VulkanContext);
+			instance = apex_new VulkanContext;
 			break;
 		}
 		case ContextApi::D3D12:

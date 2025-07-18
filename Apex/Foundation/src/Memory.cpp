@@ -9,7 +9,6 @@
 
 #include "Tracy.hpp"
 #include "Core/Asserts.h"
-#include "Memory/AxHandle.h"
 #include "Memory/MemoryManager.h"
 #include "Memory/MemoryManagerImpl.h"
 
@@ -54,21 +53,7 @@ namespace apex::mem {
 
 	void* GlobalMemoryOperators::OperatorNew(size_t size)
 	{
-		AxHandle handle(size);
-		return handle.getAs<void>();
-	}
-
-	void* GlobalMemoryOperators::OperatorNew(size_t size, AxHandle handle, const char* debug_string = nullptr)
-	{
-		if (!handle.isValid())
-		{
-			handle.allocate(size);
-		}
-		axAssert(handle.getBlockSize() >= size);
-	#ifdef APEX_PROFILE
-		TracyAllocS(handle.getAs<void>(), handle.getBlockSize(), 12);//, debug_string ? debug_string : "<unknown>");
-	#endif
-		return handle.getAs<void>();
+		return MemoryManager::allocate(size);
 	}
 }
 
@@ -96,34 +81,34 @@ void* operator new[](size_t size)
 	return ptr;
 }
 
-void* operator new(size_t size, apex::AxHandle handle)
+void* operator new(size_t size, apex::mem::Tag)
 {
-	return apex::mem::GlobalMemoryOperators::OperatorNew(size, handle);
+	return apex::mem::GlobalMemoryOperators::OperatorNew(size);
 }
 
-void* operator new[](size_t size, apex::AxHandle handle)
+void* operator new[](size_t size, apex::mem::Tag)
 {
-	return apex::mem::GlobalMemoryOperators::OperatorNew(size, handle);
+	return apex::mem::GlobalMemoryOperators::OperatorNew(size);
 }
 
-void* operator new(size_t size, apex::AxHandle handle, const char* func, const char* file, uint32_t line)
+void* operator new(size_t size, apex::mem::Tag, const char* func, const char* file, uint32_t line)
 {
-	return apex::mem::GlobalMemoryOperators::OperatorNew(size, handle);
+	return apex::mem::GlobalMemoryOperators::OperatorNew(size);
 }
 
-void* operator new[](size_t size, apex::AxHandle handle, const char* func, const char* file, uint32_t line)
+void* operator new[](size_t size, apex::mem::Tag, const char* func, const char* file, uint32_t line)
 {
-	return apex::mem::GlobalMemoryOperators::OperatorNew(size, handle);
+	return apex::mem::GlobalMemoryOperators::OperatorNew(size);
 }
 
-void* operator new(size_t size, apex::AxHandle handle, const char* type, const char* func, const char* file, uint32_t line)
+void* operator new(size_t size, apex::mem::Tag, const char* type, const char* func, const char* file, uint32_t line)
 {
-	return apex::mem::GlobalMemoryOperators::OperatorNew(size, handle, type);
+	return apex::mem::GlobalMemoryOperators::OperatorNew(size);
 }
 
-void* operator new[](size_t size, apex::AxHandle handle, const char* type, const char* func, const char* file, uint32_t line)
+void* operator new[](size_t size, apex::mem::Tag, const char* type, const char* func, const char* file, uint32_t line)
 {
-	return apex::mem::GlobalMemoryOperators::OperatorNew(size, handle, type);
+	return apex::mem::GlobalMemoryOperators::OperatorNew(size);
 }
 
 
@@ -143,12 +128,12 @@ void operator delete[](void* ptr) noexcept
 	apex::mem::GlobalMemoryOperators::OperatorDelete(ptr);
 }
 
-void operator delete(void* ptr, apex::AxHandle /*handle*/)
+void operator delete(void* ptr, apex::mem::Tag)
 {
 	apex::mem::GlobalMemoryOperators::OperatorDelete(ptr);
 }
 
-void operator delete[](void* ptr, apex::AxHandle /*handle*/)
+void operator delete[](void* ptr, apex::mem::Tag)
 {
 	apex::mem::GlobalMemoryOperators::OperatorDelete(ptr);
 }

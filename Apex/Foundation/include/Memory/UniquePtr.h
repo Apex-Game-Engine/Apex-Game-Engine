@@ -214,42 +214,19 @@ namespace apex {
 		template <typename> friend class UniquePtr;
 	};
 
-	// make a UniquePtr from a AxHandle
-	template <typename T, typename... Args> requires (!std::is_array_v<T>) // not array
-	[[nodiscard]] constexpr auto unique_from_handle(AxHandle& handle, Args&&... args) noexcept -> UniquePtr<T>
-	{
-	    return UniquePtr<T>(new (handle) T(std::forward<Args>(args)...));
-	}
-
-	// make a UniquePtr from a AxHandle
-	template <typename T> requires (std::is_array_v<T> && std::extent_v<T> == 0) // array
-	[[nodiscard]] constexpr auto unique_from_handle(AxHandle& handle, const size_t size) -> UniquePtr<T>
-	{
-		using element_type = std::remove_extent_t<T>;
-		if constexpr (std::is_default_constructible_v<element_type>)
-		{
-			return UniquePtr<T>(new (handle) element_type[size]());
-		}
-		else
-		{
-			return UniquePtr<T>(new (handle) element_type[size]);
-		}
-	}
-
 	// make a UniquePtr
 	template <typename T, typename... Args> requires (!std::is_array_v<T>) // not array
 	[[nodiscard]] constexpr auto make_unique(Args&&... args) noexcept -> UniquePtr<T>
 	{
-		AxHandle handle = make_handle<T>();
-	    return apex::unique_from_handle<T>(handle, std::forward<Args>(args)...);
+	    return UniquePtr<T>(apex_new T(std::forward<Args>(args)...));
 	}
 
 	// make a UniquePtr
 	template <typename T> requires (std::is_array_v<T> && std::extent_v<T> == 0) // array
 	[[nodiscard]] constexpr auto make_unique(const size_t size) -> UniquePtr<T>
 	{
-		AxHandle handle = make_handle<T>(size);
-		return apex::unique_from_handle<T>(handle, size);
+		using element_type = std::remove_extent_t<T>;
+		return UniquePtr<T>(apex_new element_type[size]);
 	}
 
 	// Cast underlying pointer type

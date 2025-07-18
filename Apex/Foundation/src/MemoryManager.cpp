@@ -2,7 +2,6 @@
 #include "Memory/MemoryManager.h"
 #include "Memory/MemoryManagerImpl.h"
 #include "Memory/MemoryPool.h"
-#include "Memory/AxHandle.h"
 #include "Core/Asserts.h"
 
 #include <optional>
@@ -50,7 +49,7 @@ namespace mem {
 			return false;
 
 		PoolAllocator& pool = getMemoryPoolFromPointer(mem);
-		const ptrdiff_t relMemPos = reinterpret_cast<ptrdiff_t>(mem) - reinterpret_cast<ptrdiff_t>(pool.m_pBase);
+		const ptrdiff_t relMemPos = reinterpret_cast<ptrdiff_t>(mem) - reinterpret_cast<ptrdiff_t>(pool.m_basePtr);
 		return relMemPos % pool.m_blockSize == 0;
 	}
 
@@ -174,9 +173,16 @@ namespace mem {
 		axLog("MemoryManager shut down succesfully");
 	}
 
-	AxHandle MemoryManager::allocate(size_t size)
+	void* MemoryManager::allocate(size_t size)
 	{
-		return { size };
+		return allocate(&size);
+	}
+
+	void* MemoryManager::allocate(size_t* size)
+	{
+		auto [poolIdx, ptr] = s_MemoryManagerImpl.allocateOnMemoryPool(*size);
+		*size = s_MemoryManagerImpl.m_poolAllocators[poolIdx].getBlockSize();
+		return ptr;
 	}
 
 	void MemoryManager::free(void* mem)
@@ -204,15 +210,6 @@ namespace mem {
 		return s_MemoryManagerImpl.getAllocatedSizeInPools();
 	}
 
-	/*void* allocateMemory(MemoryManager& memory_manager, AllocationType alloc_type, size_t size)
-	{
-		switch (alloc_type)
-		{
-		case AllocationType::eArena:
-			memory_manager.m_arenaAllocators
-		}
-	}*/
-
 #if defined(APEX_CONFIG_DEBUG)
 	MemoryManagerImpl& MemoryManager::getImplInstance()
 	{
@@ -231,25 +228,6 @@ namespace mem {
 	}
 
 }
-
-	void AxHandle::free()
-	{
-		mem::s_MemoryManagerImpl.freeFromMemoryPool(m_memoryPoolIdx, m_cachedPtr);
-		m_cachedPtr = nullptr;
-		m_memoryPoolIdx = 0;
-	}
-
-	void AxHandle::allocate(size_t size)
-	{
-		auto [poolIdx, mem] = mem::s_MemoryManagerImpl.allocateOnMemoryPool(size);
-		m_cachedPtr = mem;
-		m_memoryPoolIdx = poolIdx;
-	}
-
-	size_t AxHandle::getBlockSize() const
-	{
-		return mem::s_MemoryManagerImpl.m_poolAllocators[m_memoryPoolIdx].getBlockSize();
-	}
 
 	//void MemoryStats::addAllocationInfo(size_t size)
 	//{

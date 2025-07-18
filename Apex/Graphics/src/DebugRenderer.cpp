@@ -2,7 +2,6 @@
 
 #include "Graphics/GraphicsContext.h"
 #include "Math/Vector4.h"
-#include "Memory/AxHandle.h"
 #include "Memory/MemoryManager.h"
 
 
@@ -20,7 +19,7 @@ namespace apex::gfx {
 		delete vertexShader;
 		delete fragmentShader;
 
-		auto debugRenderer = apex_new(DebugRenderer)(device, pipeline);
+		auto debugRenderer = apex_new DebugRenderer(device, pipeline);
 
 		const BufferCreateDesc vertexBufferDesc {
 			.size = desc.maxVertexCount * sizeof(math::Vector3),

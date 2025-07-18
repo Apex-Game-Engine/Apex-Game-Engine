@@ -3,13 +3,15 @@
 #include <gtest/gtest.h>
 
 #include "Containers/AxArray.h"
+#include "Containers/AxHashMap.h"
 #include "Containers/AxList.h"
 #include "Containers/AxRange.h"
 #include "Containers/AxSparseMap.h"
-#include "Containers/AxStringView.h"
 #include "Memory/UniquePtr.h"
 #include "Math/Vector3.h"
 #include "Memory/MemoryManager.h"
+#include "String/AxString.h"
+#include "String/AxStringView.h"
 
 TEST(TestContainers, TestFreeListInitialize)
 {
@@ -161,15 +163,6 @@ namespace apex {
 	TEST_F(AxArrayTest, TestExternallyManaged)
 	{
 		axWarn("Not implemented!");
-		/*AxHandle handle = apex::make_handle<u32[]>(32);
-		AxArray<u32> arr(handle);
-		arr.resize(32, 21);
-		EXPECT_EQ(arr.size(), 32);
-
-		for (auto& a : arr)
-		{
-			EXPECT_EQ(a, 21);
-		}*/
 	}
 
 	TEST_F(AxArrayTest, TestResize)
@@ -521,5 +514,39 @@ namespace apex {
 
 		mem::MemoryManager::shutdown();
 	}
+
+	struct MyData
+	{
+		AxString name;
+		math::Vector3 vec;
+		int i;
+	};
+
+	TEST(AxHashMapTest, TestHashMap)
+	{
+		mem::MemoryManager::initialize({ 0, 0 });
+
+		{
+			AxHashMap<int, MyData> map(24);
+			{
+				map.try_insert(7750, { "Tomato Sauce", { 2.1, 0.8, 1.9 }, 999 });
+			}
+			{
+				auto val = map.find(7750);
+				EXPECT_TRUE(val.has_value());
+				auto& pair = val.value().get();
+				EXPECT_EQ(pair.first, 7750);
+				EXPECT_EQ(pair.second.i, 999);
+				EXPECT_FLOAT_EQ(pair.second.vec.x, 2.1);
+				EXPECT_FLOAT_EQ(pair.second.vec.y, 0.8);
+				EXPECT_FLOAT_EQ(pair.second.vec.z, 1.9);
+				EXPECT_FLOAT_EQ(pair.second.vec.z, 1.9);
+			}
+		}
+		EXPECT_EQ(mem::MemoryManager::getAllocatedSize(), 0);
+
+		mem::MemoryManager::shutdown();
+	}
+
 
 }

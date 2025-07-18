@@ -3,9 +3,9 @@
 #include "Core/Types.h"
 
 namespace apex {
-	class AxHandle;
-
 namespace mem {
+	enum Tag { ManagedTag };
+
 	class MemoryManagerImpl;
 	class PoolAllocator;
 
@@ -43,7 +43,8 @@ namespace mem {
 		static void initialize(MemoryManagerDesc desc);
 		static void shutdown();
 
-		static AxHandle allocate(size_t size);
+		[[nodiscard]] static void* allocate(size_t size);
+		[[nodiscard]] static void* allocate(size_t* size);
 		static void free(void* mem);
 
 		static void* getScratchMemory(size_t size);
@@ -79,7 +80,6 @@ namespace mem {
 	struct GlobalMemoryOperators
 	{
 		static void* OperatorNew(size_t);
-		static void* OperatorNew(size_t, AxHandle, const char*);
 		static void OperatorDelete(void* ptr) noexcept;
 	};
 
@@ -89,26 +89,28 @@ namespace mem {
 void* operator new(size_t size);
 void* operator new[](size_t size);
 
-void* operator new(size_t size, apex::AxHandle handle);
-void* operator new[](size_t size, apex::AxHandle handle);
+void* operator new(size_t size, apex::mem::Tag tag);
+void* operator new[](size_t size, apex::mem::Tag tag);
 
-void* operator new(size_t size, apex::AxHandle handle, const char* func, const char* file, uint32_t line);
-void* operator new[](size_t size, apex::AxHandle handle, const char* func, const char* file, uint32_t line);
+void* operator new(size_t size, apex::mem::Tag tag, const char* func, const char* file, uint32_t line);
+void* operator new[](size_t size, apex::mem::Tag tag, const char* func, const char* file, uint32_t line);
 
-void* operator new(size_t size, apex::AxHandle handle, const char* type, const char* func, const char* file, uint32_t line);
-void* operator new[](size_t size, apex::AxHandle handle, const char* type, const char* func, const char* file, uint32_t line);
+void* operator new(size_t size, apex::mem::Tag tag, const char* type, const char* func, const char* file, uint32_t line);
+void* operator new[](size_t size, apex::mem::Tag tag, const char* type, const char* func, const char* file, uint32_t line);
 
 void* operator new(size_t size, const char* func, const char* file, uint32_t line);
 void* operator new[](size_t size, const char* func, const char* file, uint32_t line);
 
+void operator delete(void* ptr) noexcept;
+void operator delete[](void* ptr) noexcept;
+
 #define APEX_TRACK_ALLOCATIONS 1
 
+#define apex_alloc(SIZE)	(apex::mem::MemoryManager::allocate(SIZE))
+#define apex_free(PTR)		(apex::mem::MemoryManager::free(PTR))
+
 #if APEX_TRACK_ALLOCATIONS
-
-#define apex_new(TYPE)    new (apex::make_handle<TYPE>(), STR(TYPE), __FUNCTION__, __FILE__, __LINE__) TYPE
-
+#	define apex_new			new (apex::mem::ManagedTag, __FUNCTION__, __FILE__, __LINE__)
 #else
-
-#define apex_new(TYPE)    new (apex::make_handle<TYPE>()) TYPE
-
+#	define apex_new			new (apex::mem::ManagedTag)
 #endif

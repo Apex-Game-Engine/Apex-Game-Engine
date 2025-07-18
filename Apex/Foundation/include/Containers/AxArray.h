@@ -1,18 +1,15 @@
 #pragma once
 #include "Core/Asserts.h"
 #include "Core/Utility.h"
-#include "Memory/AxHandle.h"
 #include "Memory/MemoryManager.h"
 
 namespace apex {
 
 	enum StorageType { Dynamic, Fixed, Static };
 
-	/**
-	 * \brief Container of contiguous elements of the same type
-	 * Defines common functionality across AxArray, AxDynamicArray, AxStaticArray
-	 * \tparam T Type of elements stored in the array
-	 */
+	 /// \brief Container of contiguous elements of the same type
+	 /// \details Defines common functionality across AxArray, AxDynamicArray, AxStaticArray
+	 /// \tparam T Type of elements stored in the array
 	template <typename T, StorageType >
 	class AxBaseArray
 	{
@@ -278,10 +275,11 @@ namespace apex {
 
 		void Allocate(size_t capacity, size_t init_size)
 		{
-			AxHandle handle = mem::MemoryManager::allocate(sizeof(T) * capacity);
-			m_capacity = handle.getBlockSize() / sizeof(T);
+			size_t allocSize = sizeof(T) * capacity;
+			void* ptr = mem::MemoryManager::allocate(&allocSize);
+			m_capacity = allocSize / sizeof(T);
 			m_size = init_size;
-			m_data = handle.getAs<ElemType>();
+			m_data = static_cast<ElemType*>(ptr);
 		}
 
 		void Deallocate()
@@ -382,13 +380,13 @@ namespace apex {
 		T* _data {};
 		size_t count {};
 
-		[[nodiscard]] auto operator[](size_t index) -> T&
+		[[nodiscard]] T& operator[](size_t index)
 		{
 			axAssert(index < count);
 			return _data[index];
 		}
 
-		[[nodiscard]] auto operator[](size_t index) const -> T const&
+		[[nodiscard]] const T& operator[](size_t index) const
 		{
 			return const_cast<AxArrayRef* const>(this)->operator[](index);
 		}
@@ -403,9 +401,6 @@ namespace apex {
 
 		[[nodiscard]] auto begin() const -> T const* { return _data; }
 		[[nodiscard]] auto end() const -> T const* { return _data + count; }
-
-		[[nodiscard]] auto cbegin() const -> T const* { return _data; }
-		[[nodiscard]] auto cend() const -> T const* { return _data + count; }
 	};
 
 	template <typename T>

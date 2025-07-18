@@ -7,17 +7,18 @@
 #include "Common.h"
 #include "Containers/AxArray.h"
 #include "Containers/AxRange.h"
-#include "Containers/AxStringView.h"
 #include "Core/Types.h"
 #include "Math/Vector3.h"
 #include "Math/Vector4.h"
 #include "Memory/ArenaAllocator.h"
-#include "Memory/AxHandle.h"
 #include "Memory/MemoryManager.h"
 #include "Memory/MemoryManagerImpl.h"
+#include "Memory/AxPool.h"
 #include "Memory/PoolAllocator.h"
 #include "Memory/SharedPtr.h"
 #include "Memory/UniquePtr.h"
+#include "String/AxString.h"
+#include "String/AxStringView.h"
 
 namespace apex::mem {
 
@@ -198,8 +199,7 @@ namespace apex::mem {
 		PoolAllocator& getMemoryPool(size_t size) { return MemoryManager::getImplInstance().getMemoryPoolForSize(size); }
 		size_t getPoolCapacity(size_t alloc_size) { auto& pool = getMemoryPool(alloc_size); return pool.getTotalBlocks() * pool.getBlockSize(); }
 		size_t getPoolSize(size_t alloc_size) { return getMemoryPool(alloc_size).getTotalBlocks(); }
-
-		auto handle_getMemoryPoolIndex(AxHandle& handle) { return handle.m_memoryPoolIdx; }
+		size_t getMemoryPoolIndex(void* mem) { return &MemoryManager::getImplInstance().getMemoryPoolFromPointer(mem) - MemoryManager::getImplInstance().m_poolAllocators.data(); }
 
 	protected:
 		MemoryManagerDesc memoryManagerDesc;
@@ -239,14 +239,16 @@ namespace apex::mem {
 		EXPECT_EQ( getPoolSize(16_MiB), 32 );    // 16 MiB  x  32   = 512 MiB
 		EXPECT_EQ( getPoolSize(32_MiB), 32 );    // 32 MiB  x  32   = 1024 MiB
 
-		AxHandle handle(1024);
-		EXPECT_EQ(handle_getMemoryPoolIndex(handle), 9);
+		size_t allocSize = 1000;
+		void* ptr = MemoryManager::allocate(&allocSize);
+		EXPECT_EQ(allocSize, 1024);
+		EXPECT_EQ(getMemoryPoolIndex(ptr), 9);
 	}
 
 	TEST_F(MemoryManagerTest, TestCheckManaged)
 	{
-		apex::AxHandle handle(1024);
-		EXPECT_TRUE(MemoryManager::checkManaged(handle.getAs<void>()));
+		void* ptr = MemoryManager::allocate(1024);
+		EXPECT_TRUE(MemoryManager::checkManaged(ptr));
 
 		auto pSomeClass = std::make_unique<SomeClass>();
 		EXPECT_FALSE(MemoryManager::checkManaged(pSomeClass.get()));
@@ -280,18 +282,13 @@ namespace apex::mem {
 	TEST_F(MemoryManagerTest, TestHandle)
 	{
 		{
-			AxHandle hManagedClass(sizeof(MyManagedClass));
-			auto pManagedClass = new (hManagedClass) MyManagedClass();
+			void* ptr = MemoryManager::allocate(sizeof(MyManagedClass));
+			auto pManagedClass = new (ptr) MyManagedClass();
 
+			EXPECT_EQ(MemoryManager::getAllocatedSize(), 1024);
 			strcpy_s(pManagedClass->name, "Apple Gupte");
 
 			delete pManagedClass;
-		}
-
-		{
-			AxHandle hManagedClass(sizeof(MyManagedClass));
-			auto pManagedClass = apex::unique_from_handle<MyManagedClass>(hManagedClass);
-			EXPECT_EQ(MemoryManager::getAllocatedSize(), 1024);
 		}
 		EXPECT_EQ(MemoryManager::getAllocatedSize(), 0);
 	}
@@ -318,47 +315,6 @@ namespace apex::mem {
 	};
 	static_assert(sizeof(StructWithDestructor) == 64);
 
-	TEST_F(MemoryManagerTest, TestArrayHandle)
-	{
-		EXPECT_EQ(MemoryManager::getAllocatedSize(), 0);
-		{
-			AxHandle hArray(sizeof(AxHandle) + 8 * sizeof(int));
-			auto pArray = new(hArray) AxArray<int>();
-			//pArray->resizeToHandle(hArray);
-			//auto& arr = *pArray;
-			//EXPECT_EQ((size_t)&arr[0], (size_t)hArray.m_cachedPtr + 24);
-			EXPECT_EQ(MemoryManager::getAllocatedSize(), hArray.getBlockSize());
-			delete pArray;
-		}
-		EXPECT_EQ(MemoryManager::getAllocatedSize(), 0);
-
-		{
-			AxHandle hStruct( sizeof(StructWithDestructor) );
-			EXPECT_EQ(hStruct.getBlockSize(), 64);
-			EXPECT_EQ(MemoryManager::getAllocatedSize(), hStruct.getBlockSize());
-
-			auto pStruct = new(hStruct) StructWithDestructor();
-			EXPECT_EQ(StructWithDestructor::s_count, 1);
-
-			delete pStruct;
-		}
-		EXPECT_EQ(StructWithDestructor::s_count, 0);
-		EXPECT_EQ(MemoryManager::getAllocatedSize(), 0);
-
-		// TODO: The following scenario should be disallowed! Figure out a way to throw a compiler error on this sort of situation. Use AxArray instead (it is memory managed and will be made RAII)
-		//{
-		//	AxHandle hArray = apex::make_handle<int[]>(32);
-		//	EXPECT_EQ(hArray.getBlockSize(), 128);
-		//	EXPECT_EQ(MemoryManager::getAllocatedSize(), hArray.getBlockSize());
-
-		//	int* arr = new (hArray.getAs<void>()) int[32]();
-
-		//	delete arr;
-		//	//hArray.free();
-		//}
-		EXPECT_EQ(MemoryManager::getAllocatedSize(), 0);
-	}
-
 	struct Base
 	{
 		inline static s32 s_count = 0;
@@ -379,63 +335,53 @@ namespace apex::mem {
 		s32 getInt() const override { return 213; }
 	};
 
+	TEST_F(MemoryManagerTest, TestDynamicArrays)
+	{
+		EXPECT_EQ(MemoryManager::getAllocatedSize(), 0);
+		{
+			auto pInts = (int*)apex_alloc(sizeof(int) * 16);
+			EXPECT_EQ(MemoryManager::getAllocatedSize(), 64); // 16 * 4 = 64
+
+			apex_free(pInts);
+		}
+		EXPECT_EQ(MemoryManager::getAllocatedSize(), 0);
+
+		{
+			StructWithDestructor* pStructArr = (StructWithDestructor*)apex_alloc(sizeof(StructWithDestructor) * 15);
+			EXPECT_EQ(MemoryManager::getAllocatedSize(), 1024); // 16 * 64 = 1024 (extra 8 bytes for the size of the array)
+
+			pStructArr = new (pStructArr) StructWithDestructor[15];
+
+			for (int i = 0; i < 15; ++i)
+			{
+				pStructArr[i].~StructWithDestructor();
+			}
+			apex_free(pStructArr);
+		}
+		EXPECT_EQ(StructWithDestructor::s_count, 0);
+		EXPECT_EQ(MemoryManager::getAllocatedSize(), 0);
+
+		{
+			auto pInts = apex_new int[16];
+			EXPECT_EQ(MemoryManager::getAllocatedSize(), 64); // 16 * 4 = 64
+
+			delete[] pInts;
+		}
+		EXPECT_EQ(MemoryManager::getAllocatedSize(), 0);
+
+		{
+			StructWithDestructor* pStructArr = apex_new StructWithDestructor[15];
+			EXPECT_EQ(MemoryManager::getAllocatedSize(), 1024); // 16 * 64 = 1024 (extra 8 bytes for the size of the array)
+			EXPECT_EQ(StructWithDestructor::s_count, 15);
+
+			delete[] pStructArr;
+		}
+		EXPECT_EQ(StructWithDestructor::s_count, 0);
+		EXPECT_EQ(MemoryManager::getAllocatedSize(), 0);
+	}
+
 	TEST_F(MemoryManagerTest, TestUniquePtr)
 	{
-		EXPECT_EQ(StructWithDestructor::s_count, 0);
-		{
-			AxHandle hStruct = apex::make_handle<StructWithDestructor>();
-			EXPECT_EQ(hStruct.getBlockSize(), 64);
-			EXPECT_EQ(MemoryManager::getAllocatedSize(), hStruct.getBlockSize());
-			
-			auto pStruct = apex::unique_from_handle<StructWithDestructor>(hStruct);
-			EXPECT_EQ(StructWithDestructor::s_count, 1);
-
-			EXPECT_STREQ(pStruct->m_dbgName, "StructWithDestructor");
-		}
-		EXPECT_EQ(StructWithDestructor::s_count, 0);
-		EXPECT_EQ(MemoryManager::getAllocatedSize(), 0);
-
-		{
-			AxHandle hDerived = make_handle<Derived>();
-			EXPECT_EQ(hDerived.getBlockSize(), 32);
-			EXPECT_EQ(MemoryManager::getAllocatedSize(), hDerived.getBlockSize());
-
-			UniquePtr<Base> pBase = unique_from_handle<Derived>(hDerived);
-			EXPECT_EQ(pBase->getInt(), 213);
-
-			EXPECT_EQ(Base::s_count, 1);
-			EXPECT_EQ(Derived::s_count, 1);
-		}
-		EXPECT_EQ(Base::s_count, 0);
-		EXPECT_EQ(Derived::s_count, 0);
-		EXPECT_EQ(MemoryManager::getAllocatedSize(), 0);
-
-		{
-			AxHandle h (sizeof(int));
-			EXPECT_EQ(h.getBlockSize(), 32);
-			EXPECT_EQ(MemoryManager::getAllocatedSize(), h.getBlockSize());
-
-			auto a = new (h) int(2);
-			EXPECT_EQ(static_cast<int>(*a), 2);
-			*a = 3;
-			EXPECT_TRUE(*a == 3);
-
-			delete a;
-		}
-		EXPECT_EQ(MemoryManager::getAllocatedSize(), 0);
-
-		{
-			AxHandle h (sizeof(int));
-			EXPECT_EQ(h.getBlockSize(), 32);
-			EXPECT_EQ(MemoryManager::getAllocatedSize(), h.getBlockSize());
-
-			auto a = unique_from_handle<int>(h, 42);
-			EXPECT_TRUE(*a == 42);
-			*a = 213;
-			EXPECT_EQ(static_cast<int>(*a), 213);
-		}
-		EXPECT_EQ(MemoryManager::getAllocatedSize(), 0);
-
 		{
 			auto a = make_unique<StructWithDestructor>();
 			EXPECT_EQ(MemoryManager::getAllocatedSize(), 64);
@@ -449,26 +395,8 @@ namespace apex::mem {
 		EXPECT_EQ(MemoryManager::getAllocatedSize(), 0);
 
 		{
-			AxHandle hArray = make_handle<s32[32]>();
-			EXPECT_EQ(hArray.getBlockSize(), 128);
-
-			auto pArray = unique_from_handle<int[]>(hArray, 32);
-
-			pArray[0] = 1;
-		}
-		EXPECT_EQ(MemoryManager::getAllocatedSize(), 0);
-
-		{
 			auto pArray = apex::make_unique<int[]>(32);
-			EXPECT_EQ(MemoryManager::getAllocatedSize(), 160);
-		}
-		EXPECT_EQ(MemoryManager::getAllocatedSize(), 0);
-
-		{
-			AxHandle hArray = apex::make_handle<StructWithDestructor[]>(2);
-			EXPECT_EQ(MemoryManager::getAllocatedSize(), 160);
-
-			auto pArray = unique_from_handle<StructWithDestructor[]>(hArray, 2);
+			EXPECT_EQ(MemoryManager::getAllocatedSize(), 128);
 		}
 		EXPECT_EQ(MemoryManager::getAllocatedSize(), 0);
 	}
@@ -478,47 +406,27 @@ namespace apex::mem {
 		EXPECT_EQ(MemoryManager::getAllocatedSize(), 0);
 		{
 			UniquePtr<StructWithDestructor> * ppStruct;
-			AxHandle handle(sizeof(UniquePtr<StructWithDestructor>));
-			ppStruct = handle.getAs<UniquePtr<StructWithDestructor>>();
+			ppStruct = (UniquePtr<StructWithDestructor>*)apex_alloc(sizeof(UniquePtr<StructWithDestructor>));
 			EXPECT_EQ(MemoryManager::getAllocatedSize(), 32); // sizeof UniquePtr (8) but the closest available size is 32
 
 			*ppStruct = apex::make_unique<StructWithDestructor>();
 
 			EXPECT_EQ(MemoryManager::getAllocatedSize(), 32 + 64); // 64 bytes for the StructWithDestructor
 
-			delete ppStruct;
+			ppStruct->reset();
+			apex_free(ppStruct);
 		}
 		EXPECT_EQ(MemoryManager::getAllocatedSize(), 0);
 
 		{
-			AxHandle handle(sizeof(int) * 16);
-			auto pInts = handle.getAs<int>();
-			EXPECT_EQ(MemoryManager::getAllocatedSize(), 64); // 16 * 4 = 64
-
-			delete[] pInts;
-		}
-		EXPECT_EQ(MemoryManager::getAllocatedSize(), 0);
-
-		{
-			AxHandle handle = apex::make_handle<StructWithDestructor[]>(15);
-			StructWithDestructor* pStructArr = handle.getAs<StructWithDestructor>();
-			EXPECT_EQ(MemoryManager::getAllocatedSize(), 1024); // 16 * 64 = 1024 (extra 8 bytes for the size of the array)
-
-			pStructArr = new (handle) StructWithDestructor[15];
-
-			delete[] pStructArr;
-		}
-		EXPECT_EQ(MemoryManager::getAllocatedSize(), 0);
-
-		{
-			UniquePtr<StructWithDestructor> * pStructArr;
-			AxHandle handle = apex::make_handle<UniquePtr<StructWithDestructor>[]>(15);
+			UniquePtr<StructWithDestructor> * pStructArr = (UniquePtr<StructWithDestructor>*)apex_alloc(sizeof(UniquePtr<StructWithDestructor>) * 15);
 			EXPECT_EQ(MemoryManager::getAllocatedSize(), 128); // 16 * 8 = 128
 
-			pStructArr = new (handle) UniquePtr<StructWithDestructor>[15];
+			pStructArr = new (pStructArr) UniquePtr<StructWithDestructor>[15];
 
-			delete[] pStructArr;
+			apex_free(pStructArr);
 		}
+		EXPECT_EQ(StructWithDestructor::s_count, 0);
 		EXPECT_EQ(MemoryManager::getAllocatedSize(), 0);
 	}
 
@@ -539,6 +447,7 @@ namespace apex::mem {
 			pStruct = apex::make_unique<StructWithDestructor[]>(32);
 		}
 		EXPECT_EQ(StructWithDestructor::s_numDestroyed, 50);
+		EXPECT_EQ(StructWithDestructor::s_count, 0);
 	}
 
 	struct IntArrayWrapper
@@ -607,10 +516,10 @@ namespace apex::mem {
 		}
 
 		{
-			AxHandle handle = apex::make_handle<int[32]>();
+			int* pI = (int*) apex_alloc(sizeof(int[32]));
 			EXPECT_EQ(MemoryManager::getAllocatedSize(), 128);
 
-			auto pAW = new (handle) IntArrayWrapper(32);
+			auto pAW = new (pI) IntArrayWrapper(32);
 			IntArrayWrapper& aw = *pAW;
 
 			aw.fill(32);
@@ -740,7 +649,7 @@ namespace apex::mem {
 	{
 		{
 			AxArray<int> iArr = { 1, 2, 3, 4, 5, 6, 7, 8 };
-			static_assert(apex::ranges::range<decltype(iArr)>);
+			static_assert(apex::ranges::is_range<decltype(iArr)>);
 
 			ranges::AxRange range(iArr);
 			{
@@ -752,53 +661,6 @@ namespace apex::mem {
 	TEST_F(MemoryManagerTest, TestSharedPtr)
 	{
 		ASSERT_EQ(MemoryManager::getAllocatedSize(), 0);
-		{
-			AxHandle hInt(sizeof(int));
-			auto pInt = apex::shared_from_handle<int, cncy::NullLock>(hInt, 42);
-			{
-				auto pInt2 = pInt;
-				EXPECT_EQ(*pInt, 42);
-				EXPECT_EQ(*pInt2, 42);
-
-				*pInt2 = 213;
-				EXPECT_EQ(*pInt, 213);
-				EXPECT_EQ(*pInt2, 213);
-
-				EXPECT_EQ(pInt.use_count(), 2);
-				EXPECT_EQ(pInt2.use_count(), 2);
-
-			}
-			*pInt = 1024;
-			EXPECT_EQ(pInt.use_count(), 1);
-
-			EXPECT_EQ(*pInt, 1024);
-		}
-		EXPECT_EQ(MemoryManager::getAllocatedSize(), 0);
-
-		{
-			AxHandle hStruct(sizeof(StructWithDestructor));
-			auto pStruct = apex::shared_from_handle<StructWithDestructor, cncy::NullLock>(hStruct);
-			EXPECT_EQ(StructWithDestructor::s_count, 1);
-			{
-				auto pStruct2 = pStruct;
-				EXPECT_EQ(pStruct2.use_count(), 2);
-				EXPECT_EQ(StructWithDestructor::s_count, 1);
-			}
-			EXPECT_EQ(StructWithDestructor::s_count, 1);
-		}
-		EXPECT_EQ(MemoryManager::getAllocatedSize(), 0);
-
-		{
-			AxHandle hArray = apex::make_handle<int[32]>();
-			auto pArray = apex::shared_from_handle<int[], cncy::NullLock>(hArray, 32);
-			EXPECT_EQ(MemoryManager::getAllocatedSize(), 128 + 32);
-
-			auto pArray2 = pArray;
-			EXPECT_EQ(pArray.use_count(), 2);
-			EXPECT_EQ(pArray2.use_count(), 2);
-		}
-		EXPECT_EQ(MemoryManager::getAllocatedSize(), 0);
-
 		{
 			auto pArray = apex::make_shared<StructWithDestructor[], cncy::NullLock>(32);
 			EXPECT_EQ(MemoryManager::getAllocatedSize(), 4096 + 32);
@@ -817,6 +679,47 @@ namespace apex::mem {
 		}
 		EXPECT_EQ(StructWithDestructor::s_count, 0);
 		EXPECT_EQ(MemoryManager::getAllocatedSize(), 0);
+	}
+
+	struct PooledStruct
+	{
+		DECLARE_POOL(PooledStruct)
+
+		int i;
+		math::Vector3 vec3;
+		AxString str;
+	};
+
+	DEFINE_POOL_MEMBERS(PooledStruct);
+
+	class ObjectPoolTest : public testing::Test
+	{
+	public:
+		void SetUp() override
+		{
+			memoryManagerDesc.frameArenaSize = 1024;
+			memoryManagerDesc.numFramesInFlight = 3;
+			MemoryManager::initialize(memoryManagerDesc);
+		}
+
+		void TearDown() override
+		{
+			MemoryManager::shutdown();
+		}
+
+		PoolAllocator& getMemoryPool(size_t size) { return MemoryManager::getImplInstance().getMemoryPoolForSize(size); }
+		size_t getPoolCapacity(size_t alloc_size) { auto& pool = getMemoryPool(alloc_size); return pool.getTotalBlocks() * pool.getBlockSize(); }
+		size_t getPoolSize(size_t alloc_size) { return getMemoryPool(alloc_size).getTotalBlocks(); }
+		size_t getMemoryPoolIndex(void* mem) { return &MemoryManager::getImplInstance().getMemoryPoolFromPointer(mem) - MemoryManager::getImplInstance().m_poolAllocators.data(); }
+
+	protected:
+		MemoryManagerDesc memoryManagerDesc;
+	};
+
+	TEST_F(ObjectPoolTest, TestObjectPool)
+	{
+
+		AxArray<PooledStruct> pooledStructs;
 	}
 
 }

@@ -6,7 +6,6 @@
 #include "Core/Logging.h"
 #include "Core/Asserts.h"
 #include "Core/Files.h"
-#include "Memory/AxHandle.h"
 #include "Graphics/Factory.h"
 #include "Math/Vector4.h"
 #include "Memory/MemoryManager.h"
@@ -885,7 +884,7 @@ namespace apex::gfx {
 			"Failed to allocate command buffers!"
 		);
 
-		return apex_new (VulkanCommandBuffer)(this, m_commandPools[poolIdx], commandBuffer, queue_idx, thread_idx);
+		return apex_new VulkanCommandBuffer(this, m_commandPools[poolIdx], commandBuffer, queue_idx, thread_idx);
 	}
 
 	const Image* VulkanDevice::AcquireNextImage()
@@ -997,8 +996,9 @@ namespace apex::gfx {
 
 		AxArray<char> shaderCode;
 		{
-			File shaderFile = File::OpenExisting(filepath);
-			shaderCode = shaderFile.Read();
+			const File shaderFile = File::OpenExisting(filepath);
+			shaderCode.resize(shaderFile.GetSize());
+			shaderFile.Read(shaderCode.dataMutable(), shaderCode.size());
 		}
 
 		const VkShaderModuleCreateInfo shaderModuleCreateInfo {
@@ -1015,7 +1015,7 @@ namespace apex::gfx {
 
 		SetObjectName(m_logicalDevice, VK_OBJECT_TYPE_SHADER_MODULE, shader, name);
 
-		return apex_new (VulkanShaderModule)(this, shader, reflect);
+		return apex_new VulkanShaderModule(this, shader, reflect);
 	}
 
 	GraphicsPipeline* VulkanDevice::CreateGraphicsPipeline(const char* name, GraphicsPipelineCreateDesc const& desc) const
@@ -1226,7 +1226,7 @@ namespace apex::gfx {
 
 		SetObjectName(m_logicalDevice, VK_OBJECT_TYPE_PIPELINE, pipeline, name);
 
-		return apex_new (VulkanGraphicsPipeline)(this, pipeline, pipelineLayout
+		return apex_new VulkanGraphicsPipeline(this, pipeline, pipelineLayout
 	#if GFX_USE_BINDLESS_DESCRIPTORS
 	#else
 			, descriptorSetLayouts
@@ -1260,7 +1260,7 @@ namespace apex::gfx {
 
 		SetObjectName(m_logicalDevice, VK_OBJECT_TYPE_PIPELINE, pipeline, name);
 
-		return apex_new (VulkanComputePipeline)(this, pipeline, pipelineLayout
+		return apex_new VulkanComputePipeline(this, pipeline, pipelineLayout
 	#if GFX_USE_BINDLESS_DESCRIPTORS
 	#else
 			, descriptorSetLayouts
@@ -1299,7 +1299,7 @@ namespace apex::gfx {
 
 		SetObjectName(m_logicalDevice, VK_OBJECT_TYPE_BUFFER, buffer, name);
 
-		return apex_new (VulkanBuffer)(this, buffer, bufferCreateInfo, allocation, allocationInfo);
+		return apex_new VulkanBuffer(this, buffer, bufferCreateInfo, allocation, allocationInfo);
 	}
 
 	Buffer* VulkanDevice::CreateVertexBuffer(const char* name, size_t size, const void* initial_data)
@@ -1417,7 +1417,7 @@ namespace apex::gfx {
 
 		SetObjectName(m_logicalDevice, VK_OBJECT_TYPE_IMAGE_VIEW, imageView, name);
 		
-		return apex_new (VulkanImage)(this, image, imageCreateInfo, allocation, allocationInfo, imageView);
+		return apex_new VulkanImage(this, image, imageCreateInfo, allocation, allocationInfo, imageView);
 	}
 
 	ImageView* VulkanDevice::CreateImageView(const char* name, Image const* image) const
@@ -1452,7 +1452,7 @@ namespace apex::gfx {
 
 		SetObjectName(m_logicalDevice, VK_OBJECT_TYPE_SEMAPHORE, timelineSemaphore, name);
 
-		return apex_new (VulkanFence)(this, timelineSemaphore, init_value);
+		return apex_new VulkanFence(this, timelineSemaphore, init_value);
 	}
 
 	void VulkanDevice::BindSampledImage(ImageView* image_view)
@@ -2133,7 +2133,7 @@ namespace apex::gfx {
 	// Vulkan Context
     void VulkanContext::Init(const plat::PlatformWindow& window)
     {
-		m_pImpl = apex_new (VulkanContextImpl) ((HINSTANCE)window.GetOsApplicationHandle(), (HWND)window.GetOsHandle());
+		m_pImpl = apex_new VulkanContextImpl((HINSTANCE)window.GetOsApplicationHandle(), (HWND)window.GetOsHandle());
     }
 
 	void VulkanContext::Shutdown()
@@ -2675,18 +2675,18 @@ namespace apex::gfx {
 
 	// Vulkan Image
 	VulkanImage::VulkanImage(VulkanDevice const* device, VkImage image, VkImageCreateInfo const& create_info, VkImageView view)
-	: m_device(device), m_image(image), m_allocation(nullptr), m_allocationInfo(), m_view(apex_new(VulkanImageView)(view, this))
+	: m_device(device), m_image(image), m_allocation(nullptr), m_allocationInfo(), m_view(apex_new VulkanImageView(view, this))
 	, m_extent(create_info.extent), m_usage(create_info.usage), m_format(create_info.format)
 	{
 	}
 
 	VulkanImage::VulkanImage(VulkanDevice const* device, VkImage image, VkImageCreateInfo const& create_info, VmaAllocation allocation, VmaAllocationInfo const& allocation_info, VkImageView view)
-	: m_device(device), m_image(image), m_allocation(allocation), m_allocationInfo(allocation_info), m_view(apex_new(VulkanImageView)(view, this))
+	: m_device(device), m_image(image), m_allocation(allocation), m_allocationInfo(allocation_info), m_view(apex_new VulkanImageView(view, this))
 	, m_extent(create_info.extent), m_usage(create_info.usage), m_format(create_info.format)
 	{}
 
 	VulkanImage::VulkanImage(VulkanDevice const* device, VkImage image, VkImageView view, VkExtent3D extent, VkFormat format, VkImageUsageFlags usage)
-	: m_device(device), m_image(image), m_allocation(nullptr), m_allocationInfo(), m_view(apex_new(VulkanImageView)(view, this))
+	: m_device(device), m_image(image), m_allocation(nullptr), m_allocationInfo(), m_view(apex_new VulkanImageView(view, this))
 	, m_extent(extent), m_usage(usage), m_format(format)
 	{}
 
