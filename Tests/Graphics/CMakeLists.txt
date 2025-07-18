@@ -15,7 +15,7 @@ target_link_libraries(ApexGraphicsTests
     ApexFoundation
     ApexGraphics
     ApexPlatform
-    ApexModel
+    ApexAsset
 	ApexShaders
     ApexImGui
 

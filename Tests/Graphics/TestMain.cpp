@@ -13,7 +13,7 @@
 
 #include <charconv>
 
-#include "MeshSerializer.h"
+#include "Asset/Mesh.h"
 #include "Graphics/DebugRenderer.h"
 #include "Math/Matrix4x4.h"
 #include "Math/Quaternion.h"
@@ -99,12 +99,13 @@ AABB operator*(apex::math::Matrix4x4 const& m, AABB const& aabb)
 }
 
 // This function assumes that the position is the first attribute in the first stream of the mesh
-AABB CalculateBoundingBox(AxMeshData const& mesh)
+AABB CalculateBoundingBox(apex::asset::MeshRef const& mesh)
 {
 	AABB bbox;
-	float* vertices = static_cast<float*>(mesh.pVertices);
-	apex::u32 stride = mesh.vertexStride / sizeof(float);
-	for (apex::u32 i = 0; i < mesh.vertexCount; i++)
+	auto verts = mesh.GetVertices();
+	float* vertices = static_cast<float*>(verts.data);
+	apex::u32 stride = verts.stride / sizeof(float);
+	for (apex::u32 i = 0; i < verts.count; i++)
 	{
 		const apex::u32 idx = stride * i;
 		float x = vertices[idx];
@@ -191,7 +192,9 @@ MeshCPU LoadMesh(const char* filename, apex::AxArray<float>& vertices, apex::AxA
 {
 	using namespace std::string_view_literals;
 	apex::File file = apex::File::OpenExisting(filename);
-	apex::AxArray<char> data = file.Read();
+	apex::AxArray<char> data;
+	data.resize(file.GetSize());
+	file.Read(data.dataMutable(), data.size());
 	std::string_view meshStr { data.data(), data.size() };
 
 	size_t nvertices = 0, nfaces = 0, npvert = 3, npface = 3;
@@ -358,11 +361,13 @@ int main(int argc, char* argv[])
 			// ObjLoader objLoader(R"(X:\ApexGameEngine-Vulkan\Templates\Assets\FinalBaseMesh.obj)");
 			// MeshCPU meshCpu { .vertices = objLoader.GetVertexBufferData(), .indices = objLoader.GetIndexBufferData() };
 
-			AxMeshData* mesh = axMeshLoadFile("X:\\Tests\\Capsule.axmesh", {});
-			//AxMeshData* mesh = axMeshLoadFile("X:\\ApexGameEngine-Vulkan\\Tools\\PythonTools\\ExamplePlane.axmesh", {});
-			AABB aabb = CalculateBoundingBox(*mesh);
+			asset::MeshLoader meshLoader{ asset::MeshLoaderFlagBits::Triangulate | asset::MeshLoaderFlagBits::CalculateNormals };
+			asset::MeshRef mesh = meshLoader.ReadFromFile("X:\\Tests\\SimpleHumanoid.axmesh");
+			//MeshData* mesh = axMeshLoadFile("X:\\ApexGameEngine-Vulkan\\Tools\\PythonTools\\ExamplePlane.axmesh", {});
+			AABB aabb = CalculateBoundingBox(mesh);
 
-			MeshCPU meshCpu { .vertices = { (float*)mesh->pVertices, mesh->vertexCount * mesh->vertexStride / sizeof(float) }, .indices = { mesh->pIndices, mesh->indexCount } };
+			auto verts = mesh.GetVertices();
+			MeshCPU meshCpu { .vertices = { (float*)verts.data, verts.count * verts.stride / sizeof(float) }, .indices = mesh.GetIndices() };
 
 			MeshGPU meshGpu = UploadMeshToGpu(gfx, meshCpu);
 

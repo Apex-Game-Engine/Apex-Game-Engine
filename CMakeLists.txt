@@ -81,6 +81,7 @@ endif()
 if(MSVC)
     add_compile_options(/GR-) # Disable RTTI
     add_compile_options(/EHs-c- /EHc-) # Disable synchronous exceptions and C++ exceptions
+    add_compile_definitions(_HAS_EXCEPTIONS=0)
 endif()
 
 set(APEX_THIRDPARTY_DIR ${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty)
@@ -89,12 +90,15 @@ set(APEX_TOOLS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/Tools)
 
 add_subdirectory(ThirdParty)
 add_subdirectory(Apex)
-add_subdirectory(Tests)
-add_subdirectory(Tools)
 
-if(APEX_GENERATE_SAMPLES)
-add_subdirectory(Samples)
+include(apex.cmake)
+
+if(APEX_GENERATE_TOOLS)
+    add_subdirectory(Tools)
 endif()
-
-# Examples
-# add_subdirectory(Examples)
+if(APEX_GENERATE_TESTS)
+    add_subdirectory(Tests)
+endif()
+if(APEX_GENERATE_SAMPLES)
+	add_subdirectory(Samples)
+endif()

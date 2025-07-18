@@ -1,11 +1,11 @@
 project(ApexPythonTools LANGUAGES CXX)
 
-pybind11_add_module(PyApexModel MODULE src/PyApexModel.cpp)
-install(TARGETS PyApexModel DESTINATION ${APEX_TOOLS_DIR}/bin)
+pybind11_add_module(PyApexAsset MODULE src/PyApexAsset.cpp)
 
-target_link_libraries(PyApexModel
+target_link_libraries(PyApexAsset
     PUBLIC
-    ApexModel
+    ApexAsset
     pybind11::pybind11_headers
 )
-#target_include_directories(PyApexModel PRIVATE ${APEX_THIRDPARTY_DIR}/pybind11/include)
+
+install(TARGETS PyApexAsset DESTINATION ${APEX_TOOLS_DIR}/bin CONFIGURATIONS Debug Release)
