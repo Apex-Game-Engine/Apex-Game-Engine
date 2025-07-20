@@ -11,35 +11,6 @@ namespace gfx {
 	class Fence;
 	class ShaderModule;
 
-	template <typename BitType>
-	struct Flags
-	{
-		using MaskType = std::underlying_type_t<BitType>;
-
-		constexpr Flags() : mask(0) {}
-		constexpr Flags(BitType bit) : mask(static_cast<MaskType>(bit)) {}
-		constexpr Flags(Flags const& flags) = default;
-		constexpr explicit Flags(MaskType mask) : mask(mask) {}
-
-		constexpr Flags operator & (Flags other) const { return Flags(mask & other.mask); }
-		constexpr Flags operator | (Flags other) const { return Flags(mask | other.mask); }
-		constexpr Flags operator ^ (Flags other) const { return Flags(mask ^ other.mask); }
-
-		constexpr Flags& operator &= (Flags other) { mask &= other.mask; return *this; }
-		constexpr Flags& operator |= (Flags other) { mask |= other.mask; return *this; }
-		constexpr Flags& operator ^= (Flags other) { mask ^= other.mask; return *this; }
-
-		constexpr explicit operator bool() { return !!mask; }
-		constexpr explicit operator MaskType() { return mask; }
-
-		MaskType mask;
-	};
-
-#define DEFINE_BITWISE_OPERATORS(BitType, FlagsType) \
-	constexpr FlagsType operator & (BitType lhs, BitType rhs) { return FlagsType(lhs) & FlagsType(rhs); } \
-	constexpr FlagsType operator | (BitType lhs, BitType rhs) { return FlagsType(lhs) | FlagsType(rhs); } \
-	constexpr FlagsType operator ^ (BitType lhs, BitType rhs) { return FlagsType(lhs) ^ FlagsType(rhs); }
-
 	enum class MemoryPropertyFlagBits : u16
 	{
 		None            = 0x0000,
