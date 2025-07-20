@@ -11,10 +11,6 @@ namespace apex {
 	{
 	public:
 		constexpr explicit AxStaticString(AxStringView str) noexcept
-		: AxStaticString{str.c_str(), std::make_integer_sequence<u16, N>{}}
-		{}
-
-		constexpr explicit AxStaticString(std::string_view str) noexcept
 		: AxStaticString{str.data(), std::make_integer_sequence<u16, N>{}}
 		{}
 
@@ -22,7 +18,7 @@ namespace apex {
 
 		constexpr u16 size() const noexcept { return N; }
 
-		constexpr operator std::string_view() const noexcept { return {data(), size()}; }
+		constexpr operator AxStringView() const noexcept { return {data(), size()}; }
 
 	private:
 		template <u16... I>
@@ -45,13 +41,11 @@ namespace apex {
 
 	  constexpr explicit AxStaticString(AxStringView) noexcept {}
 
-	  constexpr explicit AxStaticString(std::string_view) noexcept {}
-
 	  constexpr const char* data() const noexcept { return nullptr; }
 
 	  constexpr u16 size() const noexcept { return 0; }
 
-	  constexpr operator std::string_view() const noexcept { return {}; }
+	  constexpr operator AxStringView() const noexcept { return {}; }
 	};
 
 }
