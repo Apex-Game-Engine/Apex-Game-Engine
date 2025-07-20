@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Core/Macros.h"
 #include "Core/Types.h"
 
 namespace apex {
@@ -45,6 +46,8 @@ namespace mem {
 
 		[[nodiscard]] static void* allocate(size_t size);
 		[[nodiscard]] static void* allocate(size_t* size);
+		// TODO: Add allocateAligned(size_t size, size_t alignment)
+
 		static void free(void* mem);
 
 		static void* getScratchMemory(size_t size);
@@ -114,3 +117,30 @@ void operator delete[](void* ptr) noexcept;
 #else
 #	define apex_new			new (apex::mem::ManagedTag)
 #endif
+
+
+namespace apex::mem {
+
+	template <typename T>
+	class StdAllocator
+	{
+	public:
+		using value_type = T;
+
+		constexpr StdAllocator() = default;
+
+		template <typename U> 
+		StdAllocator(const StdAllocator<U>& other) noexcept {}
+
+		[[nodiscard]] constexpr T* allocate(size_t n)
+		{
+			return static_cast<T*>(mem::MemoryManager::allocate(n));
+		}
+
+		void deallocate(T* p, size_t n) noexcept
+		{
+			mem::MemoryManager::free(p);
+		}
+	};
+
+}
