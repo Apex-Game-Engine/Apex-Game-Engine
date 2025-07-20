@@ -19,8 +19,8 @@
 #define axStrongAssertFmt(condition, fmt, ...)	do { if (!(condition)) { axError("Strong Assertion Failed : " STR(condition)); axErrorFmt(fmt, ##__VA_ARGS__); DEBUG_BREAK(); } else {} } while (false)
 
 // Verifies : Level 0 assertions : These are enabled in all builds, but do not raise errors in Release builds
-#define axVerify(condition)						((condition) || axVerifyFailedError("Verify Failed! : " STR(condition)))
-#define axVerifyFmt(condition, fmt, ...)		((condition) || axVerifyFailedErrorFmt("Verify Failed! : " STR(condition) "\n" fmt, ##__VA_ARGS__))
+#define axVerify(condition)						((condition) || ((axVerifyFailedError("Verify Failed! : " STR(condition)) || DEBUG_BREAK())) && false)
+#define axVerifyFmt(condition, fmt, ...)		((condition) || ((axVerifyFailedErrorFmt("Verify Failed! : " STR(condition) "\n" fmt, ##__VA_ARGS__) || DEBUG_BREAK())) && false)
 
 #elif APEX_ENABLE_ASSERTS >= 1
 

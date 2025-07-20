@@ -1,8 +1,11 @@
-#include <windows.h>
-
 #include "Core/Logging.h"
 #include "Core/Types.h"
 #include "Core/Console.h"
+
+#ifdef _WIN32
+#define WINDOWS_LEAN_AND_MEAN
+#include <windows.h>
+#endif
 
 namespace apex {
 namespace logging {
@@ -140,12 +143,32 @@ namespace logging {
 		}
 	}
 
+	bool DisplayErrorMessageBox(const LogMsg& log_msg)
+	{
+	#ifdef _WIN32
+		int res = MessageBoxA(
+			NULL,
+			log_msg.formatted,
+			detail::LOG_LEVEL_STR[(int)log_msg.level],
+			MB_ABORTRETRYIGNORE | MB_ICONERROR);
+		if (res == IDABORT)
+			exit(EXIT_FAILURE);
+		if (res == IDRETRY)
+			return false;
+		if (res == IDIGNORE)
+			return true;
+	#endif
+		return false;
+	}
+
 	LogMsg::LogMsg(const char* filepath, const char* funcsig, const char* msg, u32 lineno, LogLevel level)
 	: filepath(filepath)
 	, funcsig(funcsig)
 	, msg(msg)
 	, lineno(lineno)
 	, level(level)
+	, filename(nullptr)
+	, formatted(nullptr)
 	{
 		int filepathlen = strlen(filepath);
 		int i;
@@ -158,6 +181,8 @@ namespace logging {
 		}
 
 		filename = filepath + i + 1;
+
+		formatted = detail::format_log_msg(*this);
 	}
 }
 }

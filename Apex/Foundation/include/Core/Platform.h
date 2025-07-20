@@ -3,7 +3,7 @@
 #define _THREAD_PAUSE() _mm_pause()
 
 #if defined(_MSC_VER)
-#	define DEBUG_BREAK() __debugbreak()
+#	define DEBUG_BREAK() (__debugbreak(), false)
 #elif defined(__clang__) 
 #	if defined(__has_builtin(__builtin_debugtrap))
 #		define DEBUG_BREAK() __builtin_debugtrap()

@@ -36,10 +36,10 @@ namespace logging {
 		const char *msg;
 		u32 lineno;
 		LogLevel level;
+		const char *filename;
+		const char* formatted;
 
 		LogMsg(const char *filepath, const char *funcsig, const char *msg, u32 lineno, LogLevel level);
-
-		const char *filename;
 	};
 
 	struct ISink
@@ -111,10 +111,12 @@ namespace logging {
 		Lock_t m_lock;
 	};
 
+	bool DisplayErrorMessageBox(const LogMsg& log_msg);
+
 	inline bool LogVerifyFailedError(const char *file, const char *funcsig, apex::u32 lineno, const char *msg)
 	{
-		Logger::get().log(LogLevel::Error, file, funcsig, lineno, msg); DEBUG_BREAK();
-		return false;
+		Logger::get().log(LogLevel::Error, file, funcsig, lineno, msg);
+		return DisplayErrorMessageBox(LogMsg(file, funcsig, msg, lineno, LogLevel::Error));
 	}
 
 }
