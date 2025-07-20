@@ -6,18 +6,32 @@
 
 namespace apex {
 
-	template <typename Key, typename Type>
-	class AxSparseMap : public AxSparseSet<Key>
+	template <typename KeyType, typename ValueType>
+	class AxSparseMap : public AxSparseSet<KeyType>
 	{
 	public:
-		using base_type = AxSparseSet<Key>;
+		using base_type = AxSparseSet<KeyType>;
 
-		using base_type::key_type;
 		using base_type::sparse_array;
 		using base_type::dense_array;
+		
+		using base_type::key_type;
+		using base_type::key_pointer;
+		using base_type::const_key_pointer;
+		using base_type::key_reference;
+		using base_type::const_key_reference;
 
-		using element_type = Type;
+		using element_type = ValueType;
 		using element_array = AxArray<element_type>;
+
+		using value_type = ValueType;
+		using value_pointer = ValueType*;
+		using const_value_pointer = const ValueType*;
+		using value_reference = ValueType&;
+		using const_value_reference = const ValueType&;
+
+		using pair_type = std::pair<KeyType, ValueType&>;
+		using const_pair_type = std::pair<KeyType, const ValueType&>;
 
 		AxSparseMap() = default;
 
@@ -30,6 +44,17 @@ namespace apex {
 
 		~AxSparseMap() = default;
 
+		NON_COPYABLE(AxSparseMap);
+
+		AxSparseMap(AxSparseMap&& other) noexcept { *this = std::move(other); }
+		AxSparseMap& operator=(AxSparseMap&& other) noexcept
+		{
+			base_type::operator=(std::move(other));
+			m_elements = std::move(other.m_elements);
+			return *this;
+		}
+		
+
 		void resize(size_t capacity)
 		{
 			// TODO: Do NOT resize elements array if not required
@@ -37,17 +62,17 @@ namespace apex {
 			m_elements.resize(base_type::capacity());
 		}
 
-		void insert(key_type id, Type const& elem)
+		void insert(key_type id, ValueType const& elem)
 		{
 			Insert(id, elem);
 		}
 
-		void insert(key_type id, Type&& elem)
+		void insert(key_type id, ValueType&& elem)
 		{
-			Insert(id, std::forward<Type>(elem));
+			Insert(id, std::forward<ValueType>(elem));
 		}
 
-		bool try_insert(key_type id, Type const& elem)
+		bool try_insert(key_type id, ValueType const& elem)
 		{
 			if (!contains(id))
 			{
@@ -59,7 +84,7 @@ namespace apex {
 		}
 
 		template <typename... Args>
-		Type& emplace(key_type id, Args&&... args)
+		auto emplace(key_type id, Args&&... args) -> ValueType&
 		{
 			return Emplace(id, std::forward<Args>(args)...);
 		}
@@ -95,46 +120,46 @@ namespace apex {
 			return base_type::try_getIndex(id);
 		}
 
-		auto getElement(key_type id) -> Type&
+		auto getElement(key_type id) -> value_reference
 		{
 			key_type idx = getIndex(id);
 			return m_elements[idx];
 		}
 
-		auto getElement(key_type id) const -> Type const&
+		auto getElement(key_type id) const -> const_value_reference
 		{
 			return const_cast<AxSparseMap*>(this)->getElement(id);
 		}
 
-		auto get(key_type id) -> std::pair<key_type, Type&>
+		auto get(key_type id) -> pair_type
 		{
 			key_type idx = getIndex(id);
-			return std::pair<key_type, Type&>(idx, m_elements[idx]);
+			return { idx, m_elements[idx] };
 		}
 
-		auto get(key_type id) const -> std::pair<key_type, Type const&>
+		auto get(key_type id) const -> const_pair_type
 		{
 			key_type idx = getIndex(id);
-			return std::pair<key_type, Type const&>(idx, m_elements[idx]);
+			return { idx, m_elements[idx] };
 		}
 
-		auto try_get(key_type id) -> std::optional<std::pair<key_type, Type&>>
+		auto try_get(key_type id) -> std::optional<pair_type>
 		{
 			auto idx = try_getIndex(id);
 			if (idx)
 			{
-				return std::pair<key_type, Type&>(idx.value(), m_elements[idx.value()]);
+				return { idx.value(), m_elements[idx.value()] };
 			}
 
 			return std::nullopt;
 		}
 
-		auto try_get(key_type id) const -> std::optional<std::pair<key_type, Type const&>>
+		auto try_get(key_type id) const -> std::optional<const_pair_type>
 		{
 			auto idx = try_getIndex(id);
 			if (idx)
 			{
-				return std::pair<key_type, Type const&>(idx.value(), m_elements[idx.value()]);
+				return { idx.value(), m_elements[idx.value()] };
 			}
 
 			return std::nullopt;
@@ -152,14 +177,14 @@ namespace apex {
 		size_t count() const { return base_type::count(); }
 
 	protected:
-		void Insert(key_type id, Type const& elem)
+		void Insert(key_type id, ValueType const& elem)
 		{
 			base_type::Insert(id);
 			auto index = base_type::GetIndex(id);
 			m_elements[index] = elem;
 		}
 
-		void Insert(key_type id, Type&& elem)
+		void Insert(key_type id, ValueType&& elem)
 		{
 			base_type::Insert(id);
 			auto index = base_type::GetIndex(id);
@@ -167,7 +192,7 @@ namespace apex {
 		}
 
 		template <typename... Args>
-		Type& Emplace(key_type id, Args&&... args)
+		ValueType& Emplace(key_type id, Args&&... args)
 		{
 			base_type::Insert(id);
 			auto index = base_type::GetIndex(id);
@@ -190,17 +215,19 @@ namespace apex {
 	};
 
 
-	template <typename Key, apex::empty Type>
-	class AxSparseMap<Key, Type> : public AxSparseSet<Key>
+	template <typename KeyType, apex::empty ValueType>
+	class AxSparseMap<KeyType, ValueType> : public AxSparseSet<KeyType>
 	{
 	public:
-		using base_type = AxSparseSet<Key>;
+		using base_type = AxSparseSet<KeyType>;
 
 		using base_type::key_type;
 		using base_type::sparse_array;
 		using base_type::dense_array;
 
-		using element_type = Type;
+		using element_type = ValueType;
+
+		using pair_type = std::pair<KeyType, ValueType&>;
 
 		AxSparseMap() = default;
 
@@ -218,12 +245,12 @@ namespace apex {
 			base_type::reserve(capacity);
 		}
 
-		void insert(key_type id, Type const& elem = {})
+		void insert(key_type id, ValueType const& elem = {})
 		{
 			base_type::Insert(id);
 		}
 
-		bool try_insert(key_type id, Type const& elem = {})
+		bool try_insert(key_type id, ValueType const& elem = {})
 		{
 			if (!contains(id))
 			{
@@ -265,24 +292,24 @@ namespace apex {
 			return base_type::try_getIndex(id);
 		}
 
-		auto getElement(key_type id) const -> Type
+		auto getElement(key_type id) const -> ValueType
 		{
 			key_type idx = getIndex(id);
 			return {};
 		}
 
-		auto get(key_type id) const -> std::pair<key_type, Type>
+		auto get(key_type id) const -> std::pair<key_type, ValueType>
 		{
 			key_type idx = getIndex(id);
-			return std::pair<key_type, Type>(idx, {});
+			return std::pair<key_type, ValueType>(idx, {});
 		}
 
-		auto try_get(key_type id) const -> std::optional<std::pair<key_type, Type>>
+		auto try_get(key_type id) const -> std::optional<std::pair<key_type, ValueType>>
 		{
 			auto idx = try_getIndex(id);
 			if (idx)
 			{
-				return std::pair<key_type, Type>(idx.value(), {});
+				return std::pair<key_type, ValueType>(idx.value(), {});
 			}
 
 			return std::nullopt;

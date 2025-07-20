@@ -10,13 +10,17 @@ namespace apex {
 	/**
 	 * \brief Sparse set implementation.
 	 * Check https://manenko.com/2021/05/23/sparse-sets.html for details on design.
-	 * \tparam Key Type of keys that will be stored in the set.
+	 * \tparam KeyType Type of keys that will be stored in the set.
 	 */
-	template <typename Key>
+	template <typename KeyType>
 	class AxSparseSet
 	{
 	public:
-		using key_type = Key;
+		using key_type = KeyType;
+		using key_pointer = KeyType*;
+		using const_key_pointer = const KeyType*;
+		using key_reference = KeyType&;
+		using const_key_reference = const KeyType&;
 
 		using sparse_array = AxArray<key_type>;
 		using dense_array = AxArray<key_type>;
