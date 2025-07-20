@@ -22,6 +22,7 @@ target_compile_definitions(ApexFoundation
 target_include_directories(ApexFoundation
     PUBLIC
     include
+    ${APEX_THIRDPARTY_DIR}/ankerl/
 
     PRIVATE
     src
