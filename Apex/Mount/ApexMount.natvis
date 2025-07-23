@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?> 
+<AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
+    
+    <Type Name="apex::mnt::Path">
+        <DisplayString>{m_fullpath}</DisplayString>
+        <Expand>
+            <Item Name="Mount">m_fullpath.data(),[m_mountEnd]s</Item>
+	        <Item Name="Directory Path">m_fullpath.data() + m_mountEnd + kMountDelimiterLen,[m_fileStart - 1 - (m_mountEnd + kMountDelimiterLen)]s</Item>
+	        <Item Name="Directory Name">m_fullpath.data() + m_dirStart,[m_fileStart - 1 - m_dirStart]s</Item>
+	        <Item Name="File Path">m_fullpath.data() + m_mountEnd + kMountDelimiterLen,s</Item>
+	        <Item Name="File Name">m_fullpath.data() + m_fileStart,s</Item>
+	        <Item Name="File Base Name">m_fullpath.data() + m_fileStart,[m_extStart - 1 - m_fileStart]s</Item>
+	        <Item Name="File Extension">m_fullpath.data() + m_extStart,s</Item>
+        </Expand>
+    </Type>
+    
+</AutoVisualizer>
