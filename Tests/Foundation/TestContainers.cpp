@@ -39,11 +39,34 @@ namespace apex {
 		NonTrivialType(int i, float f, char c) : i(i), f(f), c(c), str(new char[1024]) {}
 		~NonTrivialType() { delete[] str; }
 
+		NON_COPYABLE(NonTrivialType);
+
+		// NonTrivialType(NonTrivialType&& o) noexcept { *this = std::move(o); }
+		// NonTrivialType& operator=(NonTrivialType&& o) noexcept { i = o.i; f = o.f; c = o.c; str = std::move(o.str); return *this; }
+
 		int i;
 		float f;
 		char c;
 
 		char* str;
+	};
+
+	struct NonTrivialMovableType
+	{
+		NonTrivialMovableType() { ctorCount++; }
+		~NonTrivialMovableType() { dtorCount++; }
+
+		NON_COPYABLE(NonTrivialMovableType);
+
+		NonTrivialMovableType(NonTrivialMovableType&& o) noexcept { moveCtorCount++; }
+		NonTrivialMovableType& operator=(NonTrivialMovableType&& o) noexcept { moveAssignCount++; return *this; }
+
+		u64 data;
+
+		inline static u32 ctorCount = 0;
+		inline static u32 dtorCount = 0;
+		inline static u32 moveCtorCount = 0;
+		inline static u32 moveAssignCount = 0;
 	};
 
 	class AxArrayTest : public testing::Test
@@ -197,6 +220,38 @@ namespace apex {
 
 			i++;
 		}
+	}
+
+	TEST_F(AxArrayTest, TestResizeNonTrivialMovable)
+	{
+		EXPECT_EQ(NonTrivialMovableType::ctorCount,       0);
+		EXPECT_EQ(NonTrivialMovableType::dtorCount,       0);
+		EXPECT_EQ(NonTrivialMovableType::moveCtorCount,   0);
+		EXPECT_EQ(NonTrivialMovableType::moveAssignCount, 0);
+		{
+			AxArray<NonTrivialMovableType> elements;
+			elements.resize(8);
+
+			EXPECT_GE(elements.capacity(), 8); // capacity >= 25
+			EXPECT_EQ(elements.size(), 8);
+			EXPECT_EQ(NonTrivialMovableType::ctorCount,       8);
+			EXPECT_EQ(NonTrivialMovableType::dtorCount,       0);
+			EXPECT_EQ(NonTrivialMovableType::moveCtorCount,   0);
+			EXPECT_EQ(NonTrivialMovableType::moveAssignCount, 0);
+
+			printf("capacity: %llu\n", elements.capacity());
+
+			elements.resize(16);
+
+			EXPECT_EQ(NonTrivialMovableType::ctorCount,       16);
+			EXPECT_EQ(NonTrivialMovableType::dtorCount,       0);
+			EXPECT_EQ(NonTrivialMovableType::moveCtorCount,   0);
+			EXPECT_EQ(NonTrivialMovableType::moveAssignCount, 8);
+		}
+		EXPECT_EQ(NonTrivialMovableType::ctorCount,       16);
+		EXPECT_EQ(NonTrivialMovableType::dtorCount,       16);
+		EXPECT_EQ(NonTrivialMovableType::moveCtorCount,   0);
+		EXPECT_EQ(NonTrivialMovableType::moveAssignCount, 8);
 	}
 
 	TEST_F(AxArrayTest, TestInsert)
@@ -527,14 +582,14 @@ namespace apex {
 		mem::MemoryManager::initialize({ 0, 0 });
 
 		{
-			AxHashMap<int, MyData> map(24);
+			AxDenseHashMap<int, MyData> map(24);
 			{
-				map.try_insert(7750, { "Tomato Sauce", { 2.1, 0.8, 1.9 }, 999 });
+				map.try_emplace(7750, "Tomato Sauce", math::Vector3{ 2.1, 0.8, 1.9 }, 999);
 			}
 			{
 				auto val = map.find(7750);
-				EXPECT_TRUE(val.has_value());
-				auto& pair = val.value().get();
+				EXPECT_NE(val, map.end());
+				auto& pair = *val;
 				EXPECT_EQ(pair.first, 7750);
 				EXPECT_EQ(pair.second.i, 999);
 				EXPECT_FLOAT_EQ(pair.second.vec.x, 2.1);
@@ -548,5 +603,16 @@ namespace apex {
 		mem::MemoryManager::shutdown();
 	}
 
+	TEST(AxDenseHashMapTest, TestDenseHashMap)
+	{
+		mem::MemoryManager::initialize({ 0, 0 });
+
+		{
+			AxDenseHashMap<int, MyData> map;
+			map.reserve(1024);
+		}
+		EXPECT_EQ(mem::MemoryManager::getAllocatedSize(), 0);
+		mem::MemoryManager::shutdown();
+	}
 
 }

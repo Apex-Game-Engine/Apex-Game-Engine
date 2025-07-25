@@ -1,4 +1,5 @@
 ﻿#pragma once
+#include "AxStringView.h"
 #include "Core/Asserts.h"
 #include "Core/Types.h"
 #include "Memory/MemoryManager.h"
@@ -20,28 +21,35 @@ namespace apex {
 			SetCString(str, len);
 		}
 
-		AxString(const char* str)
-		{
-			const size_t len = strlen(str);
-			SetCString(str, len);
-		}
+		template <size_t SIZE>
+		AxString(const char str[SIZE]) : AxString(str, SIZE) {}
 
-		explicit AxString(size_t capacity)
+		AxString(const char* str) : AxString(str, strlen(str)) {}
+
+		AxString(AxStringView sv) : AxString(sv.data(), sv.length()) {}
+
+		AxString(size_t capacity)
 		{
 			reserve(capacity);
 		}
 
-		AxString(const AxString& other) { *this = other; }
+		AxString(const AxString& other)
+		{
+			SetCString(other.c_str(), other.GetLength());
+		}
 
 		AxString& operator=(const AxString& other)
 		{
 			reset();
-			const size_t len = other.GetLength();
 			SetCString(other.c_str(), other.GetLength());
 			return *this;
 		}
 
-		AxString(AxString&& other) noexcept { *this = std::move(other); }
+		AxString(AxString&& other) noexcept
+		{
+			::memcpy_s(&m_storage, sizeof(Storage), &other.m_storage, sizeof(Storage));
+			::memset(&other.m_storage, 0, sizeof(Storage));
+		}
 
 		AxString& operator=(AxString&& other) noexcept
 		{
@@ -56,16 +64,16 @@ namespace apex {
 			axAssert(capacity() == 0);
 			if (bytes < kSsoBufSize)
 			{
-				m_storage.SSO.m_isSSO = true;
-				m_storage.SSO.m_length = 0;
-				m_storage.SSO.m_str[0] = '\0';
+				m_storage.sso.m_isSSO = true;
+				m_storage.sso.m_length = 0;
+				m_storage.sso.m_str[0] = '\0';
 			}
 			else
 			{
 				Allocate(bytes);
-				m_storage.NonSSO.m_isSSO = false;
-				m_storage.NonSSO.m_length = 0;
-				m_storage.NonSSO.m_str[0] = '\0';
+				m_storage.non_sso.m_isSSO = false;
+				m_storage.non_sso.m_length = 0;
+				m_storage.non_sso.m_str[0] = '\0';
 			}
 		}
 
@@ -90,49 +98,53 @@ namespace apex {
 		{
 			if (!IsSSO())
 			{
-				delete m_storage.NonSSO.m_str;
+				delete m_storage.non_sso.m_str;
 			}
 			memset(&m_storage, 0, sizeof(Storage));
 		}
 
-		char* data() { return IsSSO() ? m_storage.SSO.m_str : m_storage.NonSSO.m_str; }
+		char* data() { return IsSSO() ? m_storage.sso.m_str : m_storage.non_sso.m_str; }
 		[[nodiscard]] const char* data() const { return const_cast<AxString*>(this)->data(); }
 		[[nodiscard]] const char* c_str() const { return data(); }
 
-		[[nodiscard]] size_t capacity() const { return IsSSO() ? kSsoBufSize : m_storage.NonSSO.m_capacity; }
-		[[nodiscard]] size_t GetLength() const { return IsSSO() ? m_storage.SSO.m_length : m_storage.NonSSO.m_length; }
+		[[nodiscard]] size_t capacity() const { return IsSSO() ? kSsoBufSize : m_storage.non_sso.m_capacity; }
+		[[nodiscard]] size_t GetLength() const { return IsSSO() ? m_storage.sso.m_length : m_storage.non_sso.m_length; }
 		[[nodiscard]] size_t size() const { return GetLength(); }
+
+		operator AxStringView() const { return AxStringView{ data(), size() }; }
+
+		operator bool() const { return size() > 0; }
 
 	protected:
 		void Allocate(size_t capacity)
 		{
 			capacity += capacity & 1; // round up to even number
 			void* mem = mem::MemoryManager::allocate(capacity);
-			m_storage.NonSSO.m_str = static_cast<char*>(mem);
-			m_storage.NonSSO.m_capacity = capacity;
+			m_storage.non_sso.m_str = static_cast<char*>(mem);
+			m_storage.non_sso.m_capacity = capacity;
 		}
 
 		bool IsSSO() const
 		{
-			return m_storage.SSO.m_isSSO;
+			return m_storage.sso.m_isSSO;
 		}
 
 		void SetCString(const char* str, size_t len)
 		{
 			if (len < kSsoBufSize)
 			{
-				m_storage.SSO.m_isSSO = true;
-				m_storage.SSO.m_length = static_cast<u8>(len);
-				::memcpy_s(m_storage.SSO.m_str, kSsoBufSize-1, str, len);
-				m_storage.SSO.m_str[len] = '\0';
+				m_storage.sso.m_isSSO = true;
+				m_storage.sso.m_length = static_cast<u8>(len);
+				::memcpy_s(m_storage.sso.m_str, kSsoBufSize-1, str, len);
+				m_storage.sso.m_str[len] = '\0';
 			}
 			else
 			{
 				Allocate(len + 1);
-				m_storage.NonSSO.m_isSSO = false;
-				m_storage.NonSSO.m_length = len;
-				::memcpy_s(m_storage.NonSSO.m_str, m_storage.NonSSO.m_capacity-1, str, len);
-				m_storage.NonSSO.m_str[len] = '\0';
+				m_storage.non_sso.m_isSSO = false;
+				m_storage.non_sso.m_length = len;
+				::memcpy_s(m_storage.non_sso.m_str, m_storage.non_sso.m_capacity-1, str, len);
+				m_storage.non_sso.m_str[len] = '\0';
 			}
 		}
 
@@ -140,11 +152,11 @@ namespace apex {
 		{
 			if (IsSSO())
 			{
-				m_storage.SSO.m_length = static_cast<u8>(len);
+				m_storage.sso.m_length = static_cast<u8>(len);
 			}
 			else
 			{
-				m_storage.NonSSO.m_length = len;
+				m_storage.non_sso.m_length = len;
 			}
 		}
 
@@ -159,13 +171,13 @@ namespace apex {
 				size_t m_capacity : 63;	    // 8
 				size_t m_length;            // 16
 				char* m_str;                // 24
-			} NonSSO;
+			} non_sso;
 			struct SSO
 			{
 				u8 m_isSSO : 1;             // 0
 				u8 m_length  : 7;           // 1
 				char m_str[kSsoBufSize];    // 24
-			} SSO;
+			} sso;
 		} m_storage {};
 
 		static_assert(sizeof(m_storage) == 24);

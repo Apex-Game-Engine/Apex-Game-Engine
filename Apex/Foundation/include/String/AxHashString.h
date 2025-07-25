@@ -20,7 +20,7 @@ namespace apex {
 
 		[[nodiscard]] constexpr HashType GetHash() const { return m_hash; }
 
-		friend bool operator==(const AxBaseHashString& l, const AxBaseHashString& r)
+		constexpr friend bool operator==(const AxBaseHashString& l, const AxBaseHashString& r)
 		{
 			return l.GetHash() == r.GetHash();
 		}

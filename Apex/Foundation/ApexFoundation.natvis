@@ -31,4 +31,9 @@
         </Expand>
     </Type>
     
+    <Type Name="apex::AxString">
+        <DisplayString Condition="m_storage.sso.m_isSSO == 1">{m_storage.sso.m_str,s}</DisplayString>
+        <DisplayString Condition="m_storage.sso.m_isSSO == 0">{m_storage.non_sso.m_str,s}</DisplayString>
+    </Type>
+    
 </AutoVisualizer>

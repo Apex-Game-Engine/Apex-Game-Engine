@@ -11,7 +11,7 @@ namespace apex {
 	 /// \details Defines common functionality across AxArray, AxDynamicArray, AxStaticArray
 	 /// \tparam T Type of elements stored in the array
 	template <typename T, StorageType >
-	class AxBaseArray
+	class AxArrayBase
 	{
 		using ElemType = T;
 
@@ -60,14 +60,14 @@ namespace apex {
 		using iterator = Iterator<T>;
 		using const_iterator = Iterator<const T>;
 
-		AxBaseArray() = default;
+		AxArrayBase() = default;
 
-		explicit AxBaseArray(size_t capacity)
+		explicit AxArrayBase(size_t capacity)
 		{
 			reserve(capacity);
 		}
 
-		AxBaseArray(AxBaseArray&& other) noexcept
+		AxArrayBase(AxArrayBase&& other) noexcept
 		: m_capacity(std::move(other.m_capacity))
 		, m_size(std::move(other.m_size))
 		, m_data(std::move(other.m_data))
@@ -77,7 +77,7 @@ namespace apex {
 			other.m_size = 0;
 		}
 
-		AxBaseArray(AxBaseArray const& other) noexcept
+		AxArrayBase(AxArrayBase const& other) noexcept
 		: m_capacity(other.m_capacity)
 		, m_size(other.m_size)
 		{
@@ -85,7 +85,7 @@ namespace apex {
 			apex::memcpy_s<value_type>(m_data, m_size, other.m_data, other.m_size);
 		}
 
-		AxBaseArray(std::initializer_list<value_type> init_list)
+		AxArrayBase(std::initializer_list<value_type> init_list)
 		: m_capacity(init_list.size())
 		, m_size(init_list.size())
 		{
@@ -93,13 +93,13 @@ namespace apex {
 			apex::memcpy_s<value_type>(m_data, m_size, init_list.begin(), init_list.size());
 		}
 
-		~AxBaseArray()
+		~AxArrayBase()
 		{
 			DestroyAll();
 			Deallocate();
 		}
 
-		AxBaseArray& operator=(AxBaseArray&& other) noexcept
+		AxArrayBase& operator=(AxArrayBase&& other) noexcept
 		{
 			if (this != &other)
 			{
@@ -114,7 +114,7 @@ namespace apex {
 			return *this;
 		}
 
-		AxBaseArray& operator=(AxBaseArray const& other) noexcept
+		AxArrayBase& operator=(AxArrayBase const& other) noexcept
 		{
 			if (this != &other)
 			{
@@ -134,12 +134,9 @@ namespace apex {
 			size_t oldSize = m_size;
 			m_size = new_size;
 
-			if constexpr (sizeof...(args) > 0)
+			if (new_size > oldSize)
 			{
-				if (new_size > oldSize)
-				{
-					Fill(m_data + oldSize, m_data + new_size, std::forward<Args>(args)...);
-				}
+				Fill(m_data + oldSize, m_data + new_size, std::forward<Args>(args)...);
 			}
 		}
 
@@ -238,20 +235,20 @@ namespace apex {
 		}
 
 		[[nodiscard]] auto data() -> pointer              { return reinterpret_cast<ElemType*>(m_data); }
-		[[nodiscard]] auto data() const -> const_pointer  { return const_cast<AxBaseArray*>(this)->data(); }
-		[[nodiscard]] auto dataMutable() const -> pointer { return const_cast<AxBaseArray*>(this)->data(); }
+		[[nodiscard]] auto data() const -> const_pointer  { return const_cast<AxArrayBase*>(this)->data(); }
+		[[nodiscard]] auto dataMutable() const -> pointer { return const_cast<AxArrayBase*>(this)->data(); }
 
 		[[nodiscard]] auto back() -> reference             { axAssert(m_size > 0); return m_data[m_size - 1]; }
-		[[nodiscard]] auto back() const -> const_reference { return const_cast<AxBaseArray*>(this)->back(); }
+		[[nodiscard]] auto back() const -> const_reference { return const_cast<AxArrayBase*>(this)->back(); }
 
 		[[nodiscard]] auto front() -> reference             { axAssert(m_size > 0); return m_data[0]; }
-		[[nodiscard]] auto front() const -> const_reference { return const_cast<AxBaseArray*>(this)->front(); }
+		[[nodiscard]] auto front() const -> const_reference { return const_cast<AxArrayBase*>(this)->front(); }
 
 		[[nodiscard]] auto at(size_t index) -> reference             { return this->operator[](index); }
-		[[nodiscard]] auto at(size_t index) const -> const_reference { return const_cast<AxBaseArray*>(this)->at(index); }
+		[[nodiscard]] auto at(size_t index) const -> const_reference { return const_cast<AxArrayBase*>(this)->at(index); }
 
 		[[nodiscard]] auto operator[](size_t index) -> reference             { axAssert(index < m_size); return m_data[index]; }
-		[[nodiscard]] auto operator[](size_t index) const -> const_reference { return const_cast<AxBaseArray*>(this)->operator[](index); }
+		[[nodiscard]] auto operator[](size_t index) const -> const_reference { return const_cast<AxArrayBase*>(this)->operator[](index); }
 		
 		[[nodiscard]] size_t size() const     { return m_size; }
 		[[nodiscard]] size_t capacity() const { return m_capacity; }
@@ -296,10 +293,12 @@ namespace apex {
 
 			Allocate(new_capacity, oldSize);
 
-			if (oldSize > 0)
-				apex::memmove_s<T>((T*)m_data, m_capacity, oldData, oldSize);
+			if (oldSize > 0) {
+				// MoveElementsFrom(oldData, oldSize);
+				MoveConstructFrom(oldData, oldSize);
+			}
 
-			delete oldData;
+			mem::MemoryManager::free(oldData);
 		}
 
 		void DestroyInPlace(T* ptr)
@@ -313,19 +312,37 @@ namespace apex {
 			if constexpr (!std::is_trivially_destructible_v<T>)
 				for (size_t i = 0; i < m_size; ++i)
 				{
-					DestroyInPlace(&m_data[i]);
+					DestroyInPlace(&m_data[m_size - i - 1]);
 				}
 		}
 
-		void ShiftElementsRight(size_t index)
+		void ShiftElementsRight(size_t start, size_t shift = 1)
 		{
-			apex::memmove_s<ElemType>(&m_data[index+1], m_capacity - index, &m_data[index], m_size - index);
+			for (size_t i = 0; i < m_size - start; i++)
+			{
+				size_t dst = m_size + shift - i - 1;
+				size_t src = m_size - i - 1;
+				if (dst >= m_size)
+				{
+					ConstructInPlace(&m_data[dst], std::move(m_data[src]));
+				}
+				else
+				{
+					m_data[dst] = std::move(m_data[src]);
+				}
+			}
+			// apex::memmove_s<ElemType>(&m_data[index+1], m_capacity - index, &m_data[index], m_size - index);
 		}
 
-		void ShiftElementsLeft(size_t index)
+		void ShiftElementsLeft(size_t start, size_t shift = 1)
 		{
-			const size_t moveNum = m_size - index;
-			apex::memmove_s<ElemType>(&m_data[index], moveNum, &m_data[index+1], moveNum);
+			for (size_t i = 0; i < m_size - start; i++)
+			{
+				size_t dst = start + i;
+				size_t src = start + shift + i;
+				m_data[dst] = std::move(m_data[src]);
+			}
+			// apex::memmove_s<ElemType>(&m_data[index], moveNum, &m_data[index+1], moveNum);
 		}
 
 		template <typename... Args>
@@ -338,6 +355,24 @@ namespace apex {
 			}
 		}
 
+		void MoveConstructFrom(ElemType* src, size_t srcCount)
+		{
+			const size_t count = std::min(srcCount, m_capacity);
+			for (size_t i = 0; i < count; i++)
+			{
+				ConstructInPlace(m_data[i], std::move(src[i]));
+			}
+		}
+
+		void MoveElementsFrom(ElemType* src, size_t srcCount)
+		{
+			const size_t count = std::min(srcCount, m_capacity);
+			for (size_t i = 0; i < count; i++)
+			{
+				m_data[i] = std::move(src[i]);
+			}
+		}
+
 	protected:
 		size_t m_capacity { 0 };
 		size_t m_size { 0 };
@@ -347,7 +382,7 @@ namespace apex {
 		friend class AxArrayTest;
 	};
 
-	template <typename T> using AxArray = AxBaseArray<T, Dynamic>;
+	template <typename T> using AxArray = AxArrayBase<T, Dynamic>;
 
 	// TODO: Implement AxArray<T, Static> and AxArray<T, Fixed>
 	// Static: statically or stack allocated storage

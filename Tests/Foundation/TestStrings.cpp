@@ -2,6 +2,7 @@
 
 #include "String/AxString.h"
 #include "Memory/MemoryManager.h"
+#include "String/AxHashString.h"
 
 namespace apex {
 
@@ -65,6 +66,18 @@ namespace apex {
 			ASSERT_EQ(mem::MemoryManager::getAllocatedSize(), 128);
 		}
 		ASSERT_EQ(mem::MemoryManager::getAllocatedSize(), 0);
-}
+	}
+
+	TEST_F(AxStringTest, TestHashString)
+	{
+		ASSERT_EQ(mem::MemoryManager::getAllocatedSize(), 0);
+		{
+			constexpr u64 hash = FnvHasher64::Hash("CMeshRendererComponent");
+			AxHashString h;
+			constexpr AxHashString hs("CMeshRendererComponent");
+			static_assert(hs.GetHash() == hash);
+		}
+		ASSERT_EQ(mem::MemoryManager::getAllocatedSize(), 0);
+	}
 
 }
