@@ -31,6 +31,7 @@ set(CMAKE_FOLDER "Tests")
 
 add_subdirectory(Foundation)
 add_subdirectory(Platform)
+add_subdirectory(Mount)
 add_subdirectory(Graphics)
 #add_subdirectory(Startup)
 

@@ -23,7 +23,7 @@ TEST(PathTest, TestValidatePathSimple)
 {
 	apex::mnt::Path path("assets://meshes/characters/YBot.axmesh");
 
-	ASSERT_TRUE(path.ValidatePath());
+	ASSERT_TRUE(path.IsValid());
 
 	EXPECT_EQ(path.GetMount(),			"assets"sv);
 	EXPECT_EQ(path.GetDirectoryPath(),	"meshes/characters"sv);
@@ -38,7 +38,7 @@ TEST(PathTest, TestValidatePathWithNumbers)
 {
 	apex::mnt::Path path("audio00://audio/test_samples/sample15362.ogg1");
 
-	ASSERT_TRUE(path.ValidatePath());
+	ASSERT_TRUE(path.IsValid());
 
 	EXPECT_EQ(path.GetMount(),			"audio00"sv);
 	EXPECT_EQ(path.GetDirectoryPath(),	"audio/test_samples"sv);
@@ -56,7 +56,7 @@ TEST(PathTest, TestValidatePathNoExtension)
 {
 	apex::mnt::Path path("anim://Animations/Data/Chapter1");
 
-	ASSERT_TRUE(path.ValidatePath());
+	ASSERT_TRUE(path.IsValid());
 
 	EXPECT_EQ(path.GetMount(),			"anim"sv);
 	EXPECT_EQ(path.GetDirectoryPath(),	"Animations/Data"sv);
@@ -74,7 +74,7 @@ TEST(PathTest, TestValidatePathNoFileName)
 {
 	apex::mnt::Path path("anim://Animations/Data/Chapter1/");
 
-	ASSERT_TRUE(path.ValidatePath());
+	ASSERT_TRUE(path.IsValid());
 
 	EXPECT_EQ(path.GetMount(),			"anim"sv);
 	EXPECT_EQ(path.GetDirectoryPath(),	"Animations/Data/Chapter1"sv);
@@ -86,4 +86,10 @@ TEST(PathTest, TestValidatePathNoFileName)
 
 	EXPECT_EQ(path.HasFileName(), false);
 	EXPECT_EQ(path.HasFileExtension(), false);
+}
+
+
+TEST(MountTest, TestDirectoryMount)
+{
+	apex::mnt::DirectoryMount dirMnt("samples", R"(X:\Tests\Assets)");
 }
