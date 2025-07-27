@@ -360,7 +360,7 @@ namespace apex {
 			const size_t count = std::min(srcCount, m_capacity);
 			for (size_t i = 0; i < count; i++)
 			{
-				ConstructInPlace(m_data[i], std::move(src[i]));
+				ConstructInPlace(&m_data[i], std::move(src[i]));
 			}
 		}
 

@@ -245,13 +245,13 @@ namespace apex {
 
 			EXPECT_EQ(NonTrivialMovableType::ctorCount,       16);
 			EXPECT_EQ(NonTrivialMovableType::dtorCount,       0);
-			EXPECT_EQ(NonTrivialMovableType::moveCtorCount,   0);
-			EXPECT_EQ(NonTrivialMovableType::moveAssignCount, 8);
+			EXPECT_EQ(NonTrivialMovableType::moveCtorCount,   8);
+			EXPECT_EQ(NonTrivialMovableType::moveAssignCount, 0);
 		}
 		EXPECT_EQ(NonTrivialMovableType::ctorCount,       16);
 		EXPECT_EQ(NonTrivialMovableType::dtorCount,       16);
-		EXPECT_EQ(NonTrivialMovableType::moveCtorCount,   0);
-		EXPECT_EQ(NonTrivialMovableType::moveAssignCount, 8);
+		EXPECT_EQ(NonTrivialMovableType::moveCtorCount,   8);
+		EXPECT_EQ(NonTrivialMovableType::moveAssignCount, 0);
 	}
 
 	TEST_F(AxArrayTest, TestInsert)
