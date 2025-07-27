@@ -183,6 +183,11 @@ namespace apex {
 		static_assert(sizeof(m_storage) == 24);
 	};
 
-
 }
+
+FMT_TYPE_FORMATTER(apex::AxString, str, ctx)
+{
+	return format_to(ctx.out(), "{}", str.c_str());
+}
+
 

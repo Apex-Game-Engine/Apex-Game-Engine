@@ -1,6 +1,16 @@
 ﻿#pragma once
 #include <string_view>
 #include <fmt/core.h>
+#include <fmt/format.h>
+
+#define FMT_TYPE_FORMATTER(type, obj, ctx) \
+	template <> class fmt::formatter<type> { \
+	public: \
+		constexpr auto parse(format_parse_context& _ctx) { return _ctx.begin(); } \
+		template <typename Context> constexpr auto format(type const&, Context&) const; \
+	}; \
+	template <typename Context> \
+	constexpr auto fmt::formatter<type>::format(type const& obj, Context& ctx) const
 
 namespace apex {
 
