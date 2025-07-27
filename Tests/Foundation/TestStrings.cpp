@@ -80,4 +80,37 @@ namespace apex {
 		ASSERT_EQ(mem::MemoryManager::getAllocatedSize(), 0);
 	}
 
+	TEST(AxStringViewTest, TestLineIterator)
+	{
+		constexpr AxStringView text = "" \
+			"Name: Abc D. Efgh" "\n" \
+			"Date of Birth: 01/01/1970" "\n" \
+			"Occupation: Gameplay Engineer" "\n";
+
+		int it = 0;
+		for (Strings::LineIterator lineIt { text }; lineIt; ++lineIt, ++it)
+		{
+			AxStringView line = *lineIt;
+			switch (it)
+			{
+			case 0:
+				ASSERT_EQ(line[0], 'N');
+				ASSERT_EQ(line.size(), 17);
+				break;
+			case 1:
+				ASSERT_EQ(line[0], 'D');
+				ASSERT_EQ(line.size(), 25);
+				break;
+			case 2:
+				ASSERT_EQ(line[0], 'O');
+				ASSERT_EQ(line.size(), 29);
+				break;
+			default: ;
+			}
+		}
+
+		ASSERT_EQ(it, 3);
+	}
+
+
 }

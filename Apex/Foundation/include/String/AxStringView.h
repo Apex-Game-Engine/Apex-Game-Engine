@@ -35,4 +35,50 @@ namespace apex {
 
 	using AxStringView = std::string_view;
 
+	namespace Strings
+	{
+		class LineIterator
+		{
+		public:
+			using value_type = AxStringView;
+
+			LineIterator(const AxStringView& str, size_t start = 0)
+				: str(str), start(start), end(start)
+			{
+				Advance();
+			}
+
+			LineIterator& operator++()
+			{
+				Advance();
+				return *this;
+			}
+
+			LineIterator operator++(int)
+			{
+				LineIterator it = *this;
+				Advance();
+				return it;
+			}
+
+			operator bool() const
+			{
+				return start < end && start < str.size();
+			}
+
+			void Advance()
+			{
+				start = str.find_first_not_of("\r\n", end);
+				end = str.find_first_of("\r\n", start);
+			}
+
+			AxStringView operator*() const { return str.substr(start, end - start); }
+
+		private:
+			const AxStringView& str;
+			size_t start, end;
+		};
+
+	}
+
 }
