@@ -351,6 +351,24 @@ namespace apex {
 		printf("Allocated size: %llu\n", mem::MemoryManager::getAllocatedSize());
 	}
 
+	TEST_F(AxArrayTest, TestSort)
+	{
+		AxArray<int> arr = {
+			9, 7, 5, 3, 1, 8, 6, 4, 2, 0
+		};
+
+		std::sort(arr.begin(), arr.end());
+
+		for (int i = 0; i < 10; i++)
+		{
+			EXPECT_EQ(arr[i], i);
+		}
+
+		auto it = std::lower_bound(arr.begin(), arr.end(), 5);
+		EXPECT_EQ(*it, 5);
+		EXPECT_EQ(*(it+1), 6);
+	}
+
 	TEST(AxStringRefTest, TestAxStringRef)
 	{
 		AxStringRef strRefArr[2];
