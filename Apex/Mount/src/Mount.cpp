@@ -1,4 +1,5 @@
 #include "Mount/Mount.h"
+
 #include "String/AxHashString.h"
 
 #if APEX_PLATFORM_WIN32
@@ -7,12 +8,19 @@
 #endif
 
 namespace apex::mnt {
+	Path::Path(AxString path)
+	{
+		if (axVerify(ValidatePath({ path.data(), path.size() + 1 })))
+		{
+			m_fullpath = std::move(path);
+		}
+	}
 
 	bool Path::ValidatePath(AxStringView path)
 	{
 		enum class PathSearchPhase { Mount, File, Ext };
 
-		// mount:path/to/file.ext
+		// mount://path/to/file.ext
 		PathSearchPhase phase = PathSearchPhase::Mount;
 
 		size_t i = 0;
@@ -30,10 +38,15 @@ namespace apex::mnt {
 
 					for (size_t d = 0; d < kMountDelimiterLen; d++)
 					{
-						if (c != kMountDelimiter[d]) return false;
+						if (c != kMountDelimiter[d])
+						{
+							m_mountEnd = 0;
+							i = 0;
+							break;
+						}
 						c = path[++i];
 					}
-
+					
 					m_dirStart = static_cast<u16>(i);
 
 					phase = PathSearchPhase::File;
@@ -43,9 +56,19 @@ namespace apex::mnt {
 				{
 					const u16 nameStart = static_cast<u16>(i);
 
-					while (std::isalnum(c) || c == '_')
+					while (std::isalnum(c) || c == '_' || c == '-')
 						c = path[++i];
 
+					if (c == ':')
+					{
+						char cn = path[i+1];
+						if (i > 1 || cn != '/')
+						{
+							return false;
+						}
+						i++;
+						break;
+					}
 					if (c == '/')
 					{
 						m_dirStart = nameStart;

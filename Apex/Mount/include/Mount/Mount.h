@@ -20,36 +20,26 @@ namespace mnt {
 	{
 	public:
 		Path() = default;
-		explicit Path(const char* path)
-		{
-			if (ValidatePath({ path, strlen(path) + 1 }))
-			{
-				m_fullpath = path;
-			}
-		}
-
-		explicit Path(AxString path) : m_fullpath(std::move(path))
-		{
-			if (!ValidatePath({ m_fullpath.data(), m_fullpath.size() + 1 }))
-			{
-				m_fullpath.reset();
-			}
-		}
+		explicit Path(AxString path);
+		explicit Path(const char* path) : Path(AxString(path)) {}
 
 		constexpr static char kMountDelimiter[] = "://";
 		constexpr static size_t kMountDelimiterLen = sizeof(kMountDelimiter) - 1;
 
 		[[nodiscard]] bool IsValid() const { return !!m_fullpath; }
+		[[nodiscard]] bool HasMount() const { return m_mountEnd != 0; }
 		[[nodiscard]] bool HasFileName() const { return m_fileStart != m_fullpath.size(); }
-		[[nodiscard]] bool HasFileExtension() const { return !!m_extStart; }
+		[[nodiscard]] bool HasFileExtension() const { return m_extStart != 0; }
 
 		[[nodiscard]] AxStringView GetMount() const { return m_fullpath ? SubPath(0, m_mountEnd) : AxStringView{}; }
-		[[nodiscard]] AxStringView GetDirectoryPath() const { return m_fullpath ? SubPath(m_mountEnd+kMountDelimiterLen, m_fileStart-1) : AxStringView{}; }
+		[[nodiscard]] AxStringView GetDirectoryPath() const { return m_fullpath ? SubPath(m_mountEnd ? m_mountEnd+kMountDelimiterLen : 0, m_fileStart-1) : AxStringView{}; }
 		[[nodiscard]] AxStringView GetDirectoryName() const { return m_fullpath ? SubPath(m_dirStart, m_fileStart-1) : AxStringView{}; }
-		[[nodiscard]] AxStringView GetFilePath() const { return m_fullpath ? SubPath(m_mountEnd+kMountDelimiterLen) : AxStringView{}; }
+		[[nodiscard]] AxStringView GetFilePath() const { return m_fullpath ? SubPath(m_mountEnd ? m_mountEnd+kMountDelimiterLen : 0) : AxStringView{}; }
 		[[nodiscard]] AxStringView GetFileName() const { return m_fullpath ? SubPath(m_fileStart) : AxStringView{}; }
 		[[nodiscard]] AxStringView GetFileBaseName() const { return m_fullpath ? SubPath(m_fileStart, m_extStart-1) : AxStringView{}; }
 		[[nodiscard]] AxStringView GetFileExtension() const { return m_fullpath && m_extStart ? SubPath(m_extStart) : AxStringView{}; }
+
+
 
 	protected:
 		bool ValidatePath(AxStringView path);
