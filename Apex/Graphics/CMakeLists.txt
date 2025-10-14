@@ -11,6 +11,34 @@ file(GLOB_RECURSE SHADER_FILES
 )
 file(GLOB_RECURSE SHADER_INCLUDES shaders/*.glh)
 
+set(IMGUI_HEADERS
+	${APEX_THIRDPARTY_DIR}/imgui-docking/imconfig.h
+	${APEX_THIRDPARTY_DIR}/imgui-docking/imgui.h
+	${APEX_THIRDPARTY_DIR}/imgui-docking/imgui_internal.h
+	${APEX_THIRDPARTY_DIR}/imgui-docking/imstb_rectpack.h
+	${APEX_THIRDPARTY_DIR}/imgui-docking/imstb_textedit.h
+	${APEX_THIRDPARTY_DIR}/imgui-docking/imstb_truetype.h
+)
+
+set(IMGUI_SOURCES
+	${APEX_THIRDPARTY_DIR}/imgui-docking/imgui.cpp
+	${APEX_THIRDPARTY_DIR}/imgui-docking/imgui_demo.cpp
+	${APEX_THIRDPARTY_DIR}/imgui-docking/imgui_draw.cpp
+	${APEX_THIRDPARTY_DIR}/imgui-docking/imgui_tables.cpp
+	${APEX_THIRDPARTY_DIR}/imgui-docking/imgui_widgets.cpp
+)
+
+if(WIN32)
+	list(APPEND IMGUI_HEADERS
+		${APEX_THIRDPARTY_DIR}/imgui-docking/backends/imgui_impl_win32.h
+		${APEX_THIRDPARTY_DIR}/imgui-docking/backends/imgui_impl_vulkan.h)
+	list(APPEND IMGUI_SOURCES
+		${APEX_THIRDPARTY_DIR}/imgui-docking/backends/imgui_impl_win32.cpp
+		${APEX_THIRDPARTY_DIR}/imgui-docking/backends/imgui_impl_vulkan.cpp)
+endif()
+
+message("${IMGUI_HEADERS}")
+
 message(CHECK_START "Finding glslc")
 
 find_package(Vulkan 1.4 REQUIRED COMPONENTS glslc)
@@ -26,9 +54,25 @@ group_header_files(${HEADER_FILES})
 group_source_files(${SOURCE_FILES})
 group_shader_files(${SHADER_FILES})
 
+foreach(_source IN ITEMS ${IMGUI_HEADERS})
+    get_filename_component(_source_path "${_source}" PATH)
+    string(REPLACE "${APEX_THIRDPARTY_DIR}/imgui-docking" "" _group_path "${_source_path}")
+    string(REPLACE "/" "\\" _group_path "${_group_path}")
+    source_group("Header Files\\${_group_path}" FILES "${_source}")
+endforeach()
+
+foreach(_source IN ITEMS ${IMGUI_SOURCES})
+    get_filename_component(_source_path "${_source}" PATH)
+    string(REPLACE "${APEX_THIRDPARTY_DIR}/imgui-docking" "" _group_path "${_source_path}")
+    string(REPLACE "/" "\\" _group_path "${_group_path}")
+    source_group("Source Files\\" FILES "${_source}")
+endforeach()
+
 add_library(ApexGraphics STATIC
     ${HEADER_FILES}
     ${SOURCE_FILES}
+    ${IMGUI_HEADERS}
+    ${IMGUI_SOURCES}
     ${APEX_THIRDPARTY_DIR}/SPIRV-Reflect/spirv_reflect.c
 )
 
@@ -57,6 +101,7 @@ target_include_directories(ApexGraphics
     include
     ${Vulkan_INCLUDE_DIRS}
     ${APEX_THIRDPARTY_DIR}/vma
+	${APEX_THIRDPARTY_DIR}/imgui-docking/
     ${APEX_THIRDPARTY_DIR}/SPIRV-Reflect
     ${APEX_THIRDPARTY_DIR}/tracy/public/tracy
 

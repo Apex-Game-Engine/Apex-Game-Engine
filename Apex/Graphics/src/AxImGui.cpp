@@ -1,4 +1,4 @@
-#include "ApexImGui.h"
+#include "Graphics/AxImGui.h"
 
 #include <vulkan/vk_enum_string_helper.h>
 
@@ -12,14 +12,15 @@
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 namespace apex {
-
+	
 	static gfx::ContextApi s_api;
+	static VkSampler s_sampler;
 
-	static void ImGuiInitVulkan(gfx::Context ctx)
+	static void ImGuiInitVulkan(gfx::Context& ctx)
 	{
-		axAssert(ctx.GetApi() == gfx::ContextApi::Vulkan);
+		axCriticalAssert(ctx.GetApi() == gfx::ContextApi::Vulkan);
 
-		auto vkctx = static_cast<gfx::VulkanContext*>(ctx.GetBase());
+		auto vkctx = static_cast<gfx::VulkanContext*>(&ctx);
 		auto vkdevice = static_cast<gfx::VulkanDevice*>(vkctx->GetDevice());
 
 		const VkFormat colorAttachmentFormats[] = { vkdevice->GetSwapchain().surfaceFormat.format };
@@ -40,8 +41,8 @@ namespace apex {
 			.Queue = vkdevice->GetVulkanQueue(gfx::QueueType::Graphics).GetNativeHandle(),
 			.DescriptorPool = nullptr,
 			.RenderPass = nullptr,
-			.MinImageCount = vkdevice->GetFramesInFlight(),
-			.ImageCount = vkdevice->GetFramesInFlight(),
+			.MinImageCount = vkdevice->GetMaxFrameCount(),
+			.ImageCount = vkdevice->GetMaxFrameCount(),
 			.MSAASamples = VK_SAMPLE_COUNT_1_BIT,
 			.DescriptorPoolSize = 128,
 			.UseDynamicRendering = true,
@@ -49,7 +50,26 @@ namespace apex {
 			.CheckVkResultFn = [](VkResult result) { axVerifyFmt(VK_SUCCESS == result, "[ImGui-Vulkan] {}", string_VkResult(result)); }
 		};
 
+		{
+			const VkSamplerCreateInfo samplerCreateInfo {
+				.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
+				.magFilter = VK_FILTER_NEAREST,
+				.minFilter = VK_FILTER_NEAREST,
+			};
+
+			axVerifyFmt(VK_SUCCESS == vkCreateSampler(static_cast<gfx::VulkanDevice*>(gfx::Factory::GetContext().GetDevice())->GetLogicalDevice(), &samplerCreateInfo, VK_NULL_HANDLE, &s_sampler),
+				"Failed to create ImGui nearest sampler!"
+			);
+		}
+
 		ImGui_ImplVulkan_Init(&imguiInitInfo);
+	}
+
+	static void ImGuiShutdownVulkan(gfx::Context& ctx)
+	{
+		vkDestroySampler(static_cast<gfx::VulkanDevice*>(gfx::Factory::GetContext().GetDevice())->GetLogicalDevice(), s_sampler, VK_NULL_HANDLE);
+
+		ImGui_ImplVulkan_Shutdown();
 	}
 
 	bool AxImGui::Init(plat::PlatformWindow& window, gfx::Context& ctx)
@@ -90,7 +110,8 @@ namespace apex {
 		default: return false;
 		}
 
-		if (auto as = gfx::AutoSubmitCommandBuffer(ctx, gfx::QueueType::Graphics))
+		gfx::Queue* graphicsQueue = gfx::Factory::GetContext().GetDevice()->GetQueue(gfx::QueueType::Graphics);
+		if (gfx::AutoSubmitCommandBuffer as{ graphicsQueue->AllocateCommandBuffer(), graphicsQueue }; !!as)
 		{
 			gfx::CommandBuffer* commands = as.GetCommandBuffer();
 			commands->Begin();
@@ -101,11 +122,11 @@ namespace apex {
 		return true;
 	}
 
-	void AxImGui::Shutdown()
+	void AxImGui::Shutdown(gfx::Context& ctx)
 	{
 		switch (s_api)
 		{
-		case gfx::ContextApi::Vulkan:	ImGui_ImplVulkan_Shutdown(); break;
+		case gfx::ContextApi::Vulkan:	ImGuiShutdownVulkan(ctx); break;
 		default: ;
 		}
 
@@ -134,5 +155,15 @@ namespace apex {
 	void AxImGui::Render(gfx::CommandBuffer* command_buffer)
 	{
 		ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), static_cast<VkCommandBuffer>(command_buffer->GetNativeHandle()));
+	}
+
+	ImTextureID AxImGui::AddTexture(gfx::Image* image)
+	{
+		return (ImTextureID)ImGui_ImplVulkan_AddTexture(s_sampler, static_cast<gfx::VulkanImageView*>(image->GetView())->GetNativeHandle(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+	}
+
+	void AxImGui::RemoveTexture(ImTextureID texture_id)
+	{
+		ImGui_ImplVulkan_RemoveTexture((VkDescriptorSet)texture_id);
 	}
 }
