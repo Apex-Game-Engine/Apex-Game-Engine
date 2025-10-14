@@ -93,8 +93,6 @@ namespace math {
 	Vector3 reflect(Vector3 const &u, Vector3 const &n);
 	Vector3 refract(Vector3 const &u, Vector3 const &n, f32 refraction_ratio);
 
-	Vector3 lerp(Vector3 const &u, Vector3 const &v, f32 t);
-
 	Vector3 min(Vector3 const &u, Vector3 const &v);
 	Vector3 max(Vector3 const &u, Vector3 const &v);
 

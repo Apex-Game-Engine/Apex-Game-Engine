@@ -263,11 +263,6 @@ namespace math {
 		return ray_out_perp + ray_out_par;
 	}
 
-	inline Vector3 lerp(Vector3 const& u, Vector3 const& v, f32 t)
-	{
-		return (1 - t) * u + t * v;
-	}
-
 	inline Vector3 min(const Vector3& u, const Vector3& v)
 	{
 		return { apex::min(u.x, v.x), apex::min(u.y, v.y), apex::min(u.z, v.z) };

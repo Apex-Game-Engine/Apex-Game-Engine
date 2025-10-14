@@ -66,6 +66,12 @@ namespace math {
 
 #endif
 
+	template <typename TVec>
+	TVec lerp(const TVec&u, const TVec&v, f32 t)
+	{
+		return (1-t) * u + t * v;
+	}
+
 }
 }
 
