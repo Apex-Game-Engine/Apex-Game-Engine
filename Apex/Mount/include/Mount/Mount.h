@@ -105,9 +105,11 @@ namespace mnt {
 	class MountManager
 	{
 	public:
-		MountManager() = default;
+		static void Init();
+		static void Shutdown();
+		static MountManager& Get();
 
-		void MountDirectory(AxHashString mnt, const char* path);
+		void MountDirectory(AxHashString mnt, const AxString& path);
 		void MountArchive(AxHashString mnt, const char* path);
 		void MountVirtual(AxHashString mnt);
 
@@ -116,6 +118,8 @@ namespace mnt {
 		Mount GetMount(AxHashString mnt) const;
 
 	private:
+		MountManager() = default;
+
 		AxDenseHashMap<AxHashString, UniquePtr<IMount>> m_mounts;
 	};
 

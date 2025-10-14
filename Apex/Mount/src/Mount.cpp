@@ -8,6 +8,9 @@
 #endif
 
 namespace apex::mnt {
+
+	static MountManager* s_mountManager;
+
 	Path::Path(AxString path)
 	{
 		if (axVerify(ValidatePath({ path.data(), path.size() + 1 })))
@@ -101,7 +104,23 @@ namespace apex::mnt {
 		return true;
 	}
 
-	void MountManager::MountDirectory(AxHashString mnt, const char* path)
+	void MountManager::Init()
+	{
+		static char s_mountManagerBuffer[sizeof(MountManager)];
+		s_mountManager = new (s_mountManagerBuffer) MountManager;
+	}
+
+	void MountManager::Shutdown()
+	{
+		s_mountManager->~MountManager();
+	}
+
+	MountManager& MountManager::Get()
+	{
+		return *s_mountManager;
+	}
+
+	void MountManager::MountDirectory(AxHashString mnt, const AxString& path)
 	{
 		auto it = m_mounts.find(mnt);
 		if (axVerifyFmt(it == m_mounts.end(), "Mount '{}' already exists!", mnt.GetStr()))
