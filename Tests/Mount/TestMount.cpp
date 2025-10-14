@@ -8,7 +8,7 @@ GTEST_API_ int main(int argc, char **argv) {
 	printf("Running main() from %s\n", __FILE__);
 	testing::InitGoogleTest(&argc, argv);
 
-	apex::logging::Logger::Init();
+	apex::logging::Logger::Init(false);
 	apex::mem::MemoryManager::initialize({});
 
 	int res = RUN_ALL_TESTS();
@@ -24,6 +24,10 @@ TEST(PathTest, TestValidatePathSimple)
 	apex::mnt::Path path("assets://meshes/characters/YBot.axmesh");
 
 	ASSERT_TRUE(path.IsValid());
+	
+	EXPECT_EQ(path.HasMount(), true);
+	EXPECT_EQ(path.HasFileName(), true);
+	EXPECT_EQ(path.HasFileExtension(), true);
 
 	EXPECT_EQ(path.GetMount(),			"assets"sv);
 	EXPECT_EQ(path.GetDirectoryPath(),	"meshes/characters"sv);
@@ -40,6 +44,10 @@ TEST(PathTest, TestValidatePathWithNumbers)
 
 	ASSERT_TRUE(path.IsValid());
 
+	EXPECT_EQ(path.HasMount(), true);
+	EXPECT_EQ(path.HasFileName(), true);
+	EXPECT_EQ(path.HasFileExtension(), true);
+
 	EXPECT_EQ(path.GetMount(),			"audio00"sv);
 	EXPECT_EQ(path.GetDirectoryPath(),	"audio/test_samples"sv);
 	EXPECT_EQ(path.GetDirectoryName(),	"test_samples"sv);
@@ -47,9 +55,6 @@ TEST(PathTest, TestValidatePathWithNumbers)
 	EXPECT_EQ(path.GetFileName(),		"sample15362.ogg1"sv);
 	EXPECT_EQ(path.GetFileBaseName(),	"sample15362"sv);
 	EXPECT_EQ(path.GetFileExtension(),	"ogg1"sv);
-
-	EXPECT_EQ(path.HasFileName(), true);
-	EXPECT_EQ(path.HasFileExtension(), true);
 }
 
 TEST(PathTest, TestValidatePathNoExtension)
@@ -58,6 +63,10 @@ TEST(PathTest, TestValidatePathNoExtension)
 
 	ASSERT_TRUE(path.IsValid());
 
+	EXPECT_EQ(path.HasMount(), true);
+	EXPECT_EQ(path.HasFileName(), true);
+	EXPECT_EQ(path.HasFileExtension(), false);
+
 	EXPECT_EQ(path.GetMount(),			"anim"sv);
 	EXPECT_EQ(path.GetDirectoryPath(),	"Animations/Data"sv);
 	EXPECT_EQ(path.GetDirectoryName(),	"Data"sv);
@@ -65,9 +74,6 @@ TEST(PathTest, TestValidatePathNoExtension)
 	EXPECT_EQ(path.GetFileName(),		"Chapter1"sv);
 	EXPECT_EQ(path.GetFileBaseName(),	"Chapter1"sv);
 	EXPECT_EQ(path.GetFileExtension(),	""sv);
-
-	EXPECT_EQ(path.HasFileName(), true);
-	EXPECT_EQ(path.HasFileExtension(), false);
 }
 
 TEST(PathTest, TestValidatePathNoFileName)
@@ -76,6 +82,10 @@ TEST(PathTest, TestValidatePathNoFileName)
 
 	ASSERT_TRUE(path.IsValid());
 
+	EXPECT_EQ(path.HasMount(), true);
+	EXPECT_EQ(path.HasFileName(), false);
+	EXPECT_EQ(path.HasFileExtension(), false);
+
 	EXPECT_EQ(path.GetMount(),			"anim"sv);
 	EXPECT_EQ(path.GetDirectoryPath(),	"Animations/Data/Chapter1"sv);
 	EXPECT_EQ(path.GetDirectoryName(),	"Chapter1"sv);
@@ -83,11 +93,26 @@ TEST(PathTest, TestValidatePathNoFileName)
 	EXPECT_EQ(path.GetFileName(),		""sv);
 	EXPECT_EQ(path.GetFileBaseName(),	""sv);
 	EXPECT_EQ(path.GetFileExtension(),	""sv);
-
-	EXPECT_EQ(path.HasFileName(), false);
-	EXPECT_EQ(path.HasFileExtension(), false);
 }
 
+TEST(PathTest, TestValidatePathNoMount)
+{
+	apex::mnt::Path path("D:/Game/Animations/Data/Chapter1/");
+
+	ASSERT_TRUE(path.IsValid());
+
+	EXPECT_EQ(path.HasMount(), false);
+	EXPECT_EQ(path.HasFileName(), false);
+	EXPECT_EQ(path.HasFileExtension(), false);
+
+	EXPECT_EQ(path.GetMount(),			""sv);
+	EXPECT_EQ(path.GetDirectoryPath(),	"D:/Game/Animations/Data/Chapter1"sv);
+	EXPECT_EQ(path.GetDirectoryName(),	"Chapter1"sv);
+	EXPECT_EQ(path.GetFilePath(),		"D:/Game/Animations/Data/Chapter1/"sv);
+	EXPECT_EQ(path.GetFileName(),		""sv);
+	EXPECT_EQ(path.GetFileBaseName(),	""sv);
+	EXPECT_EQ(path.GetFileExtension(),	""sv);
+}
 
 TEST(MountTest, TestDirectoryMount)
 {
