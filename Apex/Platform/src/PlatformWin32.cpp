@@ -1,4 +1,4 @@
-﻿#include "Core/Asserts.h"
+#include "Core/Asserts.h"
 #include "Platform/InputManager.h"
 #include "Platform/PlatformManager.h"
 #include "Platform/Timer.h"
@@ -286,6 +286,13 @@ namespace apex::plat {
 	void PlatformWindow::Show() const
 	{
 		ShowWindow(m_impl->window, SW_SHOW);
+
+		RECT rc;
+		GetClientRect(m_impl->window, &rc);
+		m_impl->width = rc.right - rc.left;
+		m_impl->height = rc.bottom - rc.top;
+		m_impl->lastPosX = rc.left;
+		m_impl->lastPosY = rc.top;
 	}
 
 	void PlatformWindow::GetSize(u32* width, u32* height) const
