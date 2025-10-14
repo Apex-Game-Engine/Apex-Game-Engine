@@ -46,7 +46,7 @@ namespace apex::asset {
 		return sizeWritten;
 	}
 
-	u32 CalculateVertexStride(const MeshData* mesh)
+	static u32 CalculateVertexStride(const MeshData* mesh)
 	{
 		uint32_t vertexStride = 0;
 		for (uint32_t i = 0; i < mesh->streamCount; i++)
@@ -98,6 +98,25 @@ namespace apex::asset {
 	u32 MeshRef::CalculateVertexStride() const
 	{
 		return asset::CalculateVertexStride(m_data);
+	}
+
+	MeshGpu MeshRef::UploadToGpu() const
+	{
+		apex::gfx::Buffer* vertexBuffer = apex::gfx::Factory::CreateVertexBuffer("meshVB", sizeof(float) * m_data->vertexCount, nullptr);
+		apex::gfx::Buffer* indexBuffer = apex::gfx::Factory::CreateIndexBuffer("meshIB", sizeof(apex::u32) * m_data->indexCount, nullptr);
+		{
+			apex::gfx::BufferRef vertexStagingBuffer = apex::gfx::Factory::CreateStagingBuffer("Staging-Vertex", sizeof(float) * m_data->vertexCount);
+			apex::gfx::BufferRef indexStagingBuffer = apex::gfx::Factory::CreateStagingBuffer("Staging-Index", sizeof(apex::u32) * m_data->indexCount);
+
+			apex::memcpy_s<float>(vertexStagingBuffer->GetMappedPointer(), m_data->vertexCount, (float*)m_data->pVertices, m_data->vertexCount);
+			apex::memcpy_s<apex::u32>(indexStagingBuffer->GetMappedPointer(), m_data->indexCount, (float*)m_data->pIndices, m_data->indexCount);
+
+			apex::gfx::Factory::StageBuffer(vertexStagingBuffer.Get(), vertexBuffer);
+			apex::gfx::Factory::StageBuffer(indexStagingBuffer.Get(), indexBuffer);
+			apex::gfx::Factory::FlushStagingBatch();
+		}
+
+		return { vertexBuffer, indexBuffer };
 	}
 
 	void MeshLoader::SetUserMemoryCallbacks(PFN_MeshLoaderUserAllocate allocate_fn, PFN_MeshLoaderUserFree free_fn)
@@ -166,4 +185,6 @@ namespace apex::asset {
 
 		return bytesWritten;
 	}
+
+	
 }

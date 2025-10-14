@@ -4,8 +4,13 @@
 #include "Core/Macros.h"
 #include "Core/Types.h"
 
+#include "Graphics/GraphicsContext.h"
+
 namespace apex {
 namespace asset {
+	
+	struct MeshData;
+	class MeshGpu;
 
 	enum class MeshLoaderFlagBits : u32
 	{
@@ -38,8 +43,6 @@ namespace asset {
 		uint32_t dataOffset;
 	};
 
-	struct MeshData;
-
 	struct VertexList
 	{
 		void* data;
@@ -62,6 +65,8 @@ namespace asset {
 
 		u32 CalculateVertexStride() const;
 
+		MeshGpu UploadToGpu() const;
+
 	private:
 		constexpr MeshRef(MeshData* data) : m_data(data) {}
 
@@ -69,6 +74,40 @@ namespace asset {
 		MeshData* m_data;
 
 		friend class MeshLoader;
+	};
+
+	class MeshGpu
+	{
+	public:
+		MeshGpu() = default;
+		~MeshGpu() = default;
+		NON_COPYABLE(MeshGpu);
+		
+		MeshGpu(MeshGpu&& other) noexcept
+			: m_vertexBuffer(std::move(other.m_vertexBuffer)) , m_indexBuffer(std::move(other.m_indexBuffer))
+		{
+		}
+		
+		MeshGpu& operator=(MeshGpu&& other) noexcept
+		{
+			m_vertexBuffer = std::move(other.m_vertexBuffer);
+			m_indexBuffer = std::move(other.m_indexBuffer);
+		}
+
+		const gfx::BufferRef& GetVertexBuffer() const { return m_vertexBuffer; }
+		const gfx::BufferRef& GetIndexBuffer() const { return m_indexBuffer; }
+
+	private:
+		MeshGpu(gfx::Buffer* vertex_buffer, gfx::Buffer* index_buffer)
+			: m_vertexBuffer(vertex_buffer), m_indexBuffer(index_buffer)
+		{
+		}
+
+	private:
+		gfx::BufferRef m_vertexBuffer;
+		gfx::BufferRef m_indexBuffer;
+
+		friend class MeshRef;
 	};
 
 	using PFN_MeshLoaderUserAllocate = void*(*)(size_t);
@@ -79,7 +118,7 @@ namespace asset {
 	public:
 		static void SetUserMemoryCallbacks(PFN_MeshLoaderUserAllocate allocate_fn, PFN_MeshLoaderUserFree free_fn);
 
-		constexpr MeshLoader(MeshLoaderFlags flags) : m_flags(flags) {}
+		constexpr MeshLoader(MeshLoaderFlags flags = MeshLoaderFlagBits::None) : m_flags(flags) {}
 
 		MeshRef ReadFromFile(const char* filename);
 		size_t WriteToFile(const MeshRef& ref, const char* filename);
