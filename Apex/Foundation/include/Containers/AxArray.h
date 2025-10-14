@@ -10,7 +10,7 @@ namespace apex {
 	 /// \brief Container of contiguous elements of the same type
 	 /// \details Defines common functionality across AxArray, AxDynamicArray, AxStaticArray
 	 /// \tparam T Type of elements stored in the array
-	template <typename T, StorageType >
+	template <typename T, StorageType kStorageType>
 	class AxArrayBase
 	{
 		using ElemType = T;
@@ -40,17 +40,23 @@ namespace apex {
 			Iterator operator++(int) { Iterator tmp(*this); operator++(); return tmp; } // post-increment
 			Iterator& operator--() { --m_ptr; return *this; } // pre-decrement
 			Iterator operator--(int) { Iterator tmp(*this); operator--(); return tmp; } // post-decrement
-			Iterator operator+(difference_type size) { return { m_ptr + size }; } // TODO: add an assert to check for overflow?
-			Iterator operator-(difference_type size) { return { m_ptr - size }; } // TODO: add an assert to check for overflow?
+
+			Iterator operator+(difference_type size) const { return { m_ptr + size }; } // TODO: add an assert to check for overflow?
+			Iterator operator-(difference_type size) const { return { m_ptr - size }; } // TODO: add an assert to check for overflow?
+			Iterator& operator+=(difference_type size) { m_ptr += size; return *this; }
+			Iterator& operator-=(difference_type size) { m_ptr -= size; return *this; }
 
 			bool operator==(const Iterator& rhs) const { return m_ptr == rhs.m_ptr; }
 			bool operator!=(const Iterator& rhs) const { return m_ptr != rhs.m_ptr; }
 			bool operator<(const Iterator& rhs) const { return m_ptr < rhs.m_ptr; }
 			bool operator>(const Iterator& rhs) const { return m_ptr > rhs.m_ptr; }
+
 			difference_type operator-(const Iterator& rhs) const { return m_ptr - rhs.m_ptr; }
 
 			reference operator*() const { return *m_ptr; }
 			pointer operator->() const { return m_ptr; }
+
+			reference operator[](difference_type offset) { return *(m_ptr + offset); }
 
 		private:
 			IterType* m_ptr {};
@@ -151,7 +157,7 @@ namespace apex {
 		template <typename... Args>
 		reference emplace_back(Args&&... args)
 		{
-			axAssertFmt(m_size < m_capacity, "Array size exceeds capacity!");
+			GrowIfDynamic();
 			ConstructInPlace(&m_data[m_size], std::forward<Args>(args)...);
 			return m_data[m_size++];
 		}
@@ -160,7 +166,7 @@ namespace apex {
 		reference emplace(size_t index, Args&&... args)
 		{
 			axAssert(index < m_size + 1 && index < m_capacity);
-			axAssertFmt(m_size < m_capacity, "Array size exceeds capacity!");
+			GrowIfDynamic();
 			// shift elements to the right from index upto size
 			ShiftElementsRight(index);
 			ConstructInPlace(&m_data[index], std::forward<Args>(args)...);
@@ -170,13 +176,13 @@ namespace apex {
 
 		void append(const value_type& obj)
 		{
-			axAssertFmt(m_size < m_capacity, "Array size exceeds capacity!");
+			GrowIfDynamic();
 			m_data[m_size++] = obj;
 		}
 
 		void append(value_type&& obj)
 		{
-			axAssertFmt(m_size < m_capacity, "Array size exceeds capacity!");
+			GrowIfDynamic();
 			m_data[m_size++] = std::move(obj);
 		}
 
@@ -190,7 +196,7 @@ namespace apex {
 		void insert(size_t index, const value_type& obj)
 		{
 			axAssertFmt(index < m_size + 1 && index < m_capacity, "Array insertion index in out of range!");
-			axAssertFmt(m_size < m_capacity, "Array size exceeds capacity!");
+			GrowIfDynamic();
 			// shift elements to the right from index upto size
 			ShiftElementsRight(index);
 			m_data[index] = obj;
@@ -200,7 +206,7 @@ namespace apex {
 		void insert(size_t index, value_type&& obj)
 		{
 			axAssertFmt(index < m_size + 1 && index < m_capacity, "Array insertion index in out of range!");
-			axAssertFmt(m_size < m_capacity, "Array size exceeds capacity!");
+			GrowIfDynamic();
 			// shift elements to the right from index upto size
 			ShiftElementsRight(index);
 			// append(std::move(obj));
@@ -373,6 +379,21 @@ namespace apex {
 			}
 		}
 
+		void GrowIfDynamic()
+		{
+			if constexpr (kStorageType == Dynamic)
+			{
+				if (m_size == m_capacity)
+				{
+					reserve(m_capacity == 0 ? 2 : m_capacity * 2);
+				}
+			}
+			else
+			{
+				axAssertFmt(m_size < m_capacity, "Array size exceeds capacity!");
+			}
+		}
+
 	protected:
 		size_t m_capacity { 0 };
 		size_t m_size { 0 };
@@ -493,7 +514,7 @@ namespace apex {
 	struct AxStaticArray
 	{
 		T m_data[Size];
-		uint32_t m_size = Size;
+		size_t m_size = 0;
 
 		[[nodiscard]] auto operator[](size_t index) -> T&
 		{
@@ -506,7 +527,11 @@ namespace apex {
 			return const_cast<AxStaticArray* const>(this)->operator[](index);
 		}
 
-		[[nodiscard]] auto size() const -> size_t { return Size; }
+		void SetSize(size_t newSize) { axAssert(newSize <= Size); m_size = newSize; }
+		void clear() { m_size = 0; }
+
+		[[nodiscard]] auto size() const -> size_t { return m_size; }
+		[[nodiscard]] auto capacity() const -> size_t { return Size; }
 
 		[[nodiscard]] auto data() -> T* { return m_data; }
 		[[nodiscard]] auto data() const -> T const* { return m_data; }
@@ -522,12 +547,12 @@ namespace apex {
 
 		[[nodiscard]] auto getRef() -> AxArrayRef<T>
 		{
-			return make_array_ref(m_data, Size);
+			return make_array_ref(m_data);
 		}
 
 		[[nodiscard]] auto getRef() const -> AxArrayRef<const T>
 		{
-			return make_array_ref(m_data, Size);
+			return make_array_ref(m_data);
 		}
 	};
 
