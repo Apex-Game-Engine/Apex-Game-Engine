@@ -115,6 +115,21 @@ namespace apex {
 
 		operator bool() const { return size() > 0; }
 
+		AxString& Append(const char* s, size_t slen = -1)
+		{
+			if (slen == -1)
+				slen = strlen(s);
+			size_t olen = size();
+			resize(olen + slen);
+			::memcpy_s(data() + olen, capacity() - olen, s, slen + 1);
+			return *this;
+		}
+
+		AxString& Append(const AxString& s)
+		{
+			return Append(s.data(), s.size());
+		}
+
 	protected:
 		void Allocate(size_t capacity)
 		{
