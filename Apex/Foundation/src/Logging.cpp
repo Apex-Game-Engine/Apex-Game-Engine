@@ -3,8 +3,8 @@
 #include "Core/Console.h"
 
 #ifdef _WIN32
-#define WINDOWS_LEAN_AND_MEAN
-#include <windows.h>
+#	define WIN32_LEAN_AND_MEAN
+#	include <windows.h>
 #endif
 
 namespace apex {
@@ -12,32 +12,38 @@ namespace logging {
 
 	namespace detail
 	{
-		constexpr const char* LOG_MSG_ANSI_FORMAT = "%s[%s::(%s):%d] <%s> :: %s\n\033[0m";
-		constexpr const char* LOG_MSG_FORMAT = "[%s::(%s):%d] <%s> :: %s\n";
+		constexpr const char* LOG_MSG_ANSI_FORMAT = "{} [{}] \033[0m ({}:{}) <{}> :: {}\n";
+		constexpr const char* LOG_MSG_FORMAT = "[{}] ({}:{}) <{}> :: {}\n";
 		char MSG_BUF[2048] {};
 
-		const char* LOG_LEVEL_STR[static_cast<u64>(LogLevel::_MAX_ENUM_)] =
+		constexpr const char* get_log_level_str(LogLevel log_level)
 		{
-			"Trace",
-			"Debug",
-			"Info",
-			"Warn",
-			"Error",
-			"Critical",
+			switch (log_level) {
+			case LogLevel::Trace:		return "Trace";
+			case LogLevel::Debug:		return "Debug";
+			case LogLevel::Info:		return "Info";
+			case LogLevel::Warn:		return "Warn";
+			case LogLevel::Error:		return "Error";
+			case LogLevel::Critical:	return "Critical";
+			default:					return "";
+			}
 		};
 
 		const char* format_log_msg(const LogMsg& log_msg)
 		{
-			(void)snprintf(MSG_BUF, sizeof(MSG_BUF), LOG_MSG_FORMAT,
-				log_msg.filename, log_msg.funcsig, log_msg.lineno,
-				LOG_LEVEL_STR[static_cast<u64>(log_msg.level)],
-				log_msg.msg
-			);
+			auto [pEnd, size] = fmt::format_to_n(MSG_BUF, sizeof(MSG_BUF),
+				LOG_MSG_FORMAT,
+				get_log_level_str(log_msg.level),
+				log_msg.filename,
+				log_msg.lineno,
+				log_msg.funcsig,
+				log_msg.msg);
+			*pEnd = '\0';
 
 			return MSG_BUF;
 		}
 
-		const char* get_ansi_color_for_level(LogLevel level)
+		constexpr const char* get_ansi_color_for_level(LogLevel level)
 		{
 			switch (level)
 			{
@@ -47,23 +53,28 @@ namespace logging {
 			case LogLevel::Warn: return "\033[93m";
 			case LogLevel::Error: return "\033[41m\033[97m";
 			case LogLevel::Critical: return "\033[101m\033[30m";
-			default: break;
+			default: return "";
 			}
-			return "";
 		}
 
 		const char* format_log_message_ansi(const LogMsg& log_msg)
 		{
-			(void)snprintf(MSG_BUF, sizeof(MSG_BUF), LOG_MSG_ANSI_FORMAT, get_ansi_color_for_level(log_msg.level),
-				log_msg.filename, log_msg.funcsig, log_msg.lineno,
-				LOG_LEVEL_STR[static_cast<u64>(log_msg.level)],
-				log_msg.msg
-			);
+			auto [pEnd, size] = fmt::format_to_n(MSG_BUF, sizeof(MSG_BUF),
+				LOG_MSG_ANSI_FORMAT,
+				get_ansi_color_for_level(log_msg.level),
+				get_log_level_str(log_msg.level),
+				log_msg.filename,
+				log_msg.lineno,
+				log_msg.funcsig,
+				log_msg.msg);
+			*pEnd = '\0';
 
 			return MSG_BUF;
 		}
 
 		Logger s_logger;
+		Console* s_console;
+		DebugOutputSink s_debugSink;
 		ConsoleSink_st s_stdoutSink;
 	}
 
@@ -80,11 +91,6 @@ namespace logging {
 		{
 			m_sinks[i]->log(log_msg);
 		}
-	}
-
-	void Logger::AttachConsole(Console* console)
-	{
-		detail::s_stdoutSink.console = console;
 	}
 
 	void Logger::addSink(ISink* sink)
@@ -109,8 +115,17 @@ namespace logging {
 		}
 	}
 
-	void Logger::Init()
+	void Logger::Init(bool enable_console)
 	{
+		if (enable_console)
+		{
+			static char s_consoleBuffer[sizeof(Console)];
+			detail::s_stdoutSink.console = new (s_consoleBuffer) Console("Apex Debug Console");
+		}
+		else
+		{
+			detail::s_logger.addSink(&detail::s_debugSink);
+		}
 		detail::s_logger.addSink(&detail::s_stdoutSink);
 	}
 
@@ -125,6 +140,12 @@ namespace logging {
 
 	void Logger::log(ISink* sink, const LogMsg& log_msg)
 	{
+	}
+
+	void DebugOutputSink::log(const LogMsg& log_msg)
+	{
+		OutputDebugStringA(log_msg.formatted);
+		fmt::detail::print(stdout, { log_msg.formatted });
 	}
 
 	void ConsoleSink::log(const LogMsg& log_msg)
@@ -149,7 +170,7 @@ namespace logging {
 		int res = MessageBoxA(
 			NULL,
 			log_msg.formatted,
-			detail::LOG_LEVEL_STR[(int)log_msg.level],
+			detail::get_log_level_str(log_msg.level),
 			MB_ABORTRETRYIGNORE | MB_ICONERROR);
 		if (res == IDABORT)
 			exit(EXIT_FAILURE);

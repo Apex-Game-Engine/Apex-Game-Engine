@@ -57,7 +57,7 @@ namespace logging {
 		void removeSink(ISink* sink);
 
 		static void AttachConsole(Console* console);
-		static void Init();
+		static void Init(bool enable_console);
 		static Logger& get();
 
 		static void log(ISink* sink, LogLevel level, const char *file, const char *funcsig, u32 lineno, const char *msg);
@@ -65,6 +65,11 @@ namespace logging {
 
 		ISink* m_sinks[8];
 		size_t m_sinkCount {0};
+	};
+
+	struct DebugOutputSink : public ISink
+	{
+		void log(const LogMsg& log_msg) override;
 	};
 
 	struct ConsoleSink : public ISink
@@ -136,7 +141,7 @@ namespace logging {
 #define axDebugFmt(_fmt, ...)    axLogLevelFmt(apex::logging::LogLevel::Debug, __FILE__, __FUNCTION__, __LINE__, _fmt, ##__VA_ARGS__)
 #define axInfoFmt(_fmt, ...)     axLogLevelFmt(apex::logging::LogLevel::Info, __FILE__, __FUNCTION__, __LINE__, _fmt, ##__VA_ARGS__)
 #define axWarnFmt(_fmt, ...)     axLogLevelFmt(apex::logging::LogLevel::Warn, __FILE__, __FUNCTION__, __LINE__, _fmt, ##__VA_ARGS__)
-#define axErrorFmt(_fmt, ...)    (axLogLevelFmt(apex::logging::LogLevel::Error, __FILE__, __FUNCTION__, __LINE__, _fmt, ##__VA_ARGS__), DEBUG_BREAK())
+#define axErrorFmt(_fmt, ...)    (axLogLevelFmt(apex::logging::LogLevel::Error, __FILE__, __FUNCTION__, __LINE__, _fmt, ##__VA_ARGS__))
 #define axCriticalFmt(_fmt, ...) (axLogLevelFmt(apex::logging::LogLevel::Critical, __FILE__, __FUNCTION__, __LINE__, _fmt, ##__VA_ARGS__), DEBUG_BREAK())
 
 #define axVerifyFailedError(msg)          (apex::logging::LogVerifyFailedError(__FILE__, __FUNCTION__, __LINE__, msg))
