@@ -3,6 +3,7 @@
 #include "Core/Types.h"
 #include "Concurrency/Concurrency.h"
 #include "Formatting.h"
+#include "Macros.h"
 
 namespace apex
 {
@@ -15,7 +16,7 @@ namespace apex::concurrency
 }
 
 namespace apex {
-namespace logging {
+namespace logs {
 
 	enum class LogLevel : apex::u8
 	{
@@ -53,6 +54,8 @@ namespace logging {
 		void log(LogLevel level, const char *file, const char *funcsig, u32 lineno, const char *msg) const;
 		void log(const LogMsg& log_msg) const;
 
+		LogLevel setMinLogLevel(LogLevel lvl);
+
 		void addSink(ISink* sink);
 		void removeSink(ISink* sink);
 
@@ -65,6 +68,13 @@ namespace logging {
 
 		ISink* m_sinks[8];
 		size_t m_sinkCount {0};
+		LogLevel m_minLevel {
+#if APEX_DEBUG
+			LogLevel::Debug
+#else
+			LogLevel::Error
+#endif
+		};
 	};
 
 	struct DebugOutputSink : public ISink
@@ -127,22 +137,22 @@ namespace logging {
 }
 }
 
-#define axLogLevel(level, file, funcsig, lineno, msg)          apex::logging::Logger::get().log(level, file, funcsig, lineno, msg)
+#define axLogLevel(level, file, funcsig, lineno, msg)          apex::logs::Logger::get().log(level, file, funcsig, lineno, msg)
 #define axLogLevelFmt(level, file, funcsig, lineno, _fmt, ...) axLogLevel(level, file, funcsig, lineno, apex::format(_fmt, ##__VA_ARGS__).data())
 
-#define axLog(msg)      axLogLevel(apex::logging::LogLevel::Trace, __FILE__, __FUNCTION__, __LINE__, msg)
-#define axDebug(msg)    axLogLevel(apex::logging::LogLevel::Debug, __FILE__, __FUNCTION__, __LINE__, msg)
-#define axInfo(msg)     axLogLevel(apex::logging::LogLevel::Info, __FILE__, __FUNCTION__, __LINE__, msg)
-#define axWarn(msg)     axLogLevel(apex::logging::LogLevel::Warn, __FILE__, __FUNCTION__, __LINE__, msg)
-#define axError(msg)    axLogLevel(apex::logging::LogLevel::Error, __FILE__, __FUNCTION__, __LINE__, msg)
-#define axCritical(msg) (axLogLevel(apex::logging::LogLevel::Critical, __FILE__, __FUNCTION__, __LINE__, msg), DEBUG_BREAK())
+#define axLog(msg)      axLogLevel(apex::logs::LogLevel::Trace, __FILE__, __FUNCTION__, __LINE__, msg)
+#define axDebug(msg)    axLogLevel(apex::logs::LogLevel::Debug, __FILE__, __FUNCTION__, __LINE__, msg)
+#define axInfo(msg)     axLogLevel(apex::logs::LogLevel::Info, __FILE__, __FUNCTION__, __LINE__, msg)
+#define axWarn(msg)     axLogLevel(apex::logs::LogLevel::Warn, __FILE__, __FUNCTION__, __LINE__, msg)
+#define axError(msg)    axLogLevel(apex::logs::LogLevel::Error, __FILE__, __FUNCTION__, __LINE__, msg)
+#define axCritical(msg) (axLogLevel(apex::logs::LogLevel::Critical, __FILE__, __FUNCTION__, __LINE__, msg))
 
-#define axLogFmt(_fmt, ...)      axLogLevelFmt(apex::logging::LogLevel::Trace, __FILE__, __FUNCTION__, __LINE__, _fmt, ##__VA_ARGS__)
-#define axDebugFmt(_fmt, ...)    axLogLevelFmt(apex::logging::LogLevel::Debug, __FILE__, __FUNCTION__, __LINE__, _fmt, ##__VA_ARGS__)
-#define axInfoFmt(_fmt, ...)     axLogLevelFmt(apex::logging::LogLevel::Info, __FILE__, __FUNCTION__, __LINE__, _fmt, ##__VA_ARGS__)
-#define axWarnFmt(_fmt, ...)     axLogLevelFmt(apex::logging::LogLevel::Warn, __FILE__, __FUNCTION__, __LINE__, _fmt, ##__VA_ARGS__)
-#define axErrorFmt(_fmt, ...)    (axLogLevelFmt(apex::logging::LogLevel::Error, __FILE__, __FUNCTION__, __LINE__, _fmt, ##__VA_ARGS__))
-#define axCriticalFmt(_fmt, ...) (axLogLevelFmt(apex::logging::LogLevel::Critical, __FILE__, __FUNCTION__, __LINE__, _fmt, ##__VA_ARGS__), DEBUG_BREAK())
+#define axLogFmt(_fmt, ...)      axLogLevelFmt(apex::logs::LogLevel::Trace, __FILE__, __FUNCTION__, __LINE__, _fmt, ##__VA_ARGS__)
+#define axDebugFmt(_fmt, ...)    axLogLevelFmt(apex::logs::LogLevel::Debug, __FILE__, __FUNCTION__, __LINE__, _fmt, ##__VA_ARGS__)
+#define axInfoFmt(_fmt, ...)     axLogLevelFmt(apex::logs::LogLevel::Info, __FILE__, __FUNCTION__, __LINE__, _fmt, ##__VA_ARGS__)
+#define axWarnFmt(_fmt, ...)     axLogLevelFmt(apex::logs::LogLevel::Warn, __FILE__, __FUNCTION__, __LINE__, _fmt, ##__VA_ARGS__)
+#define axErrorFmt(_fmt, ...)    (axLogLevelFmt(apex::logs::LogLevel::Error, __FILE__, __FUNCTION__, __LINE__, _fmt, ##__VA_ARGS__))
+#define axCriticalFmt(_fmt, ...) (axLogLevelFmt(apex::logs::LogLevel::Critical, __FILE__, __FUNCTION__, __LINE__, _fmt, ##__VA_ARGS__))
 
-#define axVerifyFailedError(msg)          (apex::logging::LogVerifyFailedError(__FILE__, __FUNCTION__, __LINE__, msg))
-#define axVerifyFailedErrorFmt(_fmt, ...) (apex::logging::LogVerifyFailedError(__FILE__, __FUNCTION__, __LINE__, apex::format(_fmt, ##__VA_ARGS__).data()))
+#define axVerifyFailedError(msg)          (apex::logs::LogVerifyFailedError(__FILE__, __FUNCTION__, __LINE__, msg))
+#define axVerifyFailedErrorFmt(_fmt, ...) (apex::logs::LogVerifyFailedError(__FILE__, __FUNCTION__, __LINE__, apex::format(_fmt, ##__VA_ARGS__).data()))

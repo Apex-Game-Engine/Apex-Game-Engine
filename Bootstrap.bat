@@ -1,7 +1,5 @@
 @echo off
-if not defined DevEnvDir (
-    call "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvarsall.bat" x64
-)
+call setenv
 
 for /f "tokens=1,* delims= " %%a in ("%*") do set ALL_BUT_FIRST=%%b
 

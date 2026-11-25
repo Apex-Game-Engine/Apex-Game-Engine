@@ -1,13 +1,13 @@
 #pragma once
 
-#include "gfx_config.h"
-
 #include <spirv_reflect.h>
 #include <vulkan/vulkan_core.h>
 #include <vma.h>
 
 #include "Containers/AxArray.h"
 #include "Graphics/GraphicsContext.h"
+#include "Math/Color.h"
+#include "Memory/UniquePtr.h"
 
 namespace apex::plat
 {
@@ -80,11 +80,17 @@ namespace gfx {
 		bool    supportsTransfer : 1 = false;
 	};
 
+	struct VulkanGlobalDescriptor
+	{
+		u32 binding : 3;
+		u32	index : 29;
+	};
+
 	class VulkanCommandBuffer : public CommandBuffer
 	{
 	public:
-		VulkanCommandBuffer(VulkanDevice const* device, VkCommandPool command_pool, VkCommandBuffer command_buffer, QueueType queue, u32 thread_idx)
-		: m_device(device), m_commandPool(command_pool) , m_commandBuffer(command_buffer), m_queue(queue), m_threadIdx(thread_idx)
+		VulkanCommandBuffer(VulkanDevice const* device, VkCommandPool command_pool, VkCommandBuffer command_buffer, QueueType queue)
+		: m_commandPool(command_pool) , m_commandBuffer(command_buffer), m_queue(queue)
 		{}
 
 		~VulkanCommandBuffer() override;
@@ -92,6 +98,7 @@ namespace gfx {
 		NON_COPYABLE(VulkanCommandBuffer);
 
 		void* GetNativeHandle() override { return m_commandBuffer; }
+		QueueType GetQueueType() const override { return m_queue; }
 
 		void Begin() override;
 		void End() override;
@@ -101,23 +108,32 @@ namespace gfx {
 		void BindComputePipeline(ComputePipeline const* pipeline) override;
 		void Dispatch(Dim3D group_counts) override;
 
-		void BeginRendering(const ImageView* color_image_view, ImageView const* depth_stencil_image_view, bool clear = true) override;
+		void BeginRendering(ImageView const* color_image_view, ImageView const* depth_stencil_image_view, LoadOp load_op) override;
+		void BeginRendering(AxSpan<ImageView const*> color_image_views, ImageView const* depth_stencil_image_view, LoadOp load_op) override;
 		void EndRendering() override;
 		void BindGraphicsPipeline(GraphicsPipeline const* pipeline) override;
 		void BindDescriptorSet(DescriptorSet const& descriptor_set, GraphicsPipeline const* pipeline) override;
 		void BindDescriptorSet(DescriptorSet const* descriptor_set, ComputePipeline const* pipeline) override {}
-		void PushConstants(AxArrayRef<const char> const& bytes) override;
+		void PushConstants(AxSpan<const char> const& bytes) override;
 		void SetViewport(Viewport viewport) override;
 		void SetScissor(Rect2D scissor) override;
-		void Clear() override {  }
-		void BindVertexBuffer(Buffer const* buffer) override;
+		void SetClearColor(Color4f rgba) override;
+		void Clear() override { axAssertFmt(false, "Function '%s' is not implemented!", __FUNCTION__); }
+		void BindVertexBuffer(VertexBuffer const* buffer) override;
 		void BindIndexBuffer(Buffer const* buffer) override;
 		void Draw(u32 vertex_count) override;
 		void DrawIndexed(u32 index_count) override;
 		void DrawIndirect() override { axDebug(__FUNCTION__); }
+		void TransitionImageCrossQueueFrom(const Image* image,
+							ImageLayout old_layout, PipelineStageFlags src_stage_mask, AccessFlags src_access_mask, QueueType src_queue,
+							ImageLayout new_layout, PipelineStageFlags dst_stage_mask, AccessFlags dst_access_mask) override;
+		void TransitionImageCrossQueueTo(const Image* image,
+							ImageLayout old_layout, PipelineStageFlags src_stage_mask, AccessFlags src_access_mask,
+							ImageLayout new_layout, PipelineStageFlags dst_stage_mask, AccessFlags dst_access_mask, QueueType dst_queue) override;
 		void TransitionImage(const Image* image,
-							 ImageLayout old_layout, PipelineStageFlags src_stage_mask, AccessFlags src_access_mask, QueueType src_queue,
-							 ImageLayout new_layout, PipelineStageFlags dst_stage_mask, AccessFlags dst_access_mask, QueueType dst_queue) override;
+							ImageLayout old_layout, PipelineStageFlags src_stage_mask, AccessFlags src_access_mask,
+							ImageLayout new_layout, PipelineStageFlags dst_stage_mask, AccessFlags dst_access_mask) override;
+		void TransitionImage(const Image* image, ImageLayout old_layout, ImageLayout new_layout) override;
 		void Barrier() override { axDebug(__FUNCTION__); }
 		void InsertMemoryBarrier(PipelineStageFlags src_stage_mask, AccessFlags src_access_mask,
 		                         PipelineStageFlags dst_stage_mask, AccessFlags dst_access_mask) override;
@@ -125,7 +141,7 @@ namespace gfx {
 		void BlitImage(const Image* src, ImageLayout src_layout, const Image* dst, ImageLayout dst_layout) override;
 		void CopyBuffer(const Buffer* src, const Buffer* dst) override;
 		void CopyImageToBuffer(const Image* src, const Buffer* dst) override { axDebug(__FUNCTION__); }
-		void CopyImage(const Image* src, const Image* dst) override { axDebug(__FUNCTION__); }
+		void CopyImage(const Image* src, ImageLayout src_layout, const Image* dst, ImageLayout dst_layout) override;
 		void CopyBufferToImage(const Buffer* src, const Image* dst, ImageLayout layout) override;
 		void CopyQueryResults() override { axDebug(__FUNCTION__); }
 
@@ -133,11 +149,11 @@ namespace gfx {
 		void PopLabel() override;
 
 	private:
-		VulkanDevice const*		m_device;
 		VkCommandPool			m_commandPool;
 		VkCommandBuffer			m_commandBuffer;
 		QueueType				m_queue;
-		u32						m_threadIdx;
+
+		Color4f					m_clearColor { 0, 0, 0, 0 };
 
 		friend class VulkanDevice;
 	};
@@ -145,13 +161,22 @@ namespace gfx {
 	class VulkanBuffer : public Buffer
 	{
 	public:
-		VulkanBuffer(VulkanDevice const* device, VkBuffer buffer, VkBufferCreateInfo const& create_info, VmaAllocation allocation, VmaAllocationInfo const& allocation_info)
-		: m_device(device), m_buffer(buffer), m_allocation(allocation), m_allocationInfo(allocation_info), m_usage(create_info.usage)
+		VulkanBuffer(DEBUG_ONLY(const char* name,) VkBuffer buffer, VkBufferCreateInfo const& create_info, VmaAllocation allocation, VmaAllocationInfo const& allocation_info)
+			: Buffer(DEBUG_IF_ELSE(name,nullptr)), m_buffer(buffer), m_allocation(allocation), m_allocationInfo(allocation_info)
+			, m_usage(create_info.usage), m_globalDescriptor{ GlobalDescriptorBinding::COUNT, 0 }
 		{}
 
 		~VulkanBuffer() override;
 
 		NON_COPYABLE(VulkanBuffer);
+
+		VulkanBuffer(VulkanBuffer&& other) noexcept
+			: Buffer(DEBUG_IF_ELSE(other.GetName(),nullptr)), m_buffer(other.m_buffer), m_allocation(other.m_allocation), m_allocationInfo(other.m_allocationInfo)
+			, m_usage(other.m_usage), m_globalDescriptor{ GlobalDescriptorBinding::COUNT, 0 }
+		{
+		}
+
+		NON_MOVE_ASSIGNABLE(VulkanBuffer);
 
 		void* GetMappedPointer() const override { return m_allocationInfo.pMappedData; }
 
@@ -159,11 +184,8 @@ namespace gfx {
 
 		size_t GetSize() const override { return m_allocationInfo.size; }
 		size_t GetOffset() const { return m_allocationInfo.offset; }
-		u32 GetBindlessIndex(BindlessDescriptorType descriptor_type) const override
-		{
-			axAssert(descriptor_type == BindlessDescriptorType::UniformBuffer || descriptor_type == BindlessDescriptorType::StorageBuffer);
-			return m_bindlessIndices[descriptor_type - BindlessDescriptorType::UniformBuffer];
-		}
+		GlobalDescriptorBinding GetGlobalDescriptorBinding() const override { return static_cast<GlobalDescriptorBinding::Value>(m_globalDescriptor.binding); }
+		u16 GetGlobalDescriptorIndex() const override { return m_globalDescriptor.index; }
 
 		// Vulkan specific methods
 		VkBuffer GetNativeHandle() const { return m_buffer; }
@@ -172,12 +194,11 @@ namespace gfx {
 		VkBufferUsageFlags GetUsageFlags() const { return m_usage; }
 
 	private:
-		VulkanDevice const* m_device;
 		VkBuffer            m_buffer;
 		VmaAllocation       m_allocation;
 		VmaAllocationInfo   m_allocationInfo;
 		VkBufferUsageFlags	m_usage;
-		u32					m_bindlessIndices[2] { (u32)-1, (u32)-1 }; // 0 - UniformBuffer, 1 - StorageBuffer
+		VulkanGlobalDescriptor m_globalDescriptor;
 
 		friend class VulkanDevice;
 	};
@@ -185,26 +206,38 @@ namespace gfx {
 	class VulkanImage : public Image
 	{
 	public:
-		VulkanImage(VulkanDevice const* device, VkImage image, VkImageCreateInfo const& create_info)
-		: m_device(device), m_image(image), m_allocation(nullptr), m_allocationInfo(), m_view(nullptr)
-		, m_extent(create_info.extent), m_usage(create_info.usage), m_format(create_info.format)
+		VulkanImage(DEBUG_ONLY(const char* name,) VulkanDevice const* device, VkImage image, VkImageCreateInfo const& create_info)
+			: Image(DEBUG_IF_ELSE(name,nullptr)), m_device(device), m_image(image), m_allocation(nullptr), m_allocationInfo()
+			, m_view(nullptr), m_type(create_info.imageType), m_extent(create_info.extent), m_usage(create_info.usage), m_format(create_info.format)
 		{}
 
-		VulkanImage(VulkanDevice const* device, VkImage image, VkImageCreateInfo const& create_info, VkImageView view);
+		VulkanImage(DEBUG_ONLY(const char* name,) VulkanDevice const* device, VkImage image, VkImageCreateInfo const& create_info, VkImageView view);
 
-		VulkanImage(VulkanDevice const* device, VkImage image, VkImageCreateInfo const& create_info, VmaAllocation allocation, VmaAllocationInfo const& allocation_info)
-		: m_device(device), m_image(image), m_allocation(allocation), m_allocationInfo(allocation_info), m_view(nullptr)
-		, m_extent(create_info.extent), m_usage(create_info.usage), m_format(create_info.format)
+		VulkanImage(DEBUG_ONLY(const char* name,)VulkanDevice const* device, VkImage image, VkImageCreateInfo const& create_info, VmaAllocation allocation, VmaAllocationInfo const& allocation_info)
+			: Image(DEBUG_IF_ELSE(name,nullptr)), m_device(device), m_image(image), m_allocation(allocation), m_allocationInfo(allocation_info)
+			, m_view(nullptr), m_type(create_info.imageType), m_extent(create_info.extent), m_usage(create_info.usage), m_format(create_info.format)
 		{}
 
-		VulkanImage(VulkanDevice const* device, VkImage image, VkImageCreateInfo const& create_info, VmaAllocation allocation, VmaAllocationInfo const& allocation_info, VkImageView view);
+		VulkanImage(DEBUG_ONLY(const char* name,) VulkanDevice const* device, VkImage image, VkImageCreateInfo const& create_info, VmaAllocation allocation, VmaAllocationInfo const& allocation_info, VkImageView view);
 
 		// Used for wrapping over swapchain images
-		VulkanImage(VulkanDevice const* device, VkImage image, VkImageView view, VkExtent3D extent, VkFormat format, VkImageUsageFlags usage);
+		VulkanImage(DEBUG_ONLY(const char* name,) VulkanDevice const* device, VkImage image, VkImageView view, VkImageType type, VkExtent3D extent, VkFormat format, VkImageUsageFlags usage);
 
 		~VulkanImage() override;
 
 		NON_COPYABLE(VulkanImage);
+
+		VulkanImage(VulkanImage&& other) noexcept
+			: Image(DEBUG_IF_ELSE(other.GetName(),nullptr)), m_device(other.m_device), m_image(other.m_image), m_allocation(other.m_allocation), m_allocationInfo(other.m_allocationInfo)
+			, m_view(other.m_view), m_extent(other.m_extent), m_usage(other.m_usage), m_format(other.m_format)
+		{
+			other.m_device = nullptr;
+			other.m_image = VK_NULL_HANDLE;
+			other.m_allocation = VK_NULL_HANDLE;
+			other.m_view = nullptr;
+		}
+
+		NON_MOVE_ASSIGNABLE(VulkanImage);
 
 		bool IsValid() const override { return m_image != nullptr; }
 		bool HasView() const override { return m_view != nullptr; }
@@ -216,7 +249,6 @@ namespace gfx {
 
 
 		// Vulkan specific methods
-		VulkanDevice const* GetDevice() const { return m_device; }
 		VkImage GetNativeHandle() const { return m_image; }
 		VmaAllocation GetAllocation() const { return m_allocation; }
 		VmaAllocationInfo GetAllocationInfo() const { return m_allocationInfo; }
@@ -225,15 +257,14 @@ namespace gfx {
 		VkImageUsageFlags GetUsageFlags() const { return m_usage; }
 
 	private:
-		VulkanDevice const*	m_device;
 		VkImage				m_image;
 		VmaAllocation		m_allocation;
 		VmaAllocationInfo	m_allocationInfo;
 		VulkanImageView*	m_view;
 		// Metadata
+		VkImageType         m_type;
 		VkExtent3D			m_extent;
 		VkImageUsageFlags	m_usage;
-		// image type
 		VkFormat            m_format;
 		// mip levels
 		// array layers
@@ -244,8 +275,8 @@ namespace gfx {
 	class VulkanImageView : public ImageView
 	{
 	public:
-		VulkanImageView(VkImageView view, VulkanImage* owner)
-		: m_view(view), m_owner(owner)
+		VulkanImageView(DEBUG_ONLY(const char* name,) VkImageView view, VulkanImage* owner)
+			: ImageView(DEBUG_IF_ELSE(name,nullptr)), m_view(view), m_owner(owner), m_globalDescriptor{ GlobalDescriptorBinding::COUNT, 0 }
 		{}
 
 		~VulkanImageView() override;
@@ -255,20 +286,18 @@ namespace gfx {
 		bool IsValid() const override { return m_view != nullptr; }
 		const Image* GetOwner() const override;
 		Image* GetOwner() override;
-		u32 GetBindlessIndex(BindlessDescriptorType descriptor_type) const override
-		{
-			axAssert(descriptor_type == BindlessDescriptorType::SampledImage || descriptor_type == BindlessDescriptorType::StorageImage);
-			return m_bindlessIndices[descriptor_type];
-		}
+
+		GlobalDescriptorBinding GetGlobalDescriptorBinding() const override { return static_cast<GlobalDescriptorBinding::Value>(m_globalDescriptor.binding); }
+		u16 GetGlobalDescriptorIndex() const override { return m_globalDescriptor.index; }
 
 		// Vulkan specific methods
 		VulkanDevice const* GetDevice() const { return m_owner->GetDevice(); }
 		VkImageView GetNativeHandle() const { return m_view; }
 
 	private:
-		VkImageView         m_view;
-		VulkanImage*        m_owner;
-		u32					m_bindlessIndices[2] { (u32)-1, (u32)-1 }; // 0 - SampledImage, 1 - StorageImage
+		VkImageView			   m_view;
+		VulkanImage*		   m_owner;
+		VulkanGlobalDescriptor m_globalDescriptor;
 
 		friend class VulkanDevice;
 		friend class VulkanImage;
@@ -283,8 +312,8 @@ namespace gfx {
 	class VulkanShaderModule : public ShaderModule
 	{
 	public:
-		VulkanShaderModule(VulkanDevice const* device, VkShaderModule shader, const SpvReflectShaderModule& reflect)
-		: m_device(device), m_shader(shader), m_reflect(reflect)
+		VulkanShaderModule(DEBUG_ONLY(const char* name,) VkShaderModule shader, const SpvReflectShaderModule& reflect)
+			: ShaderModule(DEBUG_IF_ELSE(name,nullptr)), m_shader(shader), m_reflect(reflect)
 		{}
 
 		~VulkanShaderModule() override;
@@ -294,7 +323,6 @@ namespace gfx {
 		VkShaderModule GetNativeHandle() const { return m_shader; }
 
 	private:
-		VulkanDevice const*    m_device;
 		VkShaderModule         m_shader;
 		SpvReflectShaderModule m_reflect;
 
@@ -304,19 +332,19 @@ namespace gfx {
     class VulkanGraphicsPipeline : public GraphicsPipeline
     {
     public:
-		VulkanGraphicsPipeline(VulkanDevice const* device, VkPipeline pipeline)
-			: m_device(device), m_pipeline(pipeline)
+		VulkanGraphicsPipeline(DEBUG_ONLY(const char* name,) VkPipeline pipeline, VertexFormat vertex_format)
+			: GraphicsPipeline(DEBUG_IF_ELSE(name,nullptr)), m_pipeline(pipeline), m_vertexFormat(vertex_format)
 		{
 		}
 
-		VulkanGraphicsPipeline(VulkanDevice const* device, VkPipeline pipeline, VkPipelineLayout pipelineLayout)
-	        : m_device(device), m_pipeline(pipeline), m_pipelineLayout(pipelineLayout)
+		VulkanGraphicsPipeline(DEBUG_ONLY(const char* name,) VkPipeline pipeline, VkPipelineLayout pipelineLayout, VertexFormat vertex_format)
+	        : GraphicsPipeline(DEBUG_IF_ELSE(name,nullptr)), m_pipeline(pipeline), m_pipelineLayout(pipelineLayout), m_vertexFormat(vertex_format)
         {
         }
 
-        VulkanGraphicsPipeline(VulkanDevice const* device, VkPipeline pipeline, VkPipelineLayout pipelineLayout, AxArray<VkDescriptorSetLayout> const& descriptorSetLayouts)
-	        : m_device(device), m_pipeline(pipeline), m_pipelineLayout(pipelineLayout),
-	          m_descriptorSetLayouts(descriptorSetLayouts)
+        VulkanGraphicsPipeline(DEBUG_ONLY(const char* name,) VkPipeline pipeline, VkPipelineLayout pipelineLayout, AxArray<VkDescriptorSetLayout> const& descriptorSetLayouts, VertexFormat vertex_format)
+	        : GraphicsPipeline(DEBUG_IF_ELSE(name,nullptr)), m_pipeline(pipeline), m_pipelineLayout(pipelineLayout)
+	    	, m_descriptorSetLayouts(descriptorSetLayouts), m_vertexFormat(vertex_format)
         {
         }
 
@@ -327,12 +355,15 @@ namespace gfx {
 		VkPipeline GetNativeHandle() const { return m_pipeline; }
 		VkPipelineLayout GetPipelineLayout() const { return m_pipelineLayout; }
 		AxArray<VkDescriptorSetLayout> const& GetDescriptorSetLayouts() const { return m_descriptorSetLayouts; }
+		VertexFormat const& GetVertexFormat() const { return m_vertexFormat; }
+
+		u64 GetVertexFormatHash() const override {return m_vertexFormat.CalcHash(); }
 
     private:
-		VulkanDevice const*            m_device {};
         VkPipeline                     m_pipeline {};
         VkPipelineLayout               m_pipelineLayout {};
         AxArray<VkDescriptorSetLayout> m_descriptorSetLayouts;
+		VertexFormat                   m_vertexFormat;
 
         friend class VulkanDevice;
     };
@@ -340,17 +371,17 @@ namespace gfx {
 	class VulkanComputePipeline : public ComputePipeline
 	{
 	public:
-		VulkanComputePipeline(VulkanDevice const* device, VkPipeline pipeline)
-			: m_device(device), m_pipeline(pipeline)
+		VulkanComputePipeline(DEBUG_ONLY(const char* name,) VkPipeline pipeline)
+			: ComputePipeline(DEBUG_IF_ELSE(name,nullptr)), m_pipeline(pipeline)
 		{}
 
-		VulkanComputePipeline(VulkanDevice const* device, VkPipeline pipeline, VkPipelineLayout pipelineLayout)
-	        : m_device(device), m_pipeline(pipeline), m_pipelineLayout(pipelineLayout)
+		VulkanComputePipeline(DEBUG_ONLY(const char* name,) VkPipeline pipeline, VkPipelineLayout pipelineLayout)
+	        : ComputePipeline(DEBUG_IF_ELSE(name,nullptr)), m_pipeline(pipeline), m_pipelineLayout(pipelineLayout)
         {
         }
 
-		VulkanComputePipeline(VulkanDevice const* device, VkPipeline pipeline, VkPipelineLayout pipelineLayout, AxArray<VkDescriptorSetLayout> const& descriptorSetLayouts)
-	        : m_device(device), m_pipeline(pipeline), m_pipelineLayout(pipelineLayout),
+		VulkanComputePipeline(DEBUG_ONLY(const char* name,) VkPipeline pipeline, VkPipelineLayout pipelineLayout, AxArray<VkDescriptorSetLayout> const& descriptorSetLayouts)
+	        : ComputePipeline(DEBUG_IF_ELSE(name,nullptr)), m_pipeline(pipeline), m_pipelineLayout(pipelineLayout),
 	          m_descriptorSetLayouts(descriptorSetLayouts)
         {
         }
@@ -364,7 +395,6 @@ namespace gfx {
 		AxArray<VkDescriptorSetLayout> const& GetDescriptorSetLayouts() const { return m_descriptorSetLayouts; }
 
 	private:
-		VulkanDevice const*            m_device {};
         VkPipeline                     m_pipeline {};
         VkPipelineLayout               m_pipelineLayout {};
         AxArray<VkDescriptorSetLayout> m_descriptorSetLayouts;
@@ -375,8 +405,8 @@ namespace gfx {
 	class VulkanFence : public Fence
 	{
 	public:
-		VulkanFence(VulkanDevice const* device, VkSemaphore semaphore, u64 init_value)
-			: m_device(device), m_semaphore(semaphore), m_counter(init_value)
+		VulkanFence(VkSemaphore semaphore, u64 init_value)
+			: m_semaphore(semaphore), m_counter(init_value)
 		{}
 
 		~VulkanFence() override;
@@ -391,7 +421,6 @@ namespace gfx {
 		u64 GetAtomicCounterValue() const { return m_counter; }
 
 	private:
-		VulkanDevice const*			m_device {};
 		VkSemaphore					m_semaphore {};
 		std::atomic_uint64_t		m_counter {};
 
@@ -413,51 +442,59 @@ namespace gfx {
 		VkSemaphore			timelineSema {}; // (timeline) synchronizes
 	};
 
-	class VulkanQueue : public Queue
+	class VulkanQueue
 	{
 	public:
 		VulkanQueue()
-			: m_device(nullptr), m_queue(VK_NULL_HANDLE), m_type(QueueType::COUNT)
+			: m_queue(VK_NULL_HANDLE), m_type(QueueType::COUNT)
 		{}
 
-		VulkanQueue(VulkanDevice* device, VkQueue queue, VulkanQueueInfo info, QueueType type)
-			: m_device(device), m_queue(queue), m_info(info), m_type(type), m_submitInfos(128)
-		{}
+		VulkanQueue(VkQueue queue, VulkanQueueInfo info, QueueType type, AxSpan<VkCommandPool> command_pools)
+			: m_queue(queue), m_info(info), m_type(type), m_submitInfos(128)
+		{
+			u32 n = min(command_pools.size(), m_commandPools.capacity());
+			m_commandPools.SetSize(n);
+			for (u32 i = 0; i < n; i++)
+			{
+				m_commandPools[i] = command_pools[i];
+			}
+		}
 
-		~VulkanQueue() override = default;
+		~VulkanQueue() override;
 
 		NON_COPYABLE(VulkanQueue);
 
-		void ResetCommandBuffers(u32 frame_idx, u32 thread_idx) const override;
-		void ResetCurrentFrameCommandBuffers() const override { axDebug(__FUNCTION__); }
-		void Submit(CommandBuffer* command_buffer) override;
-		void Submit(CommandBuffer* command_buffer, bool wait_image_acquired, PipelineStageFlags wait_stage_mask, bool signal_render_complete) override;
-		void Submit(CommandBuffer* command_buffer, Fence* fence, u64 wait_value, PipelineStageFlags wait_stage_mask, u64 signal_value) override;
-		void Submit(const QueueSubmitDesc& desc) override;
-		void Flush() override;
-		void Present() override;
-		void WaitForIdle() override;
-		bool CanPresent() const override { return m_info.supportsPresent; }
-		QueueType GetType() const override { return m_type; }
+		CommandBuffer* AllocateCommandBuffer(u32 frame_index);
+		void ResetCommandBuffers(u32 frame_index);
+
+		void Submit(CommandBuffer* command_buffer);
+		void Submit(CommandBuffer* command_buffer, bool wait_image_acquired, PipelineStageFlags wait_stage_mask, bool signal_render_complete);
+		void Submit(CommandBuffer* command_buffer, Fence* fence, u64 wait_value, PipelineStageFlags wait_stage_mask, u64 signal_value);
+		void Submit(const QueueSubmitDesc& desc);
+		void Flush();
+		bool Present();
+		void WaitForIdle();
+		bool CanPresent() const { return m_info.supportsPresent; }
+		QueueType GetType() const { return m_type; }
 
 		u32 GetQueueFamilyIndex() const { return m_info.familyIndex; }
 		VkQueue GetNativeHandle() const { return m_queue; }
 
 	protected:
-		VulkanDevice*					m_device;
 		VkQueue							m_queue;
 		VulkanQueueInfo					m_info;
 		QueueType						m_type;
+		AxStaticArray<VkCommandPool, MAX_FRAMES_IN_FLIGHT> m_commandPools;
 		AxArray<VkSubmitInfo2>			m_submitInfos;
 
 		friend class VulkanDevice;
 	};
 
-	class VulkanDevice final : public Device
+	class VulkanDevice
 	{
 	public:
-		VulkanDevice(VulkanContextImpl* context, VkPhysicalDevice physical_device, VkDevice logical_device, VmaAllocator allocator, AxArrayRef<VulkanQueueInfo> queue_infos);
-		~VulkanDevice() override;
+		VulkanDevice(VulkanContextImpl* context, VkPhysicalDevice physical_device, VkDevice logical_device, VmaAllocator allocator, AxSpan<VulkanQueueInfo> queue_infos);
+		~VulkanDevice();
 
 		NON_COPYABLE(VulkanDevice);
 		NON_MOVABLE(VulkanDevice);
@@ -466,75 +503,58 @@ namespace gfx {
 		VkPhysicalDevice						GetPhysicalDevice() const						{ return m_physicalDevice; }
 		VkDevice								GetLogicalDevice() const						{ return m_logicalDevice; }
 		VmaAllocator							GetAllocator() const							{ return m_allocator; }
-		VulkanSwapchain const&					GetSwapchain() const							{ return m_swapchain; }
-		VkCommandPool							GetCommandPool(u32 idx) const					{ return m_commandPools[idx]; }
+		VkCommandPool							GetTransferCommandPool() const					{ return m_transferCommandPool; }
 		VulkanPhysicalDeviceFeatures const&		GetPhysicalDeviceFeatures() const				{ return m_physicalDeviceFeatures; }
 		VulkanPhysicalDeviceProperties const&	GetPhysicalDeviceProperties() const				{ return m_physicalDeviceProperties; }
 		VkDescriptorPool						GetDescriptorPool() const						{ return m_descriptorPool; }
-		u32										GetRenderThreadCount() const					{ return m_renderThreadCount; }
+		//u32										GetRenderThreadCount() const					{ return m_renderThreadCount; }
 
-		VkFence									GetRenderFence() const							{ return GetRenderFence(m_currentFrameIndex); }
-		VkSemaphore								GetImageAcquiredSemaphore() const				{ return GetImageAcquiredSemaphore(m_currentFrameIndex); }
-		VkSemaphore								GetRenderCompleteSemaphore() const				{ return GetRenderCompleteSemaphore(m_currentFrameIndex); }
-		VkFence									GetRenderFence(u32 frame) const					{ return m_renderFences[frame]; }
-		VkSemaphore								GetImageAcquiredSemaphore(u32 frame) const		{ return m_imageAcquiredSemaphores[frame]; }
-		VkSemaphore								GetRenderCompleteSemaphore(u32 frame) const		{ return m_renderCompleteSemaphores[frame]; }
-		void									IncrementFramesPresented()						{ m_framesPresentedCount++; m_currentFrameIndex = m_framesPresentedCount % GetFramesInFlight(); }
+		//VkFence									GetRenderFence() const							{ return GetRenderFence(m_currentFrameIndex); }
+		//VkSemaphore								GetImageAcquiredSemaphore() const				{ return GetImageAcquiredSemaphore(m_currentFrameIndex); }
+		//VkSemaphore								GetRenderCompleteSemaphore() const				{ return GetRenderCompleteSemaphore(m_currentFrameIndex); }
+		//VkFence									GetRenderFence(u32 frame) const					{ return m_renderFences[frame]; }
+		//VkSemaphore								GetImageAcquiredSemaphore(u32 frame) const		{ return m_imageAcquiredSemaphores[frame]; }
+		//VkSemaphore								GetRenderCompleteSemaphore(u32 frame) const		{ return m_renderCompleteSemaphores[frame]; }
+		//void									IncrementFramesPresented()						{ m_framesPresentedCount++; m_currentFrameIndex = m_framesPresentedCount % GetMaxFrameCount(); }
 
-		u32										GetTotalFramesPresented() const override		{ return m_framesPresentedCount; }
-		u32										GetFramesInFlight() const override				{ return m_swapchainImageCount; }
-		u32										GetCurrentFrameIndex() const override			{ return m_currentFrameIndex; }
-		u32										GetCurrentSwapchainImageIndex() const override	{ return m_currentSwapchainImageIndex; }
-		Dim2D									GetSurfaceDim() const override					{ return { m_swapchain.extent.width, m_swapchain.extent.height }; }
-
-		AxArrayRef<const VkDescriptorSet> GetBindlessDescriptorSets() const { return make_array_ref(m_bindlessDescriptorSets); }
-		AxArrayRef<const VkDescriptorSetLayout> GetBindlessDescriptorSetLayouts() const { return make_array_ref(m_bindlessDescriptorSetLayouts); }
+		AxSpan<const VkDescriptorSet> GetBindlessDescriptorSets() const { return make_span(m_bindlessDescriptorSets); }
+		AxSpan<const VkDescriptorSetLayout> GetBindlessDescriptorSetLayouts() const { return make_span(m_bindlessDescriptorSetLayouts); }
 		VkPipelineLayout GetBindlessPipelineLayout() const { return m_bindlessPipelineLayout; }
 
-		u32	CalculateCommandPoolIndex(u32 queue_idx, u32 frame_idx, u32 thread_idx) const
-		{
-			return queue_idx * MAX_FRAMES_IN_FLIGHT * m_renderThreadCount + frame_idx * m_renderThreadCount + thread_idx;
-		}
+		VulkanQueue* GetVulkanQueue(QueueType queue_type) { return &m_queues[queue_type]; }
+		const VulkanQueue* GetVulkanQueue(QueueType queue_type) const { return &m_queues[queue_type]; }
 
-		VulkanQueue& GetVulkanQueue(QueueType queue_type) { return m_queues[queue_type]; }
-		const VulkanQueue& GetVulkanQueue(QueueType queue_type) const { return m_queues[queue_type]; }
+		const Image* AcquireNextImage();
+		void WaitForIdle() const;
 
-		Queue* GetQueue(QueueType queue_type) override { return &GetVulkanQueue(queue_type); }
-		const Queue* GetQueue(QueueType queue_type) const override { return &GetVulkanQueue(queue_type); }
-
-		const Image* AcquireNextImage() override;
-		void WaitForIdle() const override;
-
-		CommandBuffer* AllocateCommandBuffer(QueueType queue_idx, u32 frame_index, u32 thread_idx) const override;
+		CommandBuffer* AllocateTransferCommandBuffer() const;
 		//void ResetCommandBuffers(QueueType queue_idx, u32 frame_idx, u32 thread_idx) const override;
 		//void ResetCurrentFrameCommandBuffers() const override;
 		//void Submit(QueueType queue, CommandBuffer* command_buffer) const override;
 		//void SubmitImmediateCommandBuffer(QueueType queue, CommandBuffer* command_buffer) const override;
-		//void Submit(QueueType queue, AxArrayRef<CommandBuffer> command_buffers) const;
+		//void Submit(QueueType queue, AxSpan<CommandBuffer> command_buffers) const;
 
+#if !GFX_USE_BINDLESS_DESCRIPTORS
 		AxArray<DescriptorSet> AllocateDescriptorSets(GraphicsPipeline* pipeline) const override;
 		void UpdateDescriptorSet(DescriptorSet const& descriptor_set) const override;
+#endif // !GFX_USE_BINDLESS_DESCRIPTORS
 
-		ShaderModule* CreateShaderModule(const char* name, const char* filepath) const override;
-		GraphicsPipeline* CreateGraphicsPipeline(const char* name, GraphicsPipelineCreateDesc const& desc) const override;
-		ComputePipeline* CreateComputePipeline(const char* name, ComputePipelineCreateDesc const& desc) const override;
+		ShaderModule* CreateShaderModule(const char* name, const char* filepath) const;
+		GraphicsPipeline* CreateGraphicsPipeline(const char* name, GraphicsPipelineCreateDesc const& desc) const;
+		ComputePipeline* CreateComputePipeline(const char* name, ComputePipelineCreateDesc const& desc) const;
 
-		Buffer* CreateBuffer(const char* name, BufferCreateDesc const& desc) override;
-		Buffer* CreateVertexBuffer(const char* name, size_t size, const void* initial_data) override;
-		Buffer* CreateIndexBuffer(const char* name, size_t size, const void* initial_data) override;
-		Buffer* CreateStagingBuffer(const char* name, size_t size) override;
-
-		Image* CreateImage(const char* name, ImageCreateDesc const& desc) override;
+		Buffer* CreateBuffer(const char* name, BufferCreateDesc const& desc);
+		Image* CreateImage(const char* name, ImageCreateDesc const& desc);
 		//BufferView* CreateBufferView(const char* name, Buffer const* buffer) const;
 		ImageView* CreateImageView(const char* name, Image const* image) const;
-		ImageView* CreateImageView(const char* name, ImageViewCreateDesc const& desc) const override;
+		ImageView* CreateImageView(const char* name, ImageViewCreateDesc const& desc) const;
 
-		Fence* CreateFence(const char* name, u64 init_value) override;
+		Fence* CreateFence(const char* name, u64 init_value);
 
-		void BindSampledImage(ImageView* image_view) override;
-		void BindStorageImage(ImageView* image_view) override;
-		void BindUniformBuffer(Buffer* buffer) override;
-		void BindStorageBuffer(Buffer* buffer) override;
+		void BindSampledImage(ImageView* image_view);
+		void BindStorageImage(ImageView* image_view);
+		void BindUniformBuffer(Buffer* buffer, u64 offset, u64 size);
+		void BindStorageBuffer(Buffer* buffer, u64 offset, u64 size, u32 index);
 
 		void DestroyShaderModule(ShaderModule* shader) const;
 		void DestroyPipeline(GraphicsPipeline* pipeline) const;
@@ -546,19 +566,15 @@ namespace gfx {
 		void DestroyFence(Fence* fence) const;
 
 	protected:
-		void CreateSwapchain(VkSurfaceKHR surface, u32 width, u32 height);
 		void DestroySwapchain();
 		void CreateBindlessDescriptorResources();
 		void CreatePerFrameData();
 		void DestroyPerFrameData();
-		void CreateCommandPools();
+		void CreateTransferCommandPool();
 		VkDescriptorSetLayout CreateDescriptorSetLayoutFromShader(VulkanShaderModule const* shader_module, u32 set_idx) const;
 		VkPushConstantRange CreatePushConstantRangeFromShader(VulkanShaderModule const* shader_module, u32 push_constant_idx) const;
 
 	private:
-		VulkanContextImpl*							m_context;
-
-		// Device objects
 		VkPhysicalDevice							m_physicalDevice {};
 		VkDevice									m_logicalDevice {};
 		VmaAllocator								m_allocator {};
@@ -567,10 +583,10 @@ namespace gfx {
 		AxStaticArray<VkDescriptorSet, 5>			m_bindlessDescriptorSets {};
 		AxStaticArray<VkDescriptorSetLayout, 5>		m_bindlessDescriptorSetLayouts {};
 		VkPipelineLayout							m_bindlessPipelineLayout {};
-		std::atomic_uint32_t						m_nextSampledImageBindingIndex {0};
-		std::atomic_uint32_t						m_nextStorageImageBindingIndex {0};
-		std::atomic_uint32_t						m_nextUniformBufferBindingIndex {0};
-		std::atomic_uint32_t						m_nextStorageBufferBindingIndex {0};
+		std::atomic_uint32_t						m_nextSampledImageDescriptorIndex {0};
+		std::atomic_uint32_t						m_nextStorageImageDescriptorIndex {0};
+		std::atomic_uint32_t						m_nextUniformBufferDescriptorIndex {0};
+		std::atomic_uint32_t						m_nextStorageBufferDescriptorIndex {0};
 	#endif
 		VkSampler									m_defaultNearestSampler {};
 		VkSampler									m_defaultLinearSampler {};
@@ -579,34 +595,24 @@ namespace gfx {
 		// Queue objects
 		AxStaticArray<VulkanQueue, QueueType::COUNT>	m_queues {};
 
-		using CommandPools = AxStaticArray<VkCommandPool, QueueType::COUNT * MAX_COMMAND_POOLS_PER_QUEUE>;
-		CommandPools								m_commandPools {}; // #queues x #frames x #threads
-
-		// Swapchain object
-		VulkanSwapchain								m_swapchain {};
-
+		VkCommandPool								m_transferCommandPool {};
 		// Per frame objects
-		template <typename T> using FrameResourceArray = AxStaticArray<T, MAX_FRAMES_IN_FLIGHT>;
-		AxArray<VulkanImage>						m_swapchainImages {};
-		FrameResourceArray<VkFence>					m_renderFences {};
-		FrameResourceArray<VkSemaphore>				m_imageAcquiredSemaphores {};
-		FrameResourceArray<VkSemaphore>				m_renderCompleteSemaphores {};
+		//template <typename T> using FrameResourceArray = AxStaticArray<T, MAX_FRAMES_IN_FLIGHT>;
+		//AxArray<VulkanImage>						m_swapchainImages {};
+		//FrameResourceArray<VkFence>					m_renderFences {};
+		//FrameResourceArray<VkSemaphore>				m_imageAcquiredSemaphores {};
+		//FrameResourceArray<VkSemaphore>				m_renderCompleteSemaphores {};
 
 		// Device meta properties
 		VulkanPhysicalDeviceFeatures				m_physicalDeviceFeatures {};
 		VulkanPhysicalDeviceProperties				m_physicalDeviceProperties {};
 		VkPhysicalDeviceMemoryProperties2			m_physicalDeviceMemoryProperties {};
 		AxArray<VkExtensionProperties>				m_availableExtensions {};
-		u32											m_renderThreadCount = 1;
-		u32											m_swapchainImageCount = 0;
-		u32											m_currentFrameIndex = 0;
-		u32											m_currentSwapchainImageIndex = 0;
-		u32											m_framesPresentedCount = 0;
 
 		friend class VulkanContextImpl;
 	};
 
-	class VulkanContext final : public ContextBase
+	class VulkanContext final : public Context
 	{
 	public:
 		VulkanContext() = default;
@@ -615,8 +621,7 @@ namespace gfx {
 		void Init(const plat::PlatformWindow& window) override;
 		void Shutdown() override;
 		
-		ContextApi GetApi() const override { return ContextApi::Vulkan; }
-		Device* GetDevice() const override;
+		Api GetApi() const override { return Api::Vulkan; }
 		void GetDeviceFeatures(DeviceFeatures& device_features) const override;
 		void GetDeviceProperties(DeviceProperties& device_properties) const override;
 
@@ -625,11 +630,52 @@ namespace gfx {
 		void ResizeSurface() const;
 		VkInstance GetInstance() const;
 
-		VulkanContextImpl& GetImpl() { return *m_pImpl; }
-		const VulkanContextImpl& GetImpl() const { return *m_pImpl; }
+		ShaderModule* CreateShaderModule(const char* name, const char* filepath) const override { return GetDevice().CreateShaderModule(name, filepath); }
+		GraphicsPipeline* CreateGraphicsPipeline(const char* name, GraphicsPipelineCreateDesc const& desc) const override { return GetDevice().CreateGraphicsPipeline(name, desc); }
+		ComputePipeline* CreateComputePipeline(const char* name, ComputePipelineCreateDesc const& desc) const override { return GetDevice().CreateComputePipeline(name, desc); }
+
+		Buffer* CreateBuffer(const char* name, BufferCreateDesc const& desc) override { return GetDevice().CreateBuffer(name, desc); }
+		Image* CreateImage(const char* name, ImageCreateDesc const& desc) override { return GetDevice().CreateImage(name, desc); }
+		ImageView* CreateImageView(const char* name, Image const* image) const { return GetDevice().CreateImageView(name, image); }
+		ImageView* CreateImageView(const char* name, ImageViewCreateDesc const& desc) const override { return GetDevice().CreateImageView(name, desc); }
+
+		Fence* CreateFence(const char* name, u64 init_value) override { return GetDevice().CreateFence(name, init_value); }
+
+		void BindSampledImage(ImageView* image_view) override { return GetDevice().BindSampledImage(image_view); }
+		void BindStorageImage(ImageView* image_view) override { return GetDevice().BindStorageImage(image_view); }
+		void BindUniformBuffer(Buffer* buffer, u64 offset, u64 size) override { return GetDevice().BindUniformBuffer(buffer, offset, size); }
+		void BindStorageBuffer(Buffer* buffer, u64 offset, u64 size, u32 index) override { return GetDevice().BindStorageBuffer(buffer, offset, size, index); }
+
+		const Image* AcquireNextImage() override;
+
+		u32							GetTotalFramesPresented() const override		{ return m_framesPresentedCount; }
+		u32							GetMaxFrameCount() const override				{ return m_swapchainImageCount; }
+		u32							GetCurrentFrameIndex() const override			{ return m_currentFrameIndex; }
+		u32							GetCurrentSwapchainImageIndex() const override	{ return m_currentSwapchainImageIndex; }
+		Dim2D						GetSurfaceDim() const override					{ return { m_swapchain.extent.width, m_swapchain.extent.height }; }
+
+		VkInstance					GetInstance() const		{ return m_instance; }
+		VkSurfaceKHR				GetSurface() const		{ return m_surface; }
+		VulkanDevice const&			GetDevice() const		{ return *m_device; }
+
+	protected:
+		void CreateDevice(VkPhysicalDevice physical_device, VulkanPhysicalDeviceFeatures const& enabled_device_features);
+		void CreateSwapchain(VkSurfaceKHR surface, u32 width, u32 height);
 
 	private:
-		VulkanContextImpl* m_pImpl {};
+		VkInstance					m_instance {};
+		VkSurfaceKHR				m_surface {};
+		UniquePtr<VulkanDevice>		m_device {};
+		VkDebugUtilsMessengerEXT	m_debugUtilsMessenger {};
+
+		// Swapchain object
+		VulkanSwapchain								m_swapchain {};
+
+		u32							m_renderThreadCount = 1;
+		u32							m_swapchainImageCount = 0;
+		u32							m_currentFrameIndex = 0;
+		u32							m_currentSwapchainImageIndex = 0;
+		u32							m_framesPresentedCount = 0;
 	};
 
 }

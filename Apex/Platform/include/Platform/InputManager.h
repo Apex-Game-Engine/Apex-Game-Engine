@@ -238,6 +238,7 @@ namespace plat {
 		u32				m_gamepadsConnectedCount = 0;
 
 		friend class PlatformManager;
+		friend class PlatformWindowImpl;
 	};
 
 }

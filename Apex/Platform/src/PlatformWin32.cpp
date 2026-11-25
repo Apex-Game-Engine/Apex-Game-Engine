@@ -1,7 +1,8 @@
-#include "Core/Asserts.h"
+﻿#include "Core/Asserts.h"
 #include "Platform/InputManager.h"
 #include "Platform/PlatformManager.h"
 #include "Platform/Timer.h"
+#include "String/AxString.h"
 
 #if APEX_PLATFORM_WIN32
 
@@ -10,6 +11,7 @@
 #include <windows.h>
 #include <xinput.h>
 #include <ShellScalingApi.h>
+#include <commdlg.h>
 
 namespace apex::plat {
 
@@ -21,6 +23,7 @@ namespace apex::plat {
 	typedef DWORD (WINAPI *PFN_XInputSetState)(DWORD,XINPUT_VIBRATION*);
 	#define XInputGetCapabilities g_context.xinput.GetCapabilities
 	#define XInputGetState g_context.xinput.GetState
+	#define XInputSetState g_context.xinput.SetState
 
 	// kernel32.dll
 	// CreateWaitableTimerEx
@@ -35,12 +38,14 @@ namespace apex::plat {
 	typedef DWORD (WINAPI *PFN_RtlCaptureStackBackTrace)(DWORD,DWORD,PVOID*,PDWORD);
 	#define RtlCaptureStackBackTrace g_context.ntdll.RtlCaptureStackBackTrace_
 
-	struct PlatformWindowImpl
+	class PlatformWindowImpl
 	{
+	public:
 		HWND window;
 		bool shouldQuit;
 		u32 width, height; 
 		u32 lastPosX, lastPosY;
+		static LRESULT WindowProc(HWND wnd, UINT msg, WPARAM wParam, LPARAM lParam);
 	};
 
 	struct PlatformContext
@@ -51,6 +56,8 @@ namespace apex::plat {
 		InputManager		inputManager;
 		LARGE_INTEGER		timerFrequency;
 		PFN_WindowProc		userWindowProc;
+		AxString			workingDirectory;
+		AxString			executablePath;
 
 		struct {
 			HMODULE							module;
@@ -110,9 +117,9 @@ namespace apex::plat {
 				"xinput1_2.dll",
 				"xinput1_1.dll",
 			};
-			for (int i = 0; i <  std::size(xinput_dlls); i++)
+			for (auto xinput_dll : xinput_dlls)
 			{
-				g_context.xinput.module = LoadLibraryA(xinput_dlls[i]);
+				g_context.xinput.module = LoadLibraryA(xinput_dll);
 				if (g_context.xinput.module)
 				{
 					g_context.xinput.GetCapabilities = (PFN_XInputGetCapabilities)GetProcAddress(g_context.xinput.module, "XInputGetCapabilities");
@@ -121,7 +128,7 @@ namespace apex::plat {
 					break;
 				}
 			}
-			axStrongAssertFmt(g_context.xinput.module, "Failed to load xinput.dll");
+			axCriticalAssertFmt(g_context.xinput.module, "Failed to load xinput.dll");
 		}
 
 		g_context.shcore.module = LoadLibraryA("shcore.dll");
@@ -146,7 +153,7 @@ namespace apex::plat {
 			FreeLibrary(g_context.xinput.module);
 
 		if (g_context.kernel32.module)
-			FreeLibrary(g_context.xinput.module);
+			FreeLibrary(g_context.kernel32.module);
 
 		if (g_context.user32.module)
 			FreeLibrary(g_context.user32.module);
@@ -183,7 +190,16 @@ namespace apex::plat {
 		window.shouldQuit = true;
 	}
 
-	static LRESULT WindowProc(HWND wnd, UINT msg, WPARAM wParam, LPARAM lParam)
+	static void FixupPlatformPath(char *path, u32 len)
+	{
+		for (u32 i = 0; i < len; i++)
+		{
+			char c = path[i];
+			path[i] = c == '\\' ? '/' : c;
+		}
+	}
+
+	LRESULT PlatformWindowImpl::WindowProc(HWND wnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	{
 		PlatformWindowImpl* window = (PlatformWindowImpl*)GetPropA(wnd, "APEX");
 		if (!window)
@@ -203,10 +219,27 @@ namespace apex::plat {
 			}
 		case WM_SIZE:
 			{
-				
+				if (wParam == SIZE_MINIMIZED)
+				{
+					window->width = 0;
+					window->height = 0;
+				}
+				else
+				{
+					RECT rect;
+					GetClientRect(window->window, &rect);
+					window->width = rect.right - rect.left;
+					window->height = rect.bottom - rect.top;
+				}
+				break;
+			}
+		case WM_KEYDOWN:
+		case WM_KEYUP:
+			{
+				KeyCode key = static_cast<KeyCode>(wParam);
+				g_context.inputManager.m_keyboard.keys[(u32)key] = ButtonState::Pressed;
 			}
 			// TODO: Mouse events
-			// TODO: Key events
 		}
 
 		return DefWindowProc(wnd, msg, wParam, lParam);
@@ -295,10 +328,25 @@ namespace apex::plat {
 		m_impl->lastPosY = rc.top;
 	}
 
-	void PlatformWindow::GetSize(u32* width, u32* height) const
+	bool PlatformWindow::IsMinimized() const
+	{
+		return m_impl->width == 0 || m_impl->height == 0;
+	}
+
+	Dim2D PlatformWindow::GetDimensions() const
+	{
+		return { m_impl->width, m_impl->height };
+	}
+
+	void PlatformWindow::GetDimensions(u32* width, u32* height) const
 	{
 		*width = m_impl->width;
 		*height = m_impl->height;
+	}
+
+	Dim2D PlatformWindow::GetPosition() const
+	{
+		return { m_impl->lastPosX, m_impl->lastPosY };
 	}
 
 	void PlatformWindow::GetPosition(u32* posX, u32* posY) const
@@ -331,8 +379,23 @@ namespace apex::plat {
 			return false;
 		}
 
+		char pathBuf[MAX_PATH];
+		DWORD pathLen = GetModuleFileNameA(NULL, pathBuf, std::size(pathBuf));
+		if (axVerify(pathLen != 0))
+		{
+			FixupPlatformPath(pathBuf, pathLen);
+			g_context.executablePath = AxString{ pathBuf, pathLen };
+		}
+
+		pathLen = GetCurrentDirectoryA(std::size(pathBuf), pathBuf);
+		if (axVerify(pathLen != 0))
+		{
+			FixupPlatformPath(pathBuf, pathLen);
+			g_context.workingDirectory = AxString{ pathBuf, pathLen };
+		}
+
 		WNDCLASS wc{};
-		wc.lpfnWndProc = WindowProc;
+		wc.lpfnWndProc = PlatformWindowImpl::WindowProc;
 		wc.lpszClassName = WNDCLASSNAME;
 		wc.hInstance = g_context.instance;
 		RegisterClass(&wc);
@@ -352,6 +415,8 @@ namespace apex::plat {
 
 	void PlatformManager::Shutdown()
 	{
+		g_context.executablePath.reset();
+		g_context.workingDirectory.reset();
 		CloseWindow(g_context.mainWindow.window);
 		FreeLibraries();
 	}
@@ -371,6 +436,48 @@ namespace apex::plat {
 		const auto prevProc = g_context.userWindowProc;
 		g_context.userWindowProc = proc;
 		return prevProc;
+	}
+
+	AxStringView PlatformManager::GetExecutablePath()
+	{
+		return g_context.executablePath;
+	}
+
+	AxStringView PlatformManager::GetWorkingDirectory()
+	{
+		return g_context.workingDirectory;
+	}
+
+	AxString PlatformManager::GetEnvVar(const char* name)
+	{
+		AxString env;
+		DWORD sz = GetEnvironmentVariableA(name, NULL, 0);
+		env.resize(sz-1);
+		GetEnvironmentVariableA(name, env.data(), env.size() + 1);
+		return env;
+	}
+
+	bool PlatformManager::ShowOpenFileDialog(char* const out_filepath, u32 buflen)
+	{
+		char filepath[MAX_PATH] = {0};
+
+		OPENFILENAME ofn;
+		ZeroMemory(&ofn, sizeof(ofn));
+
+		ofn.lStructSize = sizeof(ofn);
+		ofn.hwndOwner = g_context.mainWindow.window;
+		ofn.lpstrFile = filepath;
+		ofn.nMaxFile = MAX_PATH;
+		ofn.lpstrFilter = "Apex Mesh Files (*.axmesh)\0*.axmesh\0All Files (*.*)\0*.*\0";
+		ofn.nFilterIndex = 1;
+		ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
+
+		if (GetOpenFileName(&ofn))
+		{
+			AxStringView(filepath).copy(out_filepath, buflen);
+			return true;
+		}
+		return false;
 	}
 
 	void PlatformManager::PollEvents()
@@ -396,30 +503,40 @@ namespace apex::plat {
 		}
 	}
 
-	PlatformTimer::PlatformTimer() = default;
+	void PlatformManager::WaitForEvents()
+	{
+		MSG msg;
+		if (GetMessage(&msg, nullptr, 0, 0))
+		{
+			TranslateMessage(&msg);
+			DispatchMessage(&msg);
+		}
+		else
+		{
+			RequestCloseWindow(g_context.mainWindow);
+		}
+	}
 
-	PlatformTimer::~PlatformTimer() = default;
-
-	void PlatformTimer::Start()
+	void Timer::Start()
 	{
 		LARGE_INTEGER liStartTime;
 		QueryPerformanceCounter(&liStartTime);
 		m_startTime = liStartTime.QuadPart;
 	}
 
-	void PlatformTimer::End()
+	void Timer::End()
 	{
 		LARGE_INTEGER liEndTime;
 		QueryPerformanceCounter(&liEndTime);
 		m_endTime = liEndTime.QuadPart;
 	}
 
-	void PlatformTimer::Restart()
+	void Timer::Restart()
 	{
 		m_startTime = m_endTime;
 	}
 
-	u64 PlatformTimer::GetElapsedMicroseconds() const
+	u64 Timer::GetElapsedMicroseconds() const
 	{
 		u64 elapsedMicroseconds = (m_endTime - m_startTime);
 		elapsedMicroseconds *= 1000000;
@@ -427,7 +544,7 @@ namespace apex::plat {
 		return elapsedMicroseconds;
 	}
 
-	f32 PlatformTimer::GetElapsedSeconds() const
+	f32 Timer::GetElapsedSeconds() const
 	{
 		return static_cast<float>(GetElapsedMicroseconds()) / 1e6f;
 	}

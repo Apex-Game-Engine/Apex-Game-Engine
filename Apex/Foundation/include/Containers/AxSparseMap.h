@@ -84,7 +84,7 @@ namespace apex {
 		}
 
 		template <typename... Args>
-		auto emplace(key_type id, Args&&... args) -> ValueType&
+		auto emplace(key_type id, Args&&... args) -> value_reference
 		{
 			return Emplace(id, std::forward<Args>(args)...);
 		}
@@ -227,7 +227,13 @@ namespace apex {
 
 		using element_type = ValueType;
 
-		using pair_type = std::pair<KeyType, ValueType&>;
+		using value_type = ValueType;
+		using value_pointer = ValueType*;
+		using const_value_pointer = const ValueType*;
+		using value_reference = ValueType;
+		using const_value_reference = ValueType;
+
+		using pair_type = std::pair<KeyType, ValueType>;
 
 		AxSparseMap() = default;
 
@@ -237,6 +243,15 @@ namespace apex {
 		}
 
 		~AxSparseMap() = default;
+
+		NON_COPYABLE(AxSparseMap);
+
+		AxSparseMap(AxSparseMap&& other) noexcept { *this = std::move(other); }
+		AxSparseMap& operator=(AxSparseMap&& other) noexcept
+		{
+			base_type::operator=(std::move(other));
+			return *this;
+		}
 
 
 		void resize(size_t capacity)
@@ -259,6 +274,11 @@ namespace apex {
 			}
 
 			return false;
+		}
+
+		auto emplace(key_type id) -> value_reference
+		{
+			return base_type::Emplace(id);
 		}
 
 		void remove(key_type id)
@@ -292,19 +312,19 @@ namespace apex {
 			return base_type::try_getIndex(id);
 		}
 
-		auto getElement(key_type id) const -> ValueType
+		auto getElement(key_type id) const -> value_reference
 		{
 			key_type idx = getIndex(id);
 			return {};
 		}
 
-		auto get(key_type id) const -> std::pair<key_type, ValueType>
+		auto get(key_type id) const -> pair_type
 		{
 			key_type idx = getIndex(id);
 			return std::pair<key_type, ValueType>(idx, {});
 		}
 
-		auto try_get(key_type id) const -> std::optional<std::pair<key_type, ValueType>>
+		auto try_get(key_type id) const -> std::optional<pair_type>
 		{
 			auto idx = try_getIndex(id);
 			if (idx)

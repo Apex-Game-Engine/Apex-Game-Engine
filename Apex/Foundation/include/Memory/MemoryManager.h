@@ -16,8 +16,8 @@ namespace mem {
 	{
 		eGlobal, // Global Multi-pool Allocator
 		eArena, // Arena Allocator
-		eFrame, // Per-frame Stack Allocator
-		eLastFrame, // Previous frame's Stack Allocator
+		eFrame0, // Per-frame Stack Allocator (even frames)
+		eFrame1, // Per-frame Stack Allocator (odd frames)
 
 		COUNT
 	};
@@ -109,13 +109,19 @@ void operator delete[](void* ptr) noexcept;
 
 #define APEX_TRACK_ALLOCATIONS 1
 
-#define apex_alloc(SIZE)	(apex::mem::MemoryManager::allocate(SIZE))
-#define apex_free(PTR)		(apex::mem::MemoryManager::free(PTR))
+#ifndef apex_alloc
+#	define apex_alloc(SIZE)		(apex::mem::MemoryManager::allocate(SIZE))
+#endif
+#ifndef apex_free
+#	define apex_free(PTR)		(apex::mem::MemoryManager::free(PTR))
+#endif
 
-#if APEX_TRACK_ALLOCATIONS
+#ifndef apex_new
+# if APEX_TRACK_ALLOCATIONS
 #	define apex_new			new (apex::mem::ManagedTag, __FUNCTION__, __FILE__, __LINE__)
-#else
+# else
 #	define apex_new			new (apex::mem::ManagedTag)
+# endif
 #endif
 
 
@@ -134,7 +140,7 @@ namespace apex::mem {
 
 		[[nodiscard]] constexpr T* allocate(size_t n)
 		{
-			return static_cast<T*>(mem::MemoryManager::allocate(n));
+			return static_cast<T*>(mem::MemoryManager::allocate(n * sizeof(T)));
 		}
 
 		void deallocate(T* p, size_t n) noexcept

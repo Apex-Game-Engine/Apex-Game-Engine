@@ -23,6 +23,7 @@
 #endif
 
 #if defined(_MSC_VER)
+#	define FAST_FAIL_FATAL_APP_EXIT 7
 #	define KILL() __fastfail(FAST_FAIL_FATAL_APP_EXIT)
 #elif defined(__clang__)
 #	if defined(__has_builtin(__builtin_trap))

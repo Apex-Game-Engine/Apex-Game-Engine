@@ -1,9 +1,10 @@
+set(CMAKE_FOLDER "External")
+
 add_subdirectory(fmt)
 add_subdirectory(meshoptimizer)
 add_subdirectory(tracy)
 add_subdirectory(glfw)
-add_subdirectory(pybind11)
-set_target_properties(fmt PROPERTIES FOLDER "External")
-set_target_properties(meshoptimizer PROPERTIES FOLDER "External")
-set_target_properties(TracyClient PROPERTIES FOLDER "External")
-set_target_properties(glfw PROPERTIES FOLDER "External")
+add_subdirectory(pugixml)
+add_subdirectory(lua)
+
+unset(CMAKE_FOLDER)

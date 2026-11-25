@@ -1,50 +1,65 @@
 import sys
 sys.path.append("x:\\ApexGameEngine-Vulkan\\Tools\\bin\\")
 
-from PyModel import Mesh, MeshAttributeType, MeshStream
+import traceback
 
-mesh = Mesh()
-mesh.vertexCount = 4
-mesh.attributes = [ MeshAttributeType.Position, MeshAttributeType.Normal, MeshAttributeType.TexCoords0 ]
-mesh.new_stream(0, 3)
-mesh.indices = [ 0, 1, 2, 2, 3, 0 ]
-vertices = []
+try:
+    import PyApex as apex
 
-positions = [
-    (-1, -1, 0),
-    ( 1, -1, 0),
-    ( 1,  1, 0),
-    (-1,  1, 0),
-]
+    positions = [
+        -1, -1, 0,
+         1, -1, 0,
+         1,  1, 0,
+        -1,  1, 0,
+    ]
 
-normals = [
-    (0, 0, 1),
-    (0, 0, 1),
-    (0, 0, 1),
-    (0, 0, 1),
-]
+    normals = [
+        0, 0, 1,
+        0, 0, 1,
+        0, 0, 1,
+        0, 0, 1,
+    ]
 
-uvs = [
-    (0, 0),
-    (1, 0),
-    (1, 1),
-    (0, 1),
-]
+    uvs = [
+        0, 0,
+        1, 0,
+        1, 1,
+        0, 1,
+    ]
 
-for pos, nor, uv in zip(positions, normals, uvs):
-    vertices.extend(pos)
-    vertices.extend(nor)
-    vertices.extend(uv)
+    indices = [
+        0, 1, 2,
+        2, 3, 0
+    ]
 
-mesh.vertices = vertices
+    print("here...")
 
-print(mesh.stride)
-print(mesh.streams)
-print(mesh.attributes)
-print(mesh.indices)
-print(mesh.vertices)
+    mb = apex.MeshBuilder()
+    mesh = mb.begin_stream()\
+                .add_attribute(apex.POSITION, apex.Format.R32G32B32_SFLOAT)\
+             .end_stream()\
+             .begin_stream()\
+                .add_attribute(apex.NORMAL, apex.Format.R32G32B32_SFLOAT)\
+                .add_attribute(apex.TEXCOORD0, apex.Format.R32G32_SFLOAT)\
+             .end_stream()\
+             .set_data(apex.POSITION, positions)\
+             .set_data(apex.NORMAL, normals)\
+             .set_data(apex.TEXCOORD0, uvs)\
+             .set_indices(indices)\
+             .build()
+    
+    print("Mesh created")
+    print(mesh)
+
+    exp = apex.MeshExporter()
+    exp.export(mesh, "X:\\Tests\\Assets\\Meshes\\exported\\plane.axmesh")
+except Exception as e:
+    print("Error : ", e)
+    print(traceback.format_exc())
+finally:
+    print("Ending")
 
 
-filepath = sys.argv[1] if len(sys.argv) > 1 else "ExamplePlane.axmesh"
+# filepath = sys.argv[1] if len(sys.argv) > 1 else "ExamplePlane.axmesh"
 
-mesh.export(filepath)
+# mesh.export(filepath)

@@ -1,7 +1,9 @@
 ﻿#pragma once
 #include "Containers/AxArray.h"
+#include "String/AxStringView.h"
 
 namespace apex {
+	class AxString;
 
 	enum FileAccessMode : u8
 	{
@@ -29,6 +31,7 @@ namespace apex {
 		static File CreateOrOpen(char const* filename, FileAccessMode mode = FileAccessMode::eReadWrite);
 		static File CreateNew(char const* filename, FileAccessMode mode = FileAccessMode::eReadWrite);
 		static File OpenExisting(char const* filename, FileAccessMode mode = FileAccessMode::eRead);
+		static bool Exists(char const* filename);
 
 		size_t GetSize() const;
 
@@ -38,12 +41,26 @@ namespace apex {
 		size_t Read(void* buffer, size_t buffer_size) const;
 		size_t Write(const void* buffer, size_t buffer_size);
 
+		bool IsOpen() const { return m_handle != nullptr; }
+		bool IsMapped() const { return m_mappedHandle != nullptr; }
+
+		operator bool() const { return IsOpen(); }
+
 	private:
 		FileHandle		m_handle = nullptr;
 		FileHandle		m_mappedHandle = nullptr;
 		size_t			m_size = 0;
 		const char*		m_filename = nullptr;
 		u32				m_flags = 0;
+	};
+
+	struct PathUtils
+	{
+		static void NormalizeSeparators(AxString& filepath);
+		static AxStringView GetExtension(AxStringView filepath);
+		static AxStringView GetFilename(AxStringView filepath);
+		static AxStringView GetFilenameNoExt(AxStringView filepath);
+		static std::pair<AxStringView, AxStringView> GetFilenameAndExtension(AxStringView filepath);
 	};
 
 }

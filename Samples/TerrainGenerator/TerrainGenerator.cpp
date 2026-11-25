@@ -33,7 +33,7 @@ void connect_renderdoc()
 	}
 }
 
-plat::PlatformTimer g_timer;
+plat::Timer g_timer;
 
 gfx::Context* g_context;
 
@@ -168,7 +168,7 @@ void CreateImages(gfx::Device& device)
 {
 	const gfx::ImageCreateDesc imageDesc {
 		.imageType = gfx::ImageType::Image2D,
-		.format = gfx::ImageFormat::R32_FLOAT,
+		.format = gfx::Format::R32_FLOAT,
 		.usageFlags = gfx::ImageUsageFlagBits::Storage | gfx::ImageUsageFlagBits::Sampled | gfx::ImageUsageFlagBits::TransferSrc,
 		.dimensions = { 512, 512, 1 },
 		.requiredFlags = gfx::MemoryPropertyFlagBits::DeviceLocal,
@@ -223,7 +223,7 @@ void setup(gfx::Device& device)
 	device.BindStorageImage(g_heightmaps[0]->GetView());
 	device.BindStorageImage(g_heightmaps[1]->GetView());
 
-	const u32 framesInFlight = device.GetFramesInFlight();
+	const u32 framesInFlight = device.GetMaxFrameCount();
 	g_graphicsCommandBuffers.reserve(framesInFlight);
 	g_computeCommandBuffers.reserve(framesInFlight * Stage_ComputeMax);
 
@@ -254,10 +254,10 @@ void compute(gfx::Device& device)
 	g_timer.End();
 	g_erosionConstants.fTimeElapsedMicros = static_cast<f32>(g_timer.GetElapsedMicroseconds());
 	g_erosionConstants.Phase = SP_Initialize;
-	g_erosionConstants.HeightMapInIdx = g_heightmaps[ping]->GetView()->GetBindlessIndex(gfx::BindlessDescriptorType::StorageImage);
-	g_erosionConstants.HeightMapOutIdx = g_heightmaps[pong]->GetView()->GetBindlessIndex(gfx::BindlessDescriptorType::StorageImage);
+	g_erosionConstants.HeightMapInIdx = g_heightmaps[ping]->GetView()->GetBindlessIndex(gfx::GlobalDescriptorBinding::StorageImage);
+	g_erosionConstants.HeightMapOutIdx = g_heightmaps[pong]->GetView()->GetBindlessIndex(gfx::GlobalDescriptorBinding::StorageImage);
 
-	const u32 frameCount = device.GetFramesInFlight();
+	const u32 frameCount = device.GetMaxFrameCount();
 	const u32 frameIndex = device.GetCurrentFrameIndex();
 
 	gfx::CommandBuffer* commands = g_computeCommandBuffers[frameIndex * Stage_ComputeMax + GetStage(g_stageIndex)];
@@ -342,7 +342,7 @@ void draw(gfx::Device& device)
 		.signalRenderComplete = true
 	};
 
-	device.GetQueue(gfx::QueueType::Graphics)->SubmitCommandBuffers(submitDesc);
+	device.GetQueue(gfx::QueueType::Graphics)->Submit(submitDesc);
 
 	g_stageIndex++;
 	

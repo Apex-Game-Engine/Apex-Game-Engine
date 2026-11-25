@@ -25,9 +25,9 @@ TEST(PathTest, TestValidatePathSimple)
 
 	ASSERT_TRUE(path.IsValid());
 	
-	EXPECT_EQ(path.HasMount(), true);
-	EXPECT_EQ(path.HasFileName(), true);
-	EXPECT_EQ(path.HasFileExtension(), true);
+	EXPECT_TRUE(path.HasMount());
+	EXPECT_TRUE(path.HasFileName());
+	EXPECT_TRUE(path.HasFileExtension());
 
 	EXPECT_EQ(path.GetMount(),			"assets"sv);
 	EXPECT_EQ(path.GetDirectoryPath(),	"meshes/characters"sv);
@@ -44,9 +44,9 @@ TEST(PathTest, TestValidatePathWithNumbers)
 
 	ASSERT_TRUE(path.IsValid());
 
-	EXPECT_EQ(path.HasMount(), true);
-	EXPECT_EQ(path.HasFileName(), true);
-	EXPECT_EQ(path.HasFileExtension(), true);
+	EXPECT_TRUE(path.HasMount());
+	EXPECT_TRUE(path.HasFileName());
+	EXPECT_TRUE(path.HasFileExtension());
 
 	EXPECT_EQ(path.GetMount(),			"audio00"sv);
 	EXPECT_EQ(path.GetDirectoryPath(),	"audio/test_samples"sv);
@@ -63,9 +63,9 @@ TEST(PathTest, TestValidatePathNoExtension)
 
 	ASSERT_TRUE(path.IsValid());
 
-	EXPECT_EQ(path.HasMount(), true);
-	EXPECT_EQ(path.HasFileName(), true);
-	EXPECT_EQ(path.HasFileExtension(), false);
+	EXPECT_TRUE(path.HasMount());
+	EXPECT_TRUE(path.HasFileName());
+	EXPECT_FALSE(path.HasFileExtension());
 
 	EXPECT_EQ(path.GetMount(),			"anim"sv);
 	EXPECT_EQ(path.GetDirectoryPath(),	"Animations/Data"sv);
@@ -82,9 +82,9 @@ TEST(PathTest, TestValidatePathNoFileName)
 
 	ASSERT_TRUE(path.IsValid());
 
-	EXPECT_EQ(path.HasMount(), true);
-	EXPECT_EQ(path.HasFileName(), false);
-	EXPECT_EQ(path.HasFileExtension(), false);
+	EXPECT_TRUE(path.HasMount());
+	EXPECT_FALSE(path.HasFileName());
+	EXPECT_FALSE(path.HasFileExtension());
 
 	EXPECT_EQ(path.GetMount(),			"anim"sv);
 	EXPECT_EQ(path.GetDirectoryPath(),	"Animations/Data/Chapter1"sv);
@@ -101,9 +101,9 @@ TEST(PathTest, TestValidatePathNoMount)
 
 	ASSERT_TRUE(path.IsValid());
 
-	EXPECT_EQ(path.HasMount(), false);
-	EXPECT_EQ(path.HasFileName(), false);
-	EXPECT_EQ(path.HasFileExtension(), false);
+	EXPECT_FALSE(path.HasMount());
+	EXPECT_FALSE(path.HasFileName());
+	EXPECT_FALSE(path.HasFileExtension());
 
 	EXPECT_EQ(path.GetMount(),			""sv);
 	EXPECT_EQ(path.GetDirectoryPath(),	"D:/Game/Animations/Data/Chapter1"sv);
@@ -114,7 +114,39 @@ TEST(PathTest, TestValidatePathNoMount)
 	EXPECT_EQ(path.GetFileExtension(),	""sv);
 }
 
-TEST(MountTest, TestDirectoryMount)
+TEST(MountTest, TestLocalMount)
 {
-	apex::mnt::DirectoryMount dirMnt("samples", R"(X:\Tests\Assets)");
+	apex::mnt::LocalMount localMnt("samples", R"(X:\Tests\Assets)");
+
+}
+
+TEST(MountTest, TestResolveRelative)
+{
+	apex::mnt::Path path("anim://Animations/Data/Chapter1/intro_cs01_ma101.anim");
+
+	ASSERT_TRUE(path.IsValid());
+
+	EXPECT_EQ(path.GetMount(),			"anim"sv);
+	EXPECT_EQ(path.GetDirectoryPath(),	"Animations/Data/Chapter1"sv);
+	EXPECT_EQ(path.GetDirectoryName(),	"Chapter1"sv);
+	EXPECT_EQ(path.GetFilePath(),		"Animations/Data/Chapter1/intro_cs01_ma101.anim"sv);
+	EXPECT_EQ(path.GetFileName(),		"intro_cs01_ma101.anim"sv);
+	EXPECT_EQ(path.GetFileBaseName(),	"intro_cs01_ma101"sv);
+	EXPECT_EQ(path.GetFileExtension(),	"anim"sv);
+
+	apex::mnt::Path relPath = path.ResolveRelative("../Chapter2/ch2_cs08_fa122.anim");
+
+	ASSERT_TRUE(relPath.IsValid());
+
+	EXPECT_TRUE(relPath.HasMount());
+	EXPECT_TRUE(relPath.HasFileName());
+	EXPECT_TRUE(relPath.HasFileExtension());
+
+	EXPECT_EQ(relPath.GetMount(),			"anim"sv);
+	EXPECT_EQ(relPath.GetDirectoryPath(),	"Animations/Data/Chapter2"sv);
+	EXPECT_EQ(relPath.GetDirectoryName(),	"Chapter2"sv);
+	EXPECT_EQ(relPath.GetFilePath(),		"Animations/Data/Chapter2/ch2_cs08_fa122.anim"sv);
+	EXPECT_EQ(relPath.GetFileName(),		"ch2_cs08_fa122.anim"sv);
+	EXPECT_EQ(relPath.GetFileBaseName(),	"ch2_cs08_fa122"sv);
+	EXPECT_EQ(relPath.GetFileExtension(),	"anim"sv);
 }

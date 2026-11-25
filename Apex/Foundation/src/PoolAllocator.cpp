@@ -1,5 +1,7 @@
 ﻿#include "Memory/PoolAllocator.h"
 
+#include <shared_mutex>
+
 #include "Core/Asserts.h"
 
 namespace apex::mem {
@@ -20,6 +22,7 @@ namespace apex::mem {
 	{
 		axAssertFmt(p_begin != nullptr, "Invalid memory address!");
 		axAssert(size > block_size);
+		axAssert(block_size >= sizeof(Block));
 
 		m_basePtr = p_begin;
 		m_allocPtr = m_basePtr;
@@ -34,8 +37,9 @@ namespace apex::mem {
 	{
 		axAssertFmt(m_basePtr != nullptr, "Pool allocator not initialized!");
 		axAssertFmt(size <= m_blockSize, "Allocation size cannot be larger than pool element size!");
+		axCheck((uintptr_t)m_allocPtr < (uintptr_t)m_basePtr + (uintptr_t)m_numTotalBlocks * (uintptr_t)m_blockSize);
 
-		if (m_numFreeBlocks == 0)
+		if (axVerify(m_numFreeBlocks) == 0)
 			return nullptr;
 
 		// return the current block pointed to by allocPtr
@@ -47,10 +51,12 @@ namespace apex::mem {
 		if (blockPtr->pNext == nullptr)
 		{
 			m_allocPtr = static_cast<u8*>(m_allocPtr) + m_blockSize;
+			axCheck((uintptr_t)m_allocPtr < (uintptr_t)m_basePtr + (uintptr_t)m_numTotalBlocks * (uintptr_t)m_blockSize);
 		}
 		else
 		{
 			m_allocPtr = blockPtr->pNext;
+			axCheck((uintptr_t)m_allocPtr < (uintptr_t)m_basePtr + (uintptr_t)m_numTotalBlocks * (uintptr_t)m_blockSize);
 		}
 
 		return ret;
@@ -72,6 +78,28 @@ namespace apex::mem {
 		blockPtr->pNext = static_cast<Block*>(m_allocPtr);
 		m_allocPtr = ptr;
 		++m_numFreeBlocks;
+	}
+
+	bool PoolAllocator::isFree(void* ptr) const
+	{
+		for (Block *blockPtr = (Block*)m_allocPtr; blockPtr->pNext != nullptr; blockPtr = blockPtr->pNext)
+		{
+			if (ptr == blockPtr)
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
+	bool PoolAllocator::containsPointer(void* ptr) const
+	{
+		return ptr >= m_basePtr && ptr < static_cast<u8*>(m_basePtr) + m_numTotalBlocks * m_blockSize;
+	}
+
+	bool PoolAllocator::checkManaged(void* ptr) const
+	{
+		return containsPointer(ptr) && (reinterpret_cast<intptr_t>(ptr) - reinterpret_cast<intptr_t>(m_basePtr)) % m_blockSize == 0;
 	}
 
 	void PoolAllocator::reset()

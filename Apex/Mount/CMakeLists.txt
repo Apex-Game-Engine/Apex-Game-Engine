@@ -13,6 +13,7 @@ add_library(ApexMount STATIC
 
 target_link_libraries(ApexMount
     PRIVATE
+    ApexInterface
     ApexFoundation
 	ApexPlatform
 )

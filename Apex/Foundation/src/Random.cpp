@@ -18,7 +18,7 @@ namespace apex::math {
 
 	#pragma region SlowRandom implementation
 
-	inline void Random::init()
+	void Random::Init()
 	{
 		if (std::random_device().entropy() > 0)
 		{
@@ -31,12 +31,15 @@ namespace apex::math {
 		}
 	}
 
-	inline s32 Random::randomInt32()
+	s32 Random::randomInt32()
 	{
 		return static_cast<s32>(detail::s_distribution(detail::s_engine));
 	}
 
-	inline f32 Random::randomFloat32()
+	/// <summary>
+	/// Returns a pseudo-random float between 0 and 1
+	/// </summary>
+	f32 Random::randomFloat32()
 	{
 		return static_cast<f32>(detail::s_distribution(detail::s_engine)) / static_cast<f32>(detail::s_distribution.max());
 	}
@@ -71,13 +74,13 @@ namespace apex::math {
 		return randomUnitSphereVector3().normalize_();
 	}
 
-	inline s32 Random::randomInt32(s32 min, s32 max)
+	s32 Random::randomInt32(s32 min, s32 max)
 	{
 		axAssert(min < max);
 		return min + randomInt32() % (max - min);
 	}
 
-	inline f32 Random::randomFloat32(f32 min, f32 max)
+	f32 Random::randomFloat32(f32 min, f32 max)
 	{
 		axAssert(min < max);
 		return min + randomFloat32() * (max - min);

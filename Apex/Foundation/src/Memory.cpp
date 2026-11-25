@@ -36,7 +36,7 @@ namespace apex::mem {
 		if (!MemoryManager::checkManaged(ptr))
 		{
 		#ifndef APEX_ENABLE_TESTS
-			axMemWarn("Calling ::free on a pointer!");
+			//axMemWarn("Calling ::free on a pointer!");
 		#endif
 			free(ptr);
 			return;

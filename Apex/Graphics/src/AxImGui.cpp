@@ -13,12 +13,12 @@ extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg
 
 namespace apex {
 	
-	static gfx::ContextApi s_api;
+	static gfx::Api s_api;
 	static VkSampler s_sampler;
 
 	static void ImGuiInitVulkan(gfx::Context& ctx)
 	{
-		axCriticalAssert(ctx.GetApi() == gfx::ContextApi::Vulkan);
+		axCriticalAssert(ctx.GetApi() == gfx::Api::Vulkan);
 
 		auto vkctx = static_cast<gfx::VulkanContext*>(&ctx);
 		auto vkdevice = static_cast<gfx::VulkanDevice*>(vkctx->GetDevice());
@@ -37,8 +37,8 @@ namespace apex {
 			.Instance = vkctx->GetInstance(),
 			.PhysicalDevice = vkdevice->GetPhysicalDevice(),
 			.Device = vkdevice->GetLogicalDevice(),
-			.QueueFamily = vkdevice->GetVulkanQueue(gfx::QueueType::Graphics).GetQueueFamilyIndex(),
-			.Queue = vkdevice->GetVulkanQueue(gfx::QueueType::Graphics).GetNativeHandle(),
+			.QueueFamily = vkdevice->GetVulkanQueue(gfx::QueueType::Graphics)->GetQueueFamilyIndex(),
+			.Queue = vkdevice->GetVulkanQueue(gfx::QueueType::Graphics)->GetNativeHandle(),
 			.DescriptorPool = nullptr,
 			.RenderPass = nullptr,
 			.MinImageCount = vkdevice->GetMaxFrameCount(),
@@ -106,7 +106,7 @@ namespace apex {
 
 		switch (s_api = ctx.GetApi())
 		{
-		case gfx::ContextApi::Vulkan:	ImGuiInitVulkan(ctx); break;
+		case gfx::Api::Vulkan:	ImGuiInitVulkan(ctx); break;
 		default: return false;
 		}
 
@@ -126,7 +126,7 @@ namespace apex {
 	{
 		switch (s_api)
 		{
-		case gfx::ContextApi::Vulkan:	ImGuiShutdownVulkan(ctx); break;
+		case gfx::Api::Vulkan:	ImGuiShutdownVulkan(ctx); break;
 		default: ;
 		}
 

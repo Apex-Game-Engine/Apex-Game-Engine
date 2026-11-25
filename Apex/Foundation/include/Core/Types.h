@@ -1,4 +1,5 @@
 #pragma once
+#include <atomic>
 #include <cfloat>
 #include <cmath>
 #include <limits>
@@ -11,6 +12,8 @@
 #ifdef max
 #undef max
 #endif
+
+#define APEX_DEFINE_ATOMICS 1
 
 namespace apex {
 
@@ -32,6 +35,22 @@ namespace apex {
     // additional types
 	using byte = u8;
     using sbyte = s8;
+
+#if APEX_DEFINE_ATOMICS
+	using atomic_s8 = std::atomic<s8>;
+	using atomic_s16 = std::atomic<s16>;
+	using atomic_s32 = std::atomic<s32>;
+	using atomic_s64 = std::atomic<s64>;
+
+	using atomic_u8 = std::atomic<u8>;
+	using atomic_u16 = std::atomic<u16>;
+	using atomic_u32 = std::atomic<u32>;
+	using atomic_u64 = std::atomic<u64>;
+
+	using atomic_bool = std::atomic_bool;
+	using atomic_char = std::atomic_char;
+	using atomic_flag = std::atomic_flag;
+#endif
 
     static_assert(sizeof(bool)  == 1, "Integer type `Bool` does not have correct size!");
 
@@ -148,6 +167,37 @@ namespace apex {
             bits_type        bits;
 	    };
     }
+
+    struct Viewport
+	{
+		float x;
+		float y;
+		float width;
+		float height;
+		float minDepth;
+		float maxDepth;
+	};
+
+	struct Rect2D
+	{
+		s32 x;
+		s32 y;
+		u32 width;
+		u32 height;
+	};
+
+	struct Dim2D
+	{
+		union { u32 width = 1;	u32 x; };
+		union { u32 height = 1;	u32 y; };
+	};
+
+	struct Dim3D
+	{
+		union { u32 width = 1;	u32 x;};
+		union { u32 height = 1;	u32 y;};
+		union { u32 depth = 1;	u32 z;};
+	};
 
     inline bool floatCompareApproximatelyEqual(f32 a, f32 b)
     {

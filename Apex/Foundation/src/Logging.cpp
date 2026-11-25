@@ -8,7 +8,7 @@
 #endif
 
 namespace apex {
-namespace logging {
+namespace logs {
 
 	namespace detail
 	{
@@ -87,10 +87,20 @@ namespace logging {
 
 	void Logger::log(const LogMsg& log_msg) const
 	{
+		if (log_msg.level < m_minLevel)
+			return;
+
 		for (size_t i = 0; i < m_sinkCount; i++)
 		{
 			m_sinks[i]->log(log_msg);
 		}
+	}
+
+	LogLevel Logger::setMinLogLevel(LogLevel lvl)
+	{
+		LogLevel prev = m_minLevel;
+		m_minLevel = lvl;
+		return prev;
 	}
 
 	void Logger::addSink(ISink* sink)

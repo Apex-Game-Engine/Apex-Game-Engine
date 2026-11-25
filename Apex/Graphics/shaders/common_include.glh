@@ -1,0 +1,48 @@
+#extension GL_EXT_nonuniform_qualifier : enable
+
+#define BindlessSampledImageSet   0
+#define BindlessStorageImageSet   1
+#define BindlessUniformBufferSet  2
+#define BindlessStorageBufferSet  3
+#define BindlessSamplerSet        4
+
+#define DECLARE_UNIFORM(_name, _struct) \
+	layout(set = BindlessUniformBufferSet, binding = 0) uniform _name _struct u##_name[]
+
+#define DECLARE_BUFFER(_layout, _access, _name, _struct) \
+	layout(_layout, set = BindlessStorageBufferSet, binding = 0) _access buffer _name _struct u##_name[]
+
+#define RESOURCE(_name, _index) (u##_name[_index])
+
+layout(binding = 0, set = BindlessSampledImageSet)	uniform texture2D   uGlobalTextures2D[];
+layout(binding = 0, set = BindlessSampledImageSet)	uniform textureCube uGlobalTexturesCube[];
+layout(binding = 0, set = BindlessSamplerSet)		uniform sampler     uGlobalSamplers[];
+
+#define GetTexture2D(index)		(uGlobalTextures2D[(index)])
+#define GetTextureCube(index)	(uGlobalTexturesCube[(index)])
+
+#define SAMPLER_INDEX_NEAREST	0
+#define SAMPLER_INDEX_LINEAR	1
+#define SAMPLER_INDEX_BILINEAR	2
+
+#define GetNearestSampler()		(uGlobalSamplers[SAMPLER_INDEX_NEAREST])
+#define GetLinearSampler()		(uGlobalSamplers[SAMPLER_INDEX_LINEAR])
+#define GetBilinearSampler()	(uGlobalSamplers[SAMPLER_INDEX_BILINEAR])
+
+#define GLOBAL_INDEX_ENGINE_CONSTANTS	0
+#define GLOBAL_INDEX_CAMERA				1
+
+DECLARE_UNIFORM(DummyUniform, { uint ignore; });
+DECLARE_BUFFER(std430, readonly, DummyBuffer, { uint ignore; });
+
+DECLARE_UNIFORM(EngineConstants, { uint ignore; });
+
+DECLARE_UNIFORM(Camera, {
+	mat4 view;
+	mat4 projection;
+	mat4 inverseView;
+	mat4 inverseProjection;
+});
+
+#define GetEngineConstants()	(RESOURCE(Camera, GLOBAL_INDEX_ENGINE_CONSTANTS))
+#define GetCamera()				(RESOURCE(Camera, GLOBAL_INDEX_CAMERA))

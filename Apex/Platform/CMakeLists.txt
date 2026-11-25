@@ -11,9 +11,13 @@ add_library(ApexPlatform STATIC
 
 target_link_libraries(ApexPlatform
     PRIVATE
+    ApexInterface
     ApexFoundation
-    glfw
 )
+
+if(UNIX)
+    target_link_libraries(ApexPlatform PRIVATE glfw)
+endif()
 
 target_include_directories(ApexPlatform
     PUBLIC

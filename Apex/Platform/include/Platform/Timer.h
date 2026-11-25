@@ -4,12 +4,9 @@
 namespace apex {
 namespace plat {
 
-	class PlatformTimer
+	class Timer
 	{
 	public:
-		PlatformTimer();
-		~PlatformTimer();
-
 		void Start();
 		void End();
 		void Restart();
@@ -17,14 +14,14 @@ namespace plat {
 		f32 GetElapsedSeconds() const;
 
 	private:
-		u64 m_startTime;
-		u64 m_endTime;
+		u64 m_startTime{};
+		u64 m_endTime{};
 	};
 
 	class ScopedTimer
 	{
 	public:
-		explicit ScopedTimer(PlatformTimer& timer)
+		explicit ScopedTimer(Timer& timer)
 			: m_timer(&timer)
 		{
 			m_timer->Start();
@@ -53,7 +50,13 @@ namespace plat {
 		}
 
 	private:
-		PlatformTimer* m_timer;
+		Timer* m_timer;
+	};
+
+	struct Time
+	{
+		float TotalTime;
+		float FrameTime;
 	};
 		
 }

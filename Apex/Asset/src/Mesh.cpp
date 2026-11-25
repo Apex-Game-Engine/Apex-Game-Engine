@@ -3,37 +3,37 @@
 #include "Core/Files.h"
 #include "String/AxStream.h"
 
-constexpr static uint32_t MAGIC = 0x58455041; // 'APEX'
-constexpr static uint32_t SIGNATURE_MESH = 0x00000001;
+constexpr static apex::u32 MAGIC = 'APEX';
+constexpr static apex::u32 SIGNATURE_MESH = 'MESH'; // Mesh
+constexpr static apex::u32 SIGNATURE_MATL = 'MATL'; // Material
+constexpr static apex::u32 SIGNATURE_SKEL = 'SKEL'; // Skeleton
+constexpr static apex::u32 SIGNATURE_ANIM = 'ANIM'; // Animation
 
 namespace apex::asset {
 
-	namespace detail
-	{
-		const PFN_MeshLoaderUserAllocate defaultAlloc = mem::GlobalMemoryOperators::OperatorNew;
-		const PFN_MeshLoaderUserFree defaultFree = mem::GlobalMemoryOperators::OperatorDelete;
+	//namespace detail
+	//{
+	//	const PFN_MeshLoaderUserAllocate defaultAlloc = mem::GlobalMemoryOperators::OperatorNew;
+	//	const PFN_MeshLoaderUserFree defaultFree = mem::GlobalMemoryOperators::OperatorDelete;
 
-		PFN_MeshLoaderUserAllocate memAlloc = defaultAlloc;
-		PFN_MeshLoaderUserFree memFree = defaultFree;
-	}
+	//	PFN_MeshLoaderUserAllocate memAlloc = defaultAlloc;
+	//	PFN_MeshLoaderUserFree memFree = defaultFree;
+	//}
 
 	struct MeshData
 	{
-		uint32_t streamCount;
-		uint32_t attributeCount;
-		uint32_t indexCount;
-		uint32_t vertexCount;
-		MeshStream* pStreams;
-		MeshAttribute* pAttributes;
-		uint32_t* pIndices;
-		void* pVertices;
+		gfx::VertexFormat vertexFormat;
+		u32 vertexCount;
+		u32 indexCount;
+		void *pVertices;
+		u32  *pIndices;
 	};
 
 	static char* ReadFileContents(const char* filename, size_t* out_size)
 	{
 		File file = File::OpenExisting(filename);
 		size_t size = file.GetSize();
-		char* buffer = (char*)detail::memAlloc(sizeof(char) * size);
+		char* buffer = apex_new char[size];
 		file.Read(buffer, size);
 		*out_size = size;
 		return buffer;
@@ -46,86 +46,92 @@ namespace apex::asset {
 		return sizeWritten;
 	}
 
-	static u32 CalculateVertexStride(const MeshData* mesh)
+	ReadOnlyMeshData::~ReadOnlyMeshData()
 	{
-		uint32_t vertexStride = 0;
-		for (uint32_t i = 0; i < mesh->streamCount; i++)
-	    {
-	        vertexStride += mesh->pStreams[i].stride;
-	    }
-		return vertexStride;
-	}
-
-	MeshRef::~MeshRef()
-	{
-		if (m_data == nullptr)
+		if (m_data == nullptr || (m_flags & NEEDS_DELETION_BIT) == 0)
 			return;
-		detail::memFree((char*)m_data - sizeof(MAGIC) - sizeof(SIGNATURE_MESH));
+		if (m_flags & SEPARATE_ALLOCATIONS_BIT)
+		{
+			delete[] static_cast<u8*>(m_data->pVertices);
+			delete[] m_data->pIndices;
+		}
+		if (m_flags & HAS_HEADER_BIT)
+			delete[] (reinterpret_cast<char*>(m_data) - sizeof(MAGIC) - sizeof(SIGNATURE_MESH));
+		else
+			delete[] reinterpret_cast<char*>(m_data);
 	}
 
-	MeshRef::MeshRef(MeshRef&& other) noexcept
+	ReadOnlyMeshData::ReadOnlyMeshData(ReadOnlyMeshData&& other) noexcept
+		: m_data(other.m_data), m_flags(0)
 	{
-		*this = std::move(other);
+		other.m_data = nullptr;
 	}
 
-	MeshRef& MeshRef::operator=(MeshRef&& other) noexcept
+	ReadOnlyMeshData& ReadOnlyMeshData::operator=(ReadOnlyMeshData&& other) noexcept
 	{
 		m_data = other.m_data;
 		other.m_data = nullptr;
 		return *this;
 	}
 
-	AxArrayRef<MeshStream> MeshRef::GetStreams() const
+	ReadOnlyMeshStream ReadOnlyMeshData::GetStream(u32 index) const
 	{
-		return { m_data->pStreams, m_data->streamCount };
+		return { m_data, index };
 	}
 
-	AxArrayRef<MeshAttribute> MeshRef::GetAttributes() const
+	gfx::VertexFormat ReadOnlyMeshData::GetVertexFormat() const
 	{
-		return { m_data->pAttributes, m_data->attributeCount };
+		return m_data->vertexFormat;
 	}
 
-	AxArrayRef<u32> MeshRef::GetIndices() const
+	u32 ReadOnlyMeshData::GetIndexCount() const
 	{
-		return { m_data->pIndices, m_data->indexCount };
+		return m_data->indexCount;
 	}
 
-	VertexList MeshRef::GetVertices() const
+	u32* ReadOnlyMeshData::GetIndices() const
 	{
-		return { m_data->pVertices, CalculateVertexStride(), m_data->vertexCount };
+		return m_data->pIndices;
 	}
 
-	u32 MeshRef::CalculateVertexStride() const
+	u32 ReadOnlyMeshData::GetVertexCount() const
 	{
-		return asset::CalculateVertexStride(m_data);
+		return m_data->vertexCount;
 	}
 
-	MeshGpu MeshRef::UploadToGpu() const
+	void* ReadOnlyMeshData::GetVertices() const
 	{
-		apex::gfx::Buffer* vertexBuffer = apex::gfx::Factory::CreateVertexBuffer("meshVB", sizeof(float) * m_data->vertexCount, nullptr);
-		apex::gfx::Buffer* indexBuffer = apex::gfx::Factory::CreateIndexBuffer("meshIB", sizeof(apex::u32) * m_data->indexCount, nullptr);
-		{
-			apex::gfx::BufferRef vertexStagingBuffer = apex::gfx::Factory::CreateStagingBuffer("Staging-Vertex", sizeof(float) * m_data->vertexCount);
-			apex::gfx::BufferRef indexStagingBuffer = apex::gfx::Factory::CreateStagingBuffer("Staging-Index", sizeof(apex::u32) * m_data->indexCount);
-
-			apex::memcpy_s<float>(vertexStagingBuffer->GetMappedPointer(), m_data->vertexCount, (float*)m_data->pVertices, m_data->vertexCount);
-			apex::memcpy_s<apex::u32>(indexStagingBuffer->GetMappedPointer(), m_data->indexCount, (float*)m_data->pIndices, m_data->indexCount);
-
-			apex::gfx::Factory::StageBuffer(vertexStagingBuffer.Get(), vertexBuffer);
-			apex::gfx::Factory::StageBuffer(indexStagingBuffer.Get(), indexBuffer);
-			apex::gfx::Factory::FlushStagingBatch();
-		}
-
-		return { vertexBuffer, indexBuffer };
+		return m_data->pVertices;
 	}
 
-	void MeshLoader::SetUserMemoryCallbacks(PFN_MeshLoaderUserAllocate allocate_fn, PFN_MeshLoaderUserFree free_fn)
+	ReadOnlyMeshStream::ReadOnlyMeshStream(MeshData* data, u32 stream_index)
+		: m_data(data), m_streamIndex(stream_index)
+	{
+		m_data->vertexFormat.RetrieveStreamAtIndex(m_streamIndex, m_offsetAndStride);
+	}
+
+#if APEX_TOOL
+	ReadOnlyMeshData MeshDataBuilder::Build(gfx::VertexFormat vertex_format, u32 size, u8* vertices, u32 count, u32* indices) const
+	{
+		MeshData* data = apex_new MeshData;
+		data->vertexFormat = vertex_format;
+		data->vertexCount = size / data->vertexFormat.CalcVertexStride();
+		data->indexCount = count;
+		data->pVertices = apex_new u8[size];
+		data->pIndices = apex_new u32[count];
+		apex::memcpy_s<u8>(data->pVertices, size, vertices, size);
+		apex::memcpy_s<u32>(data->pIndices, count, indices, count);
+		return { data, ReadOnlyMeshData::NEEDS_DELETION_BIT | ReadOnlyMeshData::SEPARATE_ALLOCATIONS_BIT };
+	}
+#endif // APEX_TOOL
+
+	/*void MeshLoader::SetUserMemoryCallbacks(PFN_MeshLoaderUserAllocate allocate_fn, PFN_MeshLoaderUserFree free_fn)
 	{
 		detail::memAlloc = allocate_fn ? allocate_fn : detail::defaultAlloc;
 		detail::memFree = free_fn ? free_fn : detail::defaultFree;
-	}
+	}*/
 
-	MeshRef MeshLoader::ReadFromFile(const char* filename)
+	APEX_EXPORT ReadOnlyMeshData APEX_API MeshLoader::ReadFromFile(const char* filename, MeshExporterFlags flags)
 	{
 		size_t size;
 		char* buffer = ReadFileContents(filename, &size);
@@ -133,58 +139,55 @@ namespace apex::asset {
 
 		AxStreamReader reader { buffer, size };
 
-		if (const uint32_t magic = *reader.ReadObject<uint32_t>(); !axVerify(magic == MAGIC))
+		if (const u32 magic = *reader.ReadObject<u32>(); !axVerify(magic == MAGIC))
 		{
-			detail::memFree(buffer);
-			return { nullptr };
+			delete[] buffer;
+			return { nullptr, 0 };
 		}
 
-		if (const uint32_t signature = *reader.ReadObject<uint32_t>(); !axVerify(signature == SIGNATURE_MESH))
+		if (const u32 signature = *reader.ReadObject<u32>(); !axVerify(signature == SIGNATURE_MESH))
 		{
-			detail::memFree(buffer);
-			return { nullptr };
+			delete[] buffer;
+			return { nullptr, 0 };
 		}
 
 		MeshData* outMesh = reader.ReadObject<MeshData>();
-		outMesh->pStreams = reader.ReadArray<MeshStream>(outMesh->streamCount);
-		const uint32_t vertexStride = CalculateVertexStride(outMesh);
-		outMesh->pAttributes = reader.ReadArray<MeshAttribute>(outMesh->attributeCount);
-		outMesh->pIndices = reader.ReadArray<uint32_t>(outMesh->indexCount);
+		const u32 vertexStride = outMesh->vertexFormat.CalcVertexStride();
+		outMesh->pIndices = reader.ReadArray<u32>(outMesh->indexCount);
 		outMesh->pVertices = reader.ReadArray<char>((size_t)outMesh->vertexCount * vertexStride);
 
-		return { outMesh };
+		return { outMesh, ReadOnlyMeshData::NEEDS_DELETION_BIT | ReadOnlyMeshData::HAS_HEADER_BIT };
 	}
 
-	size_t MeshLoader::WriteToFile(const MeshRef& ref, const char* filename)
+	APEX_EXPORT size_t APEX_API MeshLoader::WriteToFile(const ReadOnlyMeshData& ref, const char* filename, MeshExporterFlags flags)
 	{
 		const MeshData* mesh = ref.m_data;
 
-		const uint32_t vertexStride = CalculateVertexStride(mesh);
+		const u32 vertexStride = mesh->vertexFormat.CalcVertexStride();
 
 		const size_t size = sizeof(MAGIC) + sizeof(SIGNATURE_MESH) + sizeof(MeshData)
-						+ sizeof(MeshStream) * mesh->streamCount
-						+ sizeof(MeshAttribute) * mesh->attributeCount
-						+ sizeof(uint32_t) * mesh->indexCount
+						+ sizeof(u32) * mesh->indexCount
 						+ (size_t)vertexStride * mesh->vertexCount;
 
-		char* buffer = (char*)detail::memAlloc(sizeof(char) * size);
+		char* buffer = (char*)apex_new char[size];
 
 		AxStreamWriter writer { buffer, size };
+		AxStreamReader reader { buffer, size };
 
-		writer.WriteObject(&MAGIC);
-		writer.WriteObject(&SIGNATURE_MESH);
+		writer.WriteObject<u32>(&MAGIC);
+		// axCriticalAssert(*reader.ReadObject<u32>() == MAGIC);
+		axInfoFmt("magic = {:x} | MAGIC = {:x}", *reader.ReadObject<u32>(), MAGIC);
+		writer.WriteObject<u32>(&SIGNATURE_MESH);
+		axInfoFmt("signature_mesh = {:x} | SIGNATURE_MESH = {:x}", *reader.ReadObject<u32>(), SIGNATURE_MESH);
 		writer.WriteObject(mesh);
-		writer.WriteArray(mesh->pStreams, mesh->streamCount);
-		writer.WriteArray(mesh->pAttributes, mesh->attributeCount);
 		writer.WriteArray(mesh->pIndices, mesh->indexCount);
 		writer.WriteArray((char*)mesh->pVertices, (size_t)mesh->vertexCount * vertexStride);
 
 		size_t bytesWritten = WriteFileContents(filename, buffer, size);
 
-		detail::memFree(buffer);
+		delete[] buffer;
 
 		return bytesWritten;
 	}
 
-	
 }

@@ -12,7 +12,7 @@ else()
     FetchContent_Declare(
         googletest
         GIT_REPOSITORY https://github.com/google/googletest.git
-        GIT_TAG        03597a01ee50ed33e9dfd640b249b4be3799d395
+        GIT_TAG        v1.17.0
     )
 endif()
 
@@ -33,6 +33,8 @@ add_subdirectory(Foundation)
 add_subdirectory(Platform)
 add_subdirectory(Mount)
 add_subdirectory(Graphics)
+add_subdirectory(Entity)
+add_subdirectory(Scheduler)
 #add_subdirectory(Startup)
 
 unset(CMAKE_FOLDER)

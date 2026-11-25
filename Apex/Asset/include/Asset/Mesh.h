@@ -5,14 +5,14 @@
 #include "Core/Types.h"
 
 #include "Graphics/GraphicsContext.h"
+#include "Graphics/Renderer.h"
 
 namespace apex {
 namespace asset {
 	
 	struct MeshData;
-	class MeshGpu;
 
-	enum class MeshLoaderFlagBits : u32
+	enum class MeshExporterFlagBits : u32
 	{
 		None				= 0x00000000,
 		Triangulate			= 0x00000001,
@@ -20,111 +20,80 @@ namespace asset {
 		CalculateNormals	= 0x00000004,
 		CalculateTangents	= 0x00000008,
 	};
-	using MeshLoaderFlags = Flags<MeshLoaderFlagBits>;
-	DEFINE_BITWISE_OPERATORS(MeshLoaderFlagBits, MeshLoaderFlags);
+	using MeshExporterFlags = Flags<MeshExporterFlagBits>;
+	DEFINE_BITWISE_OPERATORS(MeshExporterFlagBits, MeshExporterFlags);
 
-	enum class MeshAttribute
-	{
-		Position,
-		Normal,
-		Tangent,
-		TexCoords0,
-		TexCoords1,
-		Color,
-		BoneWeights,
-		BoneIndices,
-	};
+	// Forward declarations
+	class ReadOnlyMeshData;
+	class ReadOnlyMeshStream;
 
-	struct MeshStream
+	class ReadOnlyMeshData
 	{
-		uint32_t stride;
-		uint32_t attributeStart;
-		uint32_t attributeCount;
-		uint32_t dataOffset;
-	};
+		enum FlagBits
+		{
+			NONE						= 0x00,
+			NEEDS_DELETION_BIT			= 0x01,
+			HAS_HEADER_BIT				= 0x02,
+			SEPARATE_ALLOCATIONS_BIT	= 0x04,
+		};
+		typedef u32 Flags;
 
-	struct VertexList
-	{
-		void* data;
-		u32 stride;
-		u32 count;
-	};
-
-	class MeshRef
-	{
 	public:
-		~MeshRef();
-		NON_COPYABLE(MeshRef);
-		MeshRef(MeshRef&&) noexcept;
-		MeshRef& operator=(MeshRef&&) noexcept;
+		~ReadOnlyMeshData();
+		NON_COPYABLE(ReadOnlyMeshData);
+		ReadOnlyMeshData(ReadOnlyMeshData&&) noexcept;
+		ReadOnlyMeshData& operator=(ReadOnlyMeshData&&) noexcept;
 
-		AxArrayRef<MeshStream> GetStreams() const;
-		AxArrayRef<MeshAttribute> GetAttributes() const;
-		AxArrayRef<u32> GetIndices() const;
-		VertexList GetVertices() const;
-
-		u32 CalculateVertexStride() const;
-
-		MeshGpu UploadToGpu() const;
+		ReadOnlyMeshStream	GetStream(u32 index) const;
+		gfx::VertexFormat	GetVertexFormat() const;
+		u32					GetIndexCount() const;
+		u32*				GetIndices() const;
+		u32					GetVertexCount() const;
+		void*				GetVertices() const;
 
 	private:
-		constexpr MeshRef(MeshData* data) : m_data(data) {}
+		constexpr ReadOnlyMeshData(MeshData* data, Flags flags) : m_data(data), m_flags(flags) {}
 
 	private:
 		MeshData* m_data;
+		Flags m_flags;
 
 		friend class MeshLoader;
+		friend class MeshDataBuilder;
 	};
 
-	class MeshGpu
+	class ReadOnlyMeshStream
 	{
 	public:
-		MeshGpu() = default;
-		~MeshGpu() = default;
-		NON_COPYABLE(MeshGpu);
-		
-		MeshGpu(MeshGpu&& other) noexcept
-			: m_vertexBuffer(std::move(other.m_vertexBuffer)) , m_indexBuffer(std::move(other.m_indexBuffer))
-		{
-		}
-		
-		MeshGpu& operator=(MeshGpu&& other) noexcept
-		{
-			m_vertexBuffer = std::move(other.m_vertexBuffer);
-			m_indexBuffer = std::move(other.m_indexBuffer);
-		}
+		~ReadOnlyMeshStream() = default;
 
-		const gfx::BufferRef& GetVertexBuffer() const { return m_vertexBuffer; }
-		const gfx::BufferRef& GetIndexBuffer() const { return m_indexBuffer; }
+
 
 	private:
-		MeshGpu(gfx::Buffer* vertex_buffer, gfx::Buffer* index_buffer)
-			: m_vertexBuffer(vertex_buffer), m_indexBuffer(index_buffer)
-		{
-		}
+		ReadOnlyMeshStream(MeshData* data, u32 stream_index);
 
 	private:
-		gfx::BufferRef m_vertexBuffer;
-		gfx::BufferRef m_indexBuffer;
+		MeshData* m_data;
+		u32 m_streamIndex;
+		gfx::VertexAttributeStream m_offsetAndStride;
 
-		friend class MeshRef;
+		friend class ReadOnlyMeshData;
 	};
 
-	using PFN_MeshLoaderUserAllocate = void*(*)(size_t);
-	using PFN_MeshLoaderUserFree = void(*)(void*);
+#if APEX_TOOL
+	class MeshDataBuilder
+	{
+	public:
+		MeshDataBuilder() = default;
+		ReadOnlyMeshData Build(gfx::VertexFormat vertex_format, u32 size, u8* vertices, u32 count, u32* indices) const;
+	};
+#endif
 
 	class MeshLoader
 	{
 	public:
-		static void SetUserMemoryCallbacks(PFN_MeshLoaderUserAllocate allocate_fn, PFN_MeshLoaderUserFree free_fn);
-
-		constexpr MeshLoader(MeshLoaderFlags flags = MeshLoaderFlagBits::None) : m_flags(flags) {}
-
-		MeshRef ReadFromFile(const char* filename);
-		size_t WriteToFile(const MeshRef& ref, const char* filename);
-
-	private:
-		MeshLoaderFlags m_flags;
+		APEX_EXPORT static ReadOnlyMeshData		APEX_API ReadFromFile	(const char* filename, MeshExporterFlags flags = MeshExporterFlagBits::None);
+		APEX_EXPORT static size_t				APEX_API WriteToFile	(const ReadOnlyMeshData& ref, const char* filename, MeshExporterFlags flags = MeshExporterFlagBits::None);
 	};
 
 }

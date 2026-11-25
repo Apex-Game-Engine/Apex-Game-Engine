@@ -1,0 +1,8 @@
+[pipeline]
+name=StandardPhongPipeline
+shaders.vertex=X:\ApexGameEngine-Vulkan\build-msvc\Apex\Graphics\shaders\standard_phong.vert.spv
+shaders.fragment=X:\ApexGameEngine-Vulkan\build-msvc\Apex\Graphics\shaders\standard_phong.frag.spv
+[pipeline]
+name=SkyGradientPipeline
+shaders.vertex=X:\ApexGameEngine-Vulkan\build-msvc\Apex\Graphics\shaders\gradient_sky.vert.spv
+shaders.fragment=X:\ApexGameEngine-Vulkan\build-msvc\Apex\Graphics\shaders\gradient_sky.frag.spv

@@ -8,6 +8,7 @@ file(GLOB_RECURSE SHADER_FILES
         shaders/*.frag
         shaders/*.comp
         shaders/*.glsl
+        shaders/*.slang
 )
 file(GLOB_RECURSE SHADER_INCLUDES shaders/*.glh)
 
@@ -40,14 +41,20 @@ endif()
 message("${IMGUI_HEADERS}")
 
 message(CHECK_START "Finding glslc")
-
 find_package(Vulkan 1.4 REQUIRED COMPONENTS glslc)
 find_program(GLSLC NAMES glslc HINTS Vulkan::glslc)
-
 if(DEFINED GLSLC)
-    message(CHECK_PASS "found at ${GLSLC}")
+    message(CHECK_PASS "glslc found at ${GLSLC}")
 else()
-    message(CHECK_PASS "not found")
+    message(CHECK_FAIL "glslc not found")
+endif()
+
+message(CHECK_START "Finding slangc")
+find_program(SLANGC NAMES slangc HINTS ${VULKAN_SDK})
+if(DEFINED SLANGC)
+    message(CHECK_PASS "slangc found at ${SLANGC}")
+else()
+    message(CHECK_FAIL "slangc not found")
 endif()
 
 group_header_files(${HEADER_FILES})
@@ -74,6 +81,7 @@ add_library(ApexGraphics STATIC
     ${IMGUI_HEADERS}
     ${IMGUI_SOURCES}
     ${APEX_THIRDPARTY_DIR}/SPIRV-Reflect/spirv_reflect.c
+    ${APEX_THIRDPARTY_DIR}/utils/stb_image.h
 )
 
 target_compile_definitions(ApexGraphics
@@ -89,10 +97,9 @@ target_compile_definitions(ApexGraphics
 
 target_link_libraries(ApexGraphics
 	PRIVATE
+    ApexInterface
 	ApexFoundation
     ApexPlatform
-
-    PUBLIC
     Vulkan::Vulkan
 )
 
@@ -101,6 +108,7 @@ target_include_directories(ApexGraphics
     include
     ${Vulkan_INCLUDE_DIRS}
     ${APEX_THIRDPARTY_DIR}/vma
+	${APEX_THIRDPARTY_DIR}/utils/
 	${APEX_THIRDPARTY_DIR}/imgui-docking/
     ${APEX_THIRDPARTY_DIR}/SPIRV-Reflect
     ${APEX_THIRDPARTY_DIR}/tracy/public/tracy
@@ -115,9 +123,4 @@ add_shader_library(ApexShaders
     ${SHADER_FILES}
     INCLUDES
     ${SHADER_INCLUDES}
-)
-
-target_include_directories(ApexShaders
-	INTERFACE
-	shaders
 )

@@ -10,15 +10,21 @@ namespace apex {
 	class AxStaticString
 	{
 	public:
+		constexpr AxStaticString() = default;
+
 		constexpr explicit AxStaticString(AxStringView str) noexcept
 		: AxStaticString{str.data(), std::make_integer_sequence<u16, N>{}}
 		{}
 
 		constexpr const char* data() const noexcept { return m_chars; }
 
-		constexpr u16 size() const noexcept { return N; }
+		constexpr char* data() noexcept { return m_chars; }
 
-		constexpr operator AxStringView() const noexcept { return {data(), size()}; }
+		constexpr u16 calculateLength() const noexcept { return strnlen(m_chars, N); }
+
+		constexpr u16 capacity() const noexcept { return N; }
+
+		constexpr operator AxStringView() const noexcept { return {data(), capacity()}; }
 
 	private:
 		template <u16... I>

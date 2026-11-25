@@ -18,7 +18,4 @@ add_shader_library(TerrainGeneratorShaders
 	simulate_erosion.comp
 )
 
-target_link_libraries(TerrainGeneratorShaders
-	INTERFACE
-	ApexShaders
-)
+add_dependencies(TerrainGeneratorShaders ApexShaders)

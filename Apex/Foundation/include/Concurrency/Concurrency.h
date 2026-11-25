@@ -14,7 +14,7 @@ namespace concurrency {
 	};
 
 	template <typename T>
-	concept try_lockable = lockable && requires(T t)
+	concept try_lockable = lockable<T> && requires(T t)
 	{
 		{ t.try_lock() } -> std::same_as<bool>;
 	};

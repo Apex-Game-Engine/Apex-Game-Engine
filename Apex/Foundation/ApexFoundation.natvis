@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?> 
 <AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
     
-    <Type Name="apex::AxBaseArray&lt;*,0&gt;">
+    <Type Name="apex::AxArrayBase&lt;*,0&gt;">
         <DisplayString>{{ size={m_size} }}</DisplayString>
         <Expand>
             <Item Name="[size]">m_size</Item>
@@ -34,6 +34,10 @@
     <Type Name="apex::AxString">
         <DisplayString Condition="m_storage.sso.m_isSSO == 1">{m_storage.sso.m_str,s}</DisplayString>
         <DisplayString Condition="m_storage.sso.m_isSSO == 0">{m_storage.non_sso.m_str,s}</DisplayString>
+    </Type>
+    
+    <Type Name="apex::AxConstString">
+        <DisplayString>{(const char*)((size_t)m_str & ~kOwnedMask)}</DisplayString>
     </Type>
     
 </AutoVisualizer>

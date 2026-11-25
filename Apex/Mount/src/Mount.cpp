@@ -11,12 +11,72 @@ namespace apex::mnt {
 
 	static MountManager* s_mountManager;
 
+	constexpr u64 kMaxPathDepth = 128;
+
 	Path::Path(AxString path)
 	{
+		std::replace(path.data(), path.data() + path.size(), '\\', '/');
 		if (axVerify(ValidatePath({ path.data(), path.size() + 1 })))
 		{
 			m_fullpath = std::move(path);
 		}
+	}
+
+	Path Path::ResolveRelative(AxStringView relativePath)
+	{
+		const char* pathStack[kMaxPathDepth];
+		u32 pathDepth = 0;
+
+		auto StackPush = [&](const char* dir)
+		{
+			axAssert(pathDepth < kMaxPathDepth);
+			pathStack[pathDepth++] = dir;
+		};
+
+		auto StackPop = [&]()
+		{
+			axAssert(pathDepth >= 1);
+			pathDepth--;
+		};
+
+		auto AddPathToResolve = [&](char* path) {
+			char *tok, *ctx = nullptr;
+			tok = strtok_s(path, "/", &ctx);
+			while (tok)
+			{
+				if (strcmp(tok, ".") == 0)
+				{
+					continue;
+				}
+				else if (strcmp(tok, "..") == 0)
+				{
+					StackPop();
+				}
+				else
+				{
+					StackPush(tok);
+				}
+				tok = strtok_s(nullptr, "/", &ctx);
+			}
+		};
+
+		AxString basePath { m_fullpath.data() + m_mountEnd + kMountDelimiterLen, (m_fileStart - m_mountEnd - kMountDelimiterLen) };
+		AddPathToResolve(basePath.data());
+		AxString relPath = relativePath;
+		bool isDir = relPath.data()[relPath.GetLength() - 1] == '/';
+		AddPathToResolve(relPath.data());
+
+		AxString resolvedPath = m_fullpath.Substr(0, m_mountEnd + kMountDelimiterLen);
+		for (u32 i = 0; i < pathDepth; ++i)
+		{
+			resolvedPath.Append(pathStack[i]);
+			if (isDir || i != pathDepth - 1)
+			{
+				resolvedPath.Append("/");
+			}
+		}
+
+		return Path{ resolvedPath };
 	}
 
 	bool Path::ValidatePath(AxStringView path)
@@ -91,7 +151,7 @@ namespace apex::mnt {
 				{
 					m_extStart = static_cast<u16>(i);
 
-					while (std::isalnum(c))
+					while (std::isalnum(c) || c == '.')
 						c = path[++i];
 
 					if (c != 0)
@@ -115,22 +175,27 @@ namespace apex::mnt {
 		s_mountManager->~MountManager();
 	}
 
-	MountManager& MountManager::Get()
-	{
-		return *s_mountManager;
-	}
-
 	void MountManager::MountDirectory(AxHashString mnt, const AxString& path)
 	{
-		auto it = m_mounts.find(mnt);
-		if (axVerifyFmt(it == m_mounts.end(), "Mount '{}' already exists!", mnt.GetStr()))
+		MountDirectory(mnt, AxStringView{ path.data(), path.size() });
+	}
+
+	void MountManager::MountDirectory(AxHashString mnt, AxStringView path)
+	{
+		auto it = s_mountManager->m_mounts.find(mnt);
+		if (axVerifyFmt(it == s_mountManager->m_mounts.end(), "Mount '{}' already exists!", mnt.GetStr()))
 		{
-			m_mounts.emplace_hint(it, mnt, apex_new DirectoryMount(mnt.GetStr(), path));
+			s_mountManager->m_mounts.emplace_hint(it, mnt, apex_new LocalMount(mnt.GetStr(), path));
 		}
 	}
 
 	bool MountManager::Exists(const Path& path)
 	{
+		Mount mount = GetMount(AxHashString(path.GetMount(), DontSaveString));
+		if (!mount)
+		{
+			return false;
+		}
 		return false;
 	}
 
@@ -139,16 +204,28 @@ namespace apex::mnt {
 		return nullptr;
 	}
 
-	Mount MountManager::GetMount(AxHashString mnt) const
+	Mount MountManager::GetMount(AxHashString mnt)
 	{
-		auto it = m_mounts.find(mnt);
-		if (it == m_mounts.end()) return {};
+		auto it = s_mountManager->m_mounts.find(mnt);
+		if (it == s_mountManager->m_mounts.end()) return {};
 		return { it->second.get() };
+	}
+
+	bool MountManager::ResolveDevicePath(const Path& path, char *buf, u32 buflen)
+	{
+		Mount mount = GetMount(AxHashString(path.GetMount(), DontSaveString));
+		if (!axVerifyFmt(mount, "Mount point '{}' does not exist!", path.GetMount()))
+		{
+			return false;
+		}
+		auto result = fmt::format_to_n(buf, buflen, "{}/{}", mount.GetPath(), path.GetFilePath());
+		*result.out = '\0';
+		return true;
 	}
 
 	// TODO: Use AxString with Arenas for temporary allocations
 
-	void DirectoryMount::Entry::BuildRecursive(char* searchPath, const size_t pathlen, const size_t maxlen)
+	void LocalMount::Entry::BuildRecursive(char* searchPath, const size_t pathlen, const size_t maxlen)
 	{
 		entries.reserve(8);
 
@@ -239,14 +316,14 @@ namespace apex::mnt {
 #endif
 	}
 
-	void DirectoryMount::RefreshContents()
+	void LocalMount::LoadTree()
 	{
-		AxArray<char> strbuf(1024);
-		strcpy_s(strbuf.dataMutable(), 1024, m_directoryPath.data());
-		m_root->BuildRecursive(strbuf.dataMutable(), m_directoryPath.GetLength(), 1024 - 1);
+		AxStaticArray<char, 1024> strbuf;
+		strcpy_s(strbuf.data(), 1024, m_directoryPath.data());
+		m_root->BuildRecursive(strbuf.data(), m_directoryPath.GetLength(), 1024 - 1);
 	}
 
-	File* DirectoryMount::FindFile() const
+	File* LocalMount::FindFile() const
 	{
 		return nullptr;
 	}

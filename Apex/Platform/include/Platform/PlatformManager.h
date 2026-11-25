@@ -1,5 +1,11 @@
 ﻿#pragma once
 #include "Core/Types.h"
+#include "String/AxStringView.h"
+
+namespace apex
+{
+	class AxString;
+}
 
 namespace apex {
 namespace plat {
@@ -16,7 +22,7 @@ namespace plat {
 		// fullscreen, decoration, callbacks
 	};
 
-	struct PlatformWindowImpl;
+	class PlatformWindowImpl;
 
 	class PlatformWindow
 	{
@@ -28,8 +34,14 @@ namespace plat {
 		void Minimize();
 		void Maximize();
 
-		void GetSize(u32* width, u32* height) const;
+		bool IsMinimized() const;
+
+		Dim2D GetDimensions() const;
+		void GetDimensions(u32* width, u32* height) const;
+
+		Dim2D GetPosition() const;
 		void GetPosition(u32* posX, u32* posY) const;
+
 
 		PlatformHandle GetOsHandle() const;
 		PlatformHandle GetOsApplicationHandle() const;
@@ -64,8 +76,14 @@ namespace plat {
 	#ifdef APEX_PLATFORM_WIN32
 		static PFN_WindowProc SetUserWindowProc(PFN_WindowProc proc);
 	#endif
+		static AxStringView GetExecutablePath();
+		static AxStringView GetWorkingDirectory();
+		static AxString GetEnvVar(const char* name);
+
+		static bool ShowOpenFileDialog(char* out_filepath, u32 buflen);
 
 		static void PollEvents();
+		static void WaitForEvents();
 	};
 
 }

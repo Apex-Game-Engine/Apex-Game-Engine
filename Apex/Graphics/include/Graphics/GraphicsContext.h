@@ -4,45 +4,28 @@
 
 // ApexCore includes
 #include "Core/Types.h"
-#include "Core/Utility.h"
 
 // ApexGraphics includes
 #include "Factory.h"
 #include "Containers/AxArray.h"
-#include "Math/Vector4.h"
+#include "Math/Color.h"
 
 namespace apex::plat
 {
 	class PlatformWindow;
 }
 
+#define GFX_USE_BINDLESS_DESCRIPTORS 1
+
 namespace apex {
 namespace gfx {
+	class VertexBuffer;
 
-	// Forward Declarations
-	class Device;
-	class Queue;
-	class CommandBuffer;
+	constexpr size_t MAX_FRAMES_IN_FLIGHT = 3;
+	constexpr size_t MAX_RENDER_THREADS = 6;
+	constexpr size_t MAX_COMMAND_POOLS_PER_QUEUE = MAX_FRAMES_IN_FLIGHT * MAX_RENDER_THREADS;
 
-	struct DeviceProperties;
-	struct DeviceFeatures;
-
-	class Buffer;
-	class Image;
-
-	class BufferView;
-	class ImageView;
-
-	class DescriptorSet;
-
-	class ShaderModule;
-	class Pipeline;
-	class GraphicsPipeline;
-	class ComputePipeline;
-
-	class Fence;
-
-	enum class ContextApi
+	enum class Api
 	{
 		None,
 		Vulkan,
@@ -50,121 +33,88 @@ namespace gfx {
 		WebGpu,
 	};
 
-	class ContextBase
-	{
-	public:
-		virtual ~ContextBase() = default;
-		
-		virtual void Init(const plat::PlatformWindow& window) = 0;
-		virtual void Shutdown() = 0;
-
-		virtual ContextApi GetApi() const = 0;
-		virtual Device* GetDevice() const = 0;
-		virtual void GetDeviceFeatures(DeviceFeatures& device_features) const = 0;
-		virtual void GetDeviceProperties(DeviceProperties& device_properties) const = 0;
-		
-		virtual void ResizeSurface(u32 width, u32 height) const = 0;
-	};
-
 	class Context
 	{
-	private:
-		Context(ContextBase* context) : m_base(context) {}
 	public:
-		constexpr Context() = default;
-		~Context() = default;
+		virtual ~Context() = default;
 
-		static Context CreateContext(ContextApi api);
-
-		void Init(const plat::PlatformWindow& window) { m_base->Init(window); }
-		void Shutdown()
-		{
-			m_base->Shutdown();
-			delete m_base;
-			m_base = nullptr;
-		}
-
-		ContextBase* GetBase() const { return m_base; }
-
-		ContextApi GetApi() const { return m_base->GetApi(); }
-		Device* GetDevice() const { return m_base->GetDevice(); }
-		void GetDeviceFeatures(DeviceFeatures& device_features) const { m_base->GetDeviceFeatures(device_features); }
-		void GetDeviceProperties(DeviceProperties& device_properties) const { m_base->GetDeviceProperties(device_properties); }
-
-		void ResizeWindow(u32 width, u32 height) const { m_base->ResizeSurface(width, height); }
-
-	private:
-		ContextBase* m_base;
-	};
-
-	class Device
-	{
-	public:
-		virtual ~Device() = default;
+		virtual Api GetApi() const = 0;
+		virtual void GetDeviceFeatures(DeviceFeatures& device_features) const = 0;
+		virtual void GetDeviceProperties(DeviceProperties& device_properties) const = 0;
 
 		virtual u32 GetTotalFramesPresented() const = 0;
-		virtual u32 GetFramesInFlight() const = 0;
+		virtual u32 GetMaxFrameCount() const = 0;
 		virtual u32 GetCurrentFrameIndex() const = 0;
 		virtual u32 GetCurrentSwapchainImageIndex() const = 0;
 		virtual Dim2D GetSurfaceDim() const = 0;
 
-		virtual Queue* GetQueue(QueueType queue_type) = 0;
-		virtual const Queue* GetQueue(QueueType queue_type) const = 0;
-
-		virtual const Image* AcquireNextImage() = 0;
-		virtual void WaitForIdle() const = 0;
-
-		virtual CommandBuffer* AllocateCommandBuffer(QueueType queue, u32 frame, u32 thread) const = 0;
-
-		virtual AxArray<DescriptorSet> AllocateDescriptorSets(GraphicsPipeline* pipeline) const = 0;
-		virtual void UpdateDescriptorSet(DescriptorSet const& descriptor_set) const = 0;
-		virtual void BindSampledImage(ImageView* image_view) = 0;
-		virtual void BindStorageImage(ImageView* image_view) = 0;
-		virtual void BindUniformBuffer(Buffer* buffer) = 0;
-		virtual void BindStorageBuffer(Buffer* buffer) = 0;
-
+		// Resource creation functions
 		virtual ShaderModule* CreateShaderModule(const char* name, const char* filepath) const = 0;
 		virtual GraphicsPipeline* CreateGraphicsPipeline(const char* name, GraphicsPipelineCreateDesc const& desc) const = 0;
 		virtual ComputePipeline* CreateComputePipeline(const char* name, ComputePipelineCreateDesc const& desc) const = 0;
 
 		virtual Buffer* CreateBuffer(const char* name, BufferCreateDesc const& desc) = 0;
-		virtual Buffer* CreateVertexBuffer(const char* name, size_t size, const void* initial_data) = 0;
-		virtual Buffer* CreateIndexBuffer(const char* name, size_t size, const void* initial_data) = 0;
-		virtual Buffer* CreateStagingBuffer(const char* name, size_t size) = 0;
-
 		virtual Image* CreateImage(const char* name, ImageCreateDesc const& desc) = 0;
 		virtual ImageView* CreateImageView(const char* name, ImageViewCreateDesc const& desc) const = 0;
 
 		virtual Fence* CreateFence(const char* name, u64 init_value) = 0;
+		
+		// virtual CommandBuffer* AllocateTransferCommandBuffer() const = 0;
+
+		// Resource binding functions
+	#if !GFX_USE_BINDLESS_DESCRIPTORS
+		virtual AxArray<DescriptorSet> AllocateDescriptorSets(GraphicsPipeline* pipeline) const = 0;
+		virtual void UpdateDescriptorSet(DescriptorSet const& descriptor_set) const = 0;
+	#else
+		virtual void BindSampledImage(ImageView* image_view) = 0;
+		virtual void BindStorageImage(ImageView* image_view) = 0;
+		virtual void BindUniformBuffer(Buffer* buffer, u64 offset = 0, u64 size = WHOLE_SIZE) = 0;
+		virtual void BindStorageBuffer(Buffer* buffer, u64 offset = 0, u64 size = WHOLE_SIZE, u32 index = INVALID_INDEX) = 0;
+	#endif // !GFX_USE_BINDLESS_DESCRIPTORS
+
+		virtual const Image* AcquireNextImage() = 0;
+		virtual void ResizeSurface(u32 width, u32 height) const = 0;
+		virtual void Submit(CommandBuffer* command_buffer) = 0;
+		virtual void Submit(CommandBuffer* command_buffer, bool wait_image_acquired, PipelineStageFlags wait_stage_mask, bool signal_render_complete) = 0;
+		virtual void Submit(CommandBuffer* command_buffer, Fence* fence, u64 wait_value, PipelineStageFlags wait_stage_mask, u64 signal_value) = 0;
+		virtual void Submit(QueueSubmitDesc const& desc) = 0;
+		virtual void Flush() = 0;
+		virtual bool Present() = 0;
+		virtual void WaitForIdle() = 0;
+
+	protected:
+		virtual void Init(const plat::PlatformWindow& window) = 0;
+		virtual void Shutdown() = 0;
+		friend struct Factory;
 	};
 
-	class Queue
+	/*class Queue
 	{
 	public:
 		virtual ~Queue() = default;
 
-		virtual void ResetCommandBuffers(u32 frame_index, u32 thread_idx) const = 0;
-		virtual void ResetCurrentFrameCommandBuffers() const = 0;
+		virtual CommandBuffer* AllocateCommandBuffer(u32 frame_index = -1) = 0;
+		virtual void ResetCommandBuffers(u32 frame_index = -1) = 0;
 
 		virtual void Submit(CommandBuffer* command_buffer) = 0;
 		virtual void Submit(CommandBuffer* command_buffer, bool wait_image_acquired, PipelineStageFlags wait_stage_mask, bool signal_render_complete) = 0;
 		virtual void Submit(CommandBuffer* command_buffer, Fence* fence, u64 wait_value, PipelineStageFlags wait_stage_mask, u64 signal_value) = 0;
 		virtual void Submit(QueueSubmitDesc const& desc) = 0;
 		virtual void Flush() = 0;
-		virtual void Present() = 0;
+		virtual bool Present() = 0;
 		virtual void WaitForIdle() = 0;
 
 		virtual QueueType GetType() const = 0;
 		virtual bool CanPresent() const = 0;
-	};
+	};*/
 
 	class CommandBuffer
 	{
 	public:
-		CommandBuffer() = default;
 		virtual ~CommandBuffer() = default;
 
 		virtual void* GetNativeHandle() = 0;
+		virtual QueueType GetQueueType() const = 0;
 
 		virtual void Begin() = 0;
 		virtual void End() = 0;
@@ -176,23 +126,32 @@ namespace gfx {
 		virtual void Dispatch(Dim3D group_counts) = 0;
 
 		// Graphics Commands
-		virtual void BeginRendering(const ImageView* color_image_view, ImageView const* depth_stencil_image_view, bool clear = true) = 0;
+		virtual void BeginRendering(ImageView const* color_image_view, ImageView const* depth_stencil_image_view, LoadOp load_op = LoadOp::DontCare) = 0;
+		virtual void BeginRendering(AxSpan<ImageView const*> color_image_views, ImageView const* depth_stencil_image_view, LoadOp load_op = LoadOp::DontCare) = 0;
 		virtual void EndRendering() = 0;
 		virtual void BindGraphicsPipeline(GraphicsPipeline const* pipeline) = 0;
 		virtual void BindDescriptorSet(DescriptorSet const& descriptor_set, GraphicsPipeline const* pipeline) = 0;
 		virtual void BindDescriptorSet(DescriptorSet const* descriptor_set, ComputePipeline const* pipeline) = 0;
-		virtual void PushConstants(AxArrayRef<const char> const& bytes) = 0;
+		virtual void PushConstants(AxSpan<const char> const& bytes) = 0;
 		virtual void SetViewport(Viewport viewport) = 0;
 		virtual void SetScissor(Rect2D scissor) = 0;
+		virtual void SetClearColor(Color4f rgba) = 0;
 		virtual void Clear() = 0;
-		virtual void BindVertexBuffer(Buffer const* buffer) = 0;
+		virtual void BindVertexBuffer(VertexBuffer const* buffer) = 0;
 		virtual void BindIndexBuffer(Buffer const* buffer) = 0;
 		virtual void Draw(u32 vertex_count) = 0;
 		virtual void DrawIndexed(u32 index_count) = 0;
 		virtual void DrawIndirect() = 0;
-		virtual void TransitionImage(const Image* image,
+		virtual void TransitionImageCrossQueueFrom(const Image* image,
 									 ImageLayout old_layout, PipelineStageFlags src_stage_mask, AccessFlags src_access_mask, QueueType src_queue,
+									 ImageLayout new_layout, PipelineStageFlags dst_stage_mask, AccessFlags dst_access_mask) = 0;
+		virtual void TransitionImageCrossQueueTo(const Image* image,
+									 ImageLayout old_layout, PipelineStageFlags src_stage_mask, AccessFlags src_access_mask,
 									 ImageLayout new_layout, PipelineStageFlags dst_stage_mask, AccessFlags dst_access_mask, QueueType dst_queue) = 0;
+		virtual void TransitionImage(const Image* image,
+									 ImageLayout old_layout, PipelineStageFlags src_stage_mask, AccessFlags src_access_mask,
+									 ImageLayout new_layout, PipelineStageFlags dst_stage_mask, AccessFlags dst_access_mask) = 0;
+		virtual void TransitionImage(const Image* image, ImageLayout old_layout, ImageLayout new_layout) = 0;
 		virtual void Barrier() = 0;
 		virtual void InsertMemoryBarrier(PipelineStageFlags src_stage_mask, AccessFlags src_access_mask,
 		                                 PipelineStageFlags dst_stage_mask, AccessFlags dst_access_mask) = 0;
@@ -202,7 +161,7 @@ namespace gfx {
 		virtual void BlitImage(Image const* src, ImageLayout src_layout, Image const* dst, ImageLayout dst_layout) = 0;
 		virtual void CopyBuffer(Buffer const* src, Buffer const* dst) = 0;
 		virtual void CopyImageToBuffer(Image const* src, Buffer const* dst) = 0;
-		virtual void CopyImage(Image const* src, Image const* dst) = 0;
+		virtual void CopyImage(Image const* src, ImageLayout src_layout, Image const* dst, ImageLayout dst_layout) = 0;
 		virtual void CopyBufferToImage(Buffer const* src, Image const* dst, ImageLayout layout) = 0;
 		virtual void CopyQueryResults() = 0;
 
@@ -218,54 +177,99 @@ namespace gfx {
 	};
 
 	// Resources
-	class Resource
+	enum class ResourceType : u8
+	{
+		Buffer	 = 0,
+		Image	 = 1,
+	};
+
+	class Unknown
 	{
 	public:
-		Resource() = default;
-		virtual ~Resource() = default;
+		Unknown() = default;
+		virtual ~Unknown() = 0;
+	protected:
+		void AddRef() { (void)m_refCount++; }
+		void Release() { if (--m_refCount == 0) delete this; }	
+	private:
+		std::atomic_uint32_t m_refCount = 1;
+
+		template <typename> friend class RefPtr;
+		friend class CleanupQueue;
+	};
+
+	class Resource : public Unknown
+	{
+	protected:
+		Resource(const char* DEBUG_ONLY(name), ResourceType type, bool is_view)
+			: m_type((u8)type), m_isView(is_view) DEBUG_ONLY(, m_debugName(name))
+		{
+		}
+	public:
+		~Resource() override = default;
 
 		Resource(Resource const&) = delete;
 		Resource& operator=(Resource const&) = delete;
 
-		virtual bool IsValid() const = 0;
-		bool IsImage() const { return m_isImage; }
-		bool IsBuffer() const { return !m_isImage; }
+		virtual bool IsValid() const { return false; }
+		DEBUG_ONLY(const char* GetName() const { return m_debugName; })
+		u8 GetType() const { return m_type; }
+		bool IsBuffer() const { return m_type == (u8)ResourceType::Buffer; }
+		bool IsImage() const { return m_type == (u8)ResourceType::Image; }
 		bool IsView() const { return m_isView; }
 
-		void AddRef() { (void)m_refCount++; }
-		void Release() { if (--m_refCount == 0) delete this; }
-
-	protected:
-		std::atomic_uint32_t m_refCount = 1;
-
+	private:
 		// some metadata about handle - is it a view, is it a buffer or texture, is it a sampler, etc.
-		u16 m_isImage : 1;
+		u16 m_type : 2; // ResourceType
 		u16 m_isView : 1;
+
+		DEBUG_ONLY(const char* m_debugName;)
 	};
 
 	class Buffer : public Resource
 	{
 	public:
-		Buffer()
+		Buffer(const char* name)
+			: Resource(name, ResourceType::Buffer, false)
 		{
-			m_isImage = false;
-			m_isView = false;
 		}
 
-		virtual ~Buffer() override = default;
+		~Buffer() override = default;
 
 		virtual void* GetMappedPointer() const = 0;
 		virtual size_t GetSize() const = 0;
-		virtual u32 GetBindlessIndex(BindlessDescriptorType descriptor_type) const = 0;
+		virtual GlobalDescriptorBinding GetGlobalDescriptorBinding() const = 0;
+		virtual u16 GetGlobalDescriptorIndex() const = 0;
+	};
+
+	class VertexBuffer
+	{
+	public:
+		VertexBuffer(Buffer* buffer, VertexFormat format, u32 vertex_count)
+			: m_buffer(buffer), m_vertexFormat(std::move(format)), m_vertexCount(vertex_count)
+		{
+		}
+
+		void* GetMappedPointer() const { return m_buffer->GetMappedPointer(); }
+		size_t GetSize() const { return m_buffer->GetSize(); }
+		GlobalDescriptorBinding GetGlobalDescriptorBinding() const { return m_buffer->GetGlobalDescriptorBinding(); }
+		u16 GetGlobalDescriptorIndex() const { return m_buffer->GetGlobalDescriptorIndex(); }
+		Buffer* GetBuffer() const { return m_buffer; }
+		VertexFormat const& GetVertexFormat() const { return m_vertexFormat; }
+		u32 GetVertexCount() const { return m_vertexCount; }
+
+	private:
+		Buffer* m_buffer;
+		VertexFormat m_vertexFormat;
+		u32 m_vertexCount;
 	};
 
 	class Image : public Resource
 	{
 	public:
-		Image()
+		Image(const char* name)
+			: Resource(name, ResourceType::Image, false)
 		{
-			m_isImage = true;
-			m_isView = false;
 		}
 
 		virtual ~Image() override = default;
@@ -277,15 +281,26 @@ namespace gfx {
 
 	class BufferView : public Resource
 	{
+	public:
+		BufferView(const char* name)
+			: Resource(name, ResourceType::Buffer, true)
+		{
+		}
 	};
 
 	class ImageView : public Resource
 	{
 	public:
+		ImageView(const char* name)
+			: Resource(name, ResourceType::Image, true)
+		{
+		}
+
 		virtual const Image* GetOwner() const = 0;
 		virtual Image* GetOwner() = 0;
-
-		virtual u32 GetBindlessIndex(BindlessDescriptorType descriptor_type) const = 0;
+		
+		virtual GlobalDescriptorBinding GetGlobalDescriptorBinding() const = 0;
+		virtual u16 GetGlobalDescriptorIndex() const = 0;
 	};
 
 	// Descriptors
@@ -339,16 +354,22 @@ namespace gfx {
 
 
 	// Pipeline
-	class ShaderModule
+	class ShaderModule : public Unknown
 	{
 	public:
-		virtual ~ShaderModule() = default;
+		ShaderModule(const char* name)
+		{
+		}
+		~ShaderModule() override = default;
 	};
 
-	class Pipeline
+	class Pipeline : public Unknown
 	{
 	public:
-		virtual ~Pipeline() = default;
+		Pipeline(const char* name)
+		{
+		}
+		~Pipeline() override = default;
 
 		bool IsGraphicsPipeline() const { return !IsComputeEnabled(); }
 		bool IsComputePipeline() const { return IsComputeEnabled(); }
@@ -359,12 +380,20 @@ namespace gfx {
 
 	class GraphicsPipeline : public Pipeline
 	{
+	public:
+		GraphicsPipeline(const char* name) : Pipeline(name) {}
+		~GraphicsPipeline() override = default;
+
+		virtual u64 GetVertexFormatHash() const = 0;
 	private:
 		bool IsComputeEnabled() const override { return false; }
 	};
 
 	class ComputePipeline : public Pipeline
 	{
+	public:
+		ComputePipeline(const char* name) : Pipeline(name) {}
+		~ComputePipeline() override = default;
 	private:
 		bool IsComputeEnabled() const override { return true; }
 	};
@@ -382,34 +411,23 @@ namespace gfx {
 		virtual u64 GetValue() const = 0;
 	};
 
-
-	// Rendering
-	class RenderPass; // collection of input and output states, bindings. -> declarative definition of state transitions
-	class Technique; // sequence of render passes, pipelines, their resources, and the rendering algorithm
-	class Effect; // interface to be implemented by any shader effect or renderer
-
-
-	// Task Graph (FrameGraph)
-	class TaskGraph;
-	class TaskDesc;
-	class TaskAttachmentDesc;
-
-
 	// Reference counted resource reference
-	template <typename ResourceT>
-	class ResourceRef
+	template <typename _Unknown>
+	class RefPtr
 	{
 	public:
-		using value_type = ResourceT;
-		using pointer    = ResourceT*;
-		using reference  = ResourceT&;
+		using value_type = _Unknown;
+		using pointer    = _Unknown*;
+		using reference  = _Unknown&;
 
-		ResourceRef() = default;
-		ResourceRef(std::nullptr_t) {}
-		ResourceRef(pointer resource) : m_ptr(resource) {}
+		RefPtr() = default;
+		RefPtr(std::nullptr_t) {}
+		RefPtr(pointer resource) : m_ptr(resource)
+		{
+		}
 
-		ResourceRef(ResourceRef const& other) : m_ptr(other.m_ptr) { if (m_ptr) m_ptr->AddRef(); }
-		ResourceRef& operator=(ResourceRef const& other)
+		RefPtr(RefPtr const& other) : m_ptr(other.m_ptr) { if (m_ptr) m_ptr->AddRef(); }
+		RefPtr& operator=(RefPtr const& other)
 		{
 			if (this == &other)
 				return *this;
@@ -420,8 +438,8 @@ namespace gfx {
 			return *this;
 		}
 
-		ResourceRef(ResourceRef&& other) noexcept : m_ptr(other.m_ptr) { other.m_ptr = nullptr; }
-		ResourceRef& operator=(ResourceRef&& other) noexcept
+		RefPtr(RefPtr&& other) noexcept : m_ptr(other.m_ptr) { other.m_ptr = nullptr; }
+		RefPtr& operator=(RefPtr&& other) noexcept
 		{
 			if (this == &other)
 				return *this;
@@ -432,12 +450,11 @@ namespace gfx {
 			return *this;
 		}
 
-		ResourceRef& operator=(std::nullptr_t) { Reset(); return *this; }
+		RefPtr& operator=(std::nullptr_t) { Reset(); return *this; }
 
-		~ResourceRef() { if (m_ptr) m_ptr->Release(); }
+		~RefPtr() { if (m_ptr) m_ptr->Release(); }
 
-		reference Get() { return *m_ptr; }
-		pointer GetPointer() { return m_ptr; }
+		pointer Get() const { return m_ptr; }
 
 		void Reset()
 		{
@@ -445,39 +462,49 @@ namespace gfx {
 			m_ptr = nullptr;
 		}
 
-		pointer operator->() { return m_ptr; }
+		void Swap(RefPtr& other)
+		{
+			if (this == &other)
+				return;
+			pointer tmp = other.m_ptr;
+			other.m_ptr = m_ptr;
+			m_ptr = tmp;
+		}
+
+		pointer operator->() const { return m_ptr; }
+
+		operator bool() const { return m_ptr; }
 
 	private:
-		ResourceT* m_ptr = nullptr;
+		_Unknown* m_ptr = nullptr;
 	};
 
-	template <typename R> using Ref = ResourceRef<R>;
-
-	using BufferRef = ResourceRef<Buffer>;
-	using ImageRef = ResourceRef<Image>;
-
+	using BufferRef = RefPtr<Buffer>;
+	using ImageRef = RefPtr<Image>;
+	using ShaderModuleRef = RefPtr<ShaderModule>;
+	using GraphicsPipelineRef = RefPtr<GraphicsPipeline>;
+	using ComputePipelineRef = RefPtr<ComputePipeline>;
 
 	class AutoSubmitCommandBuffer
 	{
 	public:
-		AutoSubmitCommandBuffer(Context& ctx, QueueType queue_type)
-			: m_queue(ctx.GetDevice()->GetQueue(queue_type)), m_commandBuffer(ctx.GetDevice()->AllocateCommandBuffer(queue_type, 0, 0))
+		AutoSubmitCommandBuffer(Context& context, CommandBuffer& command_buffer)
+			: m_context(&context), m_commandBuffer(&command_buffer)
 		{}
 
 		~AutoSubmitCommandBuffer()
 		{
-			m_queue->Submit(m_commandBuffer);
-			m_queue->WaitForIdle();
+			m_context->Submit(m_commandBuffer);
+			m_context->WaitForIdle();
 			delete m_commandBuffer;
 		}
 
-		Queue* GetQueue() const { return m_queue; }
 		CommandBuffer* GetCommandBuffer() const { return m_commandBuffer; }
 
-		operator bool() const { return m_commandBuffer && m_queue; }
+		operator bool() const { return m_commandBuffer; }
 
 	private:
-		Queue* m_queue;
+		Context* m_context;
 		CommandBuffer* m_commandBuffer;
 	};
 
@@ -497,6 +524,37 @@ namespace gfx {
 
 	private:
 		CommandBuffer* m_commandBuffer;
+	};
+
+	class CleanupQueue
+	{
+	public:
+		CleanupQueue() = default;
+		~CleanupQueue()
+		{
+			Cleanup();
+		}
+
+		void Add(Resource* resource)
+		{
+			m_resources.emplace_back(resource);
+		}
+
+		void Cleanup()
+		{
+			for (auto& resource : m_resources)
+			{
+				if (resource)
+				{
+					resource->Release();
+					resource = nullptr;
+				}
+			}
+			m_resources.reset();
+		}
+
+	private:
+		AxArray<Resource*> m_resources;
 	};
 
 } // namespace gfx

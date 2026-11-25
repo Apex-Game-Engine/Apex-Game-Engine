@@ -16,6 +16,8 @@ namespace apex
 namespace apex {
 namespace mnt {
 
+	constexpr u64 kMaxPathLength = 300;
+
 	class Path
 	{
 	public:
@@ -39,7 +41,7 @@ namespace mnt {
 		[[nodiscard]] AxStringView GetFileBaseName() const { return m_fullpath ? SubPath(m_fileStart, m_extStart-1) : AxStringView{}; }
 		[[nodiscard]] AxStringView GetFileExtension() const { return m_fullpath && m_extStart ? SubPath(m_extStart) : AxStringView{}; }
 
-
+		Path ResolveRelative(AxStringView relativePath);
 
 	protected:
 		bool ValidatePath(AxStringView path);
@@ -107,15 +109,16 @@ namespace mnt {
 	public:
 		static void Init();
 		static void Shutdown();
-		static MountManager& Get();
 
-		void MountDirectory(AxHashString mnt, const AxString& path);
-		void MountArchive(AxHashString mnt, const char* path);
-		void MountVirtual(AxHashString mnt);
+		static void MountDirectory(AxHashString mnt, const AxString& path);
+		static void MountDirectory(AxHashString mnt, AxStringView path);
+		static void MountArchive(AxHashString mnt, const char* path);
+		static void MountVirtual(AxHashString mnt);
 
-		bool Exists(const Path& path);
-		File* Open(const Path& path);
-		Mount GetMount(AxHashString mnt) const;
+		static bool Exists(const Path& path);
+		static File* Open(const Path& path);
+		static Mount GetMount(AxHashString mnt);
+		static bool ResolveDevicePath(const Path& path, char* buf, u32 buflen);
 
 	private:
 		MountManager() = default;
@@ -123,7 +126,7 @@ namespace mnt {
 		AxDenseHashMap<AxHashString, UniquePtr<IMount>> m_mounts;
 	};
 
-	class DirectoryMount : public IMount
+	class LocalMount : public IMount
 	{
 	private:
 		struct Entry
@@ -154,13 +157,13 @@ namespace mnt {
 		};
 
 	public:
-		DirectoryMount(AxString mnt, AxString path)
+		LocalMount(AxString mnt, AxString path)
 			: m_directoryPath(std::move(path)), m_root(apex::make_unique<Entry>(std::move(mnt)))
 		{
-			RefreshContents();
+			//RefreshContents();
 		}
 
-		void RefreshContents();
+		void LoadTree();
 
 		const char* GetName() const override { return m_root->name.c_str(); }
 		const char* GetPath() const override { return m_directoryPath.c_str(); }
@@ -198,14 +201,6 @@ namespace mnt {
 					: FindMountDelimiter(str, index + 1)
 				: AxStringView::npos;
 	}
-	
-	constexpr AxHashString AxPath(AxStringView str)
-	{
-		size_t del = FindMountDelimiter(str);
-		return del != AxStringView::npos ? AxHashString{ str.substr(del + 3) } : AxHashString{};
-	}
-
-	static_assert(AxPath("assets://meshes/characters/CatM_Milio_00.axmesh") == AxHashString("meshes/characters/CatM_Milio_00.axmesh"));
 
 }
 }

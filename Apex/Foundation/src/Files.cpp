@@ -1,8 +1,11 @@
 ﻿#include "Core/Files.h"
 
+#include "String/AxString.h"
+
 
 #ifdef APEX_PLATFORM_WIN32
-#	include <windows.h>
+#	define WIN32_LEAN_AND_MEAN
+#	include <Windows.h>
 #endif
 
 namespace apex {
@@ -135,6 +138,12 @@ namespace apex {
 		return { handle, size, filename, flags };
 	}
 
+	bool File::Exists(char const* filename)
+	{
+		DWORD dwAttrib = GetFileAttributesA(filename);
+		return dwAttrib != INVALID_FILE_ATTRIBUTES && !(dwAttrib & FILE_ATTRIBUTE_DIRECTORY);
+	}
+
 	size_t File::GetSize() const
 	{
 		return m_size;
@@ -203,5 +212,52 @@ namespace apex {
 	#else
 		#error Not implemented!
 	#endif
+	}
+
+	void PathUtils::NormalizeSeparators(AxString& filepath)
+	{
+		std::ranges::replace(filepath, '\\', '/');
+	}
+
+	AxStringView PathUtils::GetExtension(AxStringView filepath)
+	{
+		size_t pos = filepath.find_last_of('.');
+		return filepath.substr(pos);
+	}
+
+	AxStringView PathUtils::GetFilename(AxStringView filepath)
+	{
+		size_t pos = filepath.find_last_of("/\\");
+		return filepath.substr(pos != AxStringView::npos ? pos : 0);
+	}
+
+	AxStringView PathUtils::GetFilenameNoExt(AxStringView filepath)
+	{
+		size_t dot = filepath.find_last_of('.');
+		size_t slash = filepath.find_last_of("/\\", dot);
+		if (slash != AxStringView::npos && dot != AxStringView::npos)
+		{
+			return filepath.substr(slash, dot - slash);
+		}
+		if (slash != AxStringView::npos)
+		{
+			return filepath.substr(slash);
+		}
+		return filepath.substr(0, dot);
+	}
+
+	std::pair<AxStringView, AxStringView> PathUtils::GetFilenameAndExtension(AxStringView filepath)
+	{
+		size_t dot = filepath.find_last_of('.');
+		size_t slash = filepath.find_last_of("/\\", dot);
+		if (slash != AxStringView::npos && dot != AxStringView::npos)
+		{
+			return { filepath.substr(slash, dot - slash), filepath.substr(dot) };
+		}
+		if (slash != AxStringView::npos)
+		{
+			return { filepath.substr(slash), {} };
+		}
+		return { filepath.substr(0, dot), filepath.substr(dot) };
 	}
 }

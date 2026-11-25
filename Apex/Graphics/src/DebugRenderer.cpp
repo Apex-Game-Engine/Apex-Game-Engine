@@ -9,8 +9,8 @@ namespace apex::gfx {
 
 	DebugRenderer* DebugRenderer::Create(Device* device, DebugRendererCreateDesc const& desc)
 	{
-		ShaderModule* vertexShader = device->CreateShaderModule("DebugRenderer-VertexShader", R"(X:\ApexGameEngine-Vulkan\build-msvc\Apex\Graphics\spv\debug_lines.vert.spv)");
-		ShaderModule* fragmentShader = device->CreateShaderModule("DebugRenderer-FragmentShader", R"(X:\ApexGameEngine-Vulkan\build-msvc\Apex\Graphics\spv\debug_lines.frag.spv)");;
+		ShaderModule* vertexShader = device->CreateShaderModule("DebugRenderer-VertexShader", R"(X:\ApexGameEngine-Vulkan\build-msvc\Apex\Graphics\shaders\debug_lines.vert.spv)");
+		ShaderModule* fragmentShader = device->CreateShaderModule("DebugRenderer-FragmentShader", R"(X:\ApexGameEngine-Vulkan\build-msvc\Apex\Graphics\shaders\debug_lines.frag.spv)");;
 		GraphicsPipeline* pipeline = device->CreateGraphicsPipeline("DebugRendererPipeline", 
 			{
 				.shaderStages = { vertexShader, fragmentShader },
@@ -39,7 +39,7 @@ namespace apex::gfx {
 			.createMapped = true,
 		};
 
-		for (u32 i = 0; i < device->GetFramesInFlight(); i++)
+		for (u32 i = 0; i < device->GetMaxFrameCount(); i++)
 		{
 			debugRenderer->m_vertexBuffers[i] = device->CreateBuffer("DebugRenderer-VertexBuffer", vertexBufferDesc);
 			debugRenderer->m_indexBuffers[i] = device->CreateBuffer("DebugRenderer-IndexBuffer", indexBufferDesc);
@@ -62,7 +62,7 @@ namespace apex::gfx {
 
 	void DebugRenderer::NewFrame()
 	{
-		m_frameIndex = (m_frameIndex + 1) / m_device->GetFramesInFlight();
+		m_frameIndex = (m_frameIndex + 1) / m_device->GetMaxFrameCount();
 		m_vertexCount = 0;
 		m_indexCount = 0;
 	}
@@ -75,7 +75,7 @@ namespace apex::gfx {
 			u32 bufferIndex;
 		} pc {
 			.color = { 0.0, 1.0, 1.0, 1.0 },
-			.bufferIndex = m_vertexBuffers[m_frameIndex]->GetBindlessIndex(BindlessDescriptorType::StorageBuffer)
+			.bufferIndex = m_vertexBuffers[m_frameIndex]->GetGlobalDescriptorIndex()
 		};
 
 		ScopedGpuLabel(cmd);

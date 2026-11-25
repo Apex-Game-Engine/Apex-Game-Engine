@@ -52,31 +52,46 @@ function(add_shader_library Target)
     set(SPIRV_OUTPUTS)
     foreach(source ${arg_SOURCES})
 		cmake_path(ABSOLUTE_PATH source NORMALIZE)
+        cmake_path(RELATIVE_PATH source BASE_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} OUTPUT_VARIABLE relative_path)
         cmake_path(GET source FILENAME source_filename)
-        set(spirv_output "${CMAKE_CURRENT_BINARY_DIR}/spv/${source_filename}.spv")
-        message(STATUS "Adding ${source_filename} as shader source")
+        cmake_path(GET source EXTENSION source_extension)
+        set(spirv_output "${CMAKE_CURRENT_BINARY_DIR}/${relative_path}.spv")
         list(APPEND SHADER_SOURCES ${source})
 		list(APPEND SPIRV_OUTPUTS ${spirv_output})
+        set(glsl_extensions .vert .frag .geom .tese .tesc .comp .glsl)
+        set(slang_extensions .slang .sl .slh)
+        if("${source_extension}" IN_LIST slang_extensions)
+            message(STATUS "Adding Slang shader ${source_filename}")
+		    add_custom_command(
+			    OUTPUT ${spirv_output}
+			    DEPENDS ${source}
+			    COMMAND
+				    ${SLANGC} ${source}
+                    -profile glsl_460
+				    -target spirv
+				    -I $<TARGET_PROPERTY:${Target},INTERFACE_INCLUDE_DIRECTORIES>
+				    -o ${spirv_output}
+			    COMMENT "[slangc] Compiling shader ${source} -> ${spirv_output}"
+			    VERBATIM
+		    )
+        elseif("${source_extension}" IN_LIST glsl_extensions)
+            message(STATUS "Adding GLSL shader ${source_filename}")
+            add_custom_command(
+			    OUTPUT ${spirv_output}
+			    DEPENDS ${source}
+			    COMMAND
+				    ${GLSLC}
+                    --target-env=vulkan1.4
+				    -I $<TARGET_PROPERTY:${Target},INTERFACE_INCLUDE_DIRECTORIES>
+				    -o ${spirv_output}
+                    ${source}
+			    COMMENT "[glslc] Compiling shader ${source} -> ${spirv_output}"
+			    VERBATIM
+		    )
+        endif()
     endforeach()
-	set(TargetSpv "${Target}_SPV")
-    add_custom_target(${TargetSpv} ALL DEPENDS ${SPIRV_OUTPUTS} ${arg_SOURCES} ${arg_INCLUDES})
-	add_library(${Target} INTERFACE)
-	foreach(source spirv_output IN ZIP_LISTS SHADER_SOURCES SPIRV_OUTPUTS)
-		add_custom_command(
-			OUTPUT ${spirv_output}
-			DEPENDS ${source}
-			COMMAND
-				${GLSLC}
-				--target-env=vulkan1.3
-				-I "$<TARGET_PROPERTY:${Target},INTERFACE_INCLUDE_DIRECTORIES>"
-				-o ${spirv_output}
-				${source}
-			COMMENT "Compiling shader file : ${source}"
-			VERBATIM
-		)
-	endforeach()
-	target_sources(${Target} PRIVATE ${arg_SOURCES} ${arg_INCLUDES})
-	add_dependencies(${Target} ${TargetSpv})
+    add_custom_target(${Target} ALL DEPENDS ${SPIRV_OUTPUTS} SOURCES ${arg_SOURCES} ${arg_INCLUDES})
+	
 endfunction()
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL Clang AND "x${CMAKE_CXX_SIMULATE_ID}" STREQUAL "xMSVC")

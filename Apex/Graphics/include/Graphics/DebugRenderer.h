@@ -1,5 +1,5 @@
 ﻿#pragma once
-#include "gfx_config.h"
+#include "Graphics/GraphicsContext.h"
 #include "Core/Types.h"
 
 namespace apex::gfx

@@ -9,7 +9,7 @@ namespace math {
 
 	struct Random
 	{
-		static void init();
+		static void Init();
 
 		static s32 randomInt32();
 		static f32 randomFloat32();

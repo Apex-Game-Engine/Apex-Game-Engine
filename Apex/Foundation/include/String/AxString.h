@@ -9,6 +9,12 @@ namespace apex {
 	class AxString
 	{
 	public:
+		using value_type = char;
+		using pointer = char*;
+		using const_pointer = const char*;
+		using iterator = pointer;
+		using const_iterator = const_pointer;
+
 		constexpr AxString() = default;
 
 		~AxString()
@@ -61,17 +67,17 @@ namespace apex {
 
 		void reserve(size_t bytes)
 		{
-			axAssert(capacity() == 0);
+			axAssert(IsSSO());
 			if (bytes < kSsoBufSize)
 			{
-				m_storage.sso.m_isSSO = true;
+				m_storage.sso.m_isNonSSO = false;
 				m_storage.sso.m_length = 0;
 				m_storage.sso.m_str[0] = '\0';
 			}
 			else
 			{
 				Allocate(bytes);
-				m_storage.non_sso.m_isSSO = false;
+				m_storage.non_sso.m_isNonSSO = true;
 				m_storage.non_sso.m_length = 0;
 				m_storage.non_sso.m_str[0] = '\0';
 			}
@@ -103,8 +109,13 @@ namespace apex {
 			memset(&m_storage, 0, sizeof(Storage));
 		}
 
-		char* data() { return IsSSO() ? m_storage.sso.m_str : m_storage.non_sso.m_str; }
-		[[nodiscard]] const char* data() const { return const_cast<AxString*>(this)->data(); }
+		iterator begin() { return data(); }
+		iterator end() { return data() + size(); }
+		const_iterator begin() const { return data(); }
+		const_iterator end() const { return data() + size(); }
+
+		pointer data() { return IsSSO() ? m_storage.sso.m_str : m_storage.non_sso.m_str; }
+		[[nodiscard]] const_pointer data() const { return const_cast<AxString*>(this)->data(); }
 		[[nodiscard]] const char* c_str() const { return data(); }
 
 		[[nodiscard]] size_t capacity() const { return IsSSO() ? kSsoBufSize : m_storage.non_sso.m_capacity; }
@@ -130,6 +141,11 @@ namespace apex {
 			return Append(s.data(), s.size());
 		}
 
+		AxString Substr(size_t start, size_t len)
+		{
+			return AxString{ data() + start, len };
+		}
+
 	protected:
 		void Allocate(size_t capacity)
 		{
@@ -141,14 +157,14 @@ namespace apex {
 
 		bool IsSSO() const
 		{
-			return m_storage.sso.m_isSSO;
+			return !m_storage.sso.m_isNonSSO;
 		}
 
 		void SetCString(const char* str, size_t len)
 		{
 			if (len < kSsoBufSize)
 			{
-				m_storage.sso.m_isSSO = true;
+				m_storage.sso.m_isNonSSO = false;
 				m_storage.sso.m_length = static_cast<u8>(len);
 				::memcpy_s(m_storage.sso.m_str, kSsoBufSize-1, str, len);
 				m_storage.sso.m_str[len] = '\0';
@@ -156,7 +172,7 @@ namespace apex {
 			else
 			{
 				Allocate(len + 1);
-				m_storage.non_sso.m_isSSO = false;
+				m_storage.non_sso.m_isNonSSO = true;
 				m_storage.non_sso.m_length = len;
 				::memcpy_s(m_storage.non_sso.m_str, m_storage.non_sso.m_capacity-1, str, len);
 				m_storage.non_sso.m_str[len] = '\0';
@@ -182,15 +198,15 @@ namespace apex {
 		{
 			struct NonSSO
 			{
-				size_t m_isSSO    : 1;      // 0
+				size_t m_isNonSSO : 1;      // 0
 				size_t m_capacity : 63;	    // 8
 				size_t m_length;            // 16
 				char* m_str;                // 24
 			} non_sso;
 			struct SSO
 			{
-				u8 m_isSSO : 1;             // 0
-				u8 m_length  : 7;           // 1
+				u8 m_isNonSSO : 1;          // 0
+				u8 m_length   : 7;          // 1
 				char m_str[kSsoBufSize];    // 24
 			} sso;
 		} m_storage {};

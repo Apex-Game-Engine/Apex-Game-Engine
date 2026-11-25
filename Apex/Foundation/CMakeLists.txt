@@ -9,14 +9,11 @@ add_library(ApexFoundation STATIC
     ${HEADER_FILES}
     ${SOURCE_FILES}
     ${NATVIS_FILES}
+
+    ${APEX_THIRDPARTY_DIR}/xxHash/xxhash.c
 )
 
 target_compile_definitions(ApexFoundation
-    PRIVATE
-    APEX_INTERNAL
-    APEX_EXPORTS
-    ${APEX_ENABLES}
-
     PUBLIC
     "$<$<CONFIG:Debug,DebugGame,Development>:APEX_ENABLE_MEMORY_TRACKING>"
 )
@@ -25,6 +22,7 @@ target_include_directories(ApexFoundation
     PUBLIC
     include
     ${APEX_THIRDPARTY_DIR}/ankerl/
+    ${APEX_THIRDPARTY_DIR}/xxHash/
 
     PRIVATE
     src
@@ -32,6 +30,9 @@ target_include_directories(ApexFoundation
 )
 
 target_link_libraries(ApexFoundation
+    PRIVATE
+    ApexInterface
+
 	PUBLIC
 	fmt::fmt-header-only
 )

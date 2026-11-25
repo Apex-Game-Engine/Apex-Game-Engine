@@ -16,8 +16,6 @@ target_link_libraries(ApexGraphicsTests
     ApexGraphics
     ApexPlatform
     ApexAsset
-	ApexShaders
-    ApexImGui
 
     PRIVATE
     Tracy::TracyClient
@@ -28,6 +26,8 @@ target_link_libraries(ApexGraphicsTests
 target_include_directories(ApexGraphicsTests
     PRIVATE
 )
+
+add_dependencies(ApexGraphicsTests ApexShaders)
 
 #include(GoogleTest)
 #gtest_discover_tests(Startup_test)

@@ -11,19 +11,16 @@ add_library(ApexAsset STATIC
 
 target_compile_definitions(ApexAsset
     PRIVATE
-    APEX_INTERNAL
-    APEX_EXPORTS
-    ${APEX_ENABLES}
-    $<$<CONFIG:Debug>:APEX_ENABLE_CHECKS>
+    "$<$<CONFIG:Debug>:APEX_ENABLE_CHECKS>"
 )
 
 target_link_libraries(ApexAsset
-    PUBLIC
+    PRIVATE
+    ApexInterface
     ApexFoundation
     ApexGraphics
-
-    PRIVATE
     meshoptimizer
+    pugixml
 )
 
 target_include_directories(ApexAsset
